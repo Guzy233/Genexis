@@ -1,46 +1,13 @@
 import Manager, { objects } from "../Manager";
-import { idFromEvent, Node, Operators, Obj, Vec2 } from "../Globals";
-import { registerSetting } from "../Option";
+import { idFromEvent, Node, Operators, Obj, Vec2, screen2Viewport } from "../Globals";
+import { registerSetting, getSetting } from "../Option";
 import { atom } from "jotai";
 
-// 选择系统状态
-let activedId: string = "";
-let extendKey: string = "Shift";
-
-// 框选状态
+// 框选框组件接口
 interface SelectionBox extends Obj {
   start: Vec2;
   end: Vec2;
 }
-
-let selectionBox: SelectionBox | null = null;
-let isBoxSelecting = false;
-let isExtendSelection = false; // 框选时是否扩展选择
-
-// 注册设置项
-registerSetting({
-  id: "selector.extendKey",
-  category: "Selector",
-  title: "扩展选中键",
-  type: "key",
-  defaultValue: "Shift",
-  value: "Shift",
-  description: "按下此键时选择节点会保留当前选中状态",
-  onChange: (v) => { extendKey = v; },
-});
-
-registerSetting({
-  id: "selector.boxSelectButton",
-  category: "Selector",
-  title: "框选触发键",
-  type: "number",
-  defaultValue: 1,
-  value: 1,
-  description: "1=左键, 2=中键, 0/2=右键(取决于系统)",
-  onChange: (v) => { boxSelectButton = v; },
-});
-
-let boxSelectButton: number = 1; // 中键
 
 // 检查按键是否按下
 const isKeyPressed = (key: string, e: MouseEvent): boolean => {
@@ -65,41 +32,107 @@ const isNodeInBox = (node: Node, box: SelectionBox): boolean => {
   return nodeLeft < maxX && nodeRight > minX && nodeTop < maxY && nodeBottom > minY;
 };
 
-// 窗口失去焦点时清理框选
-const onBlur = () => {
-  if (isBoxSelecting && selectionBox) {
-    Manager.deleteId(selectionBox.id);
-    selectionBox = null;
-    isBoxSelecting = false;
+export let activedId=''
+
+// 清除所有选中状态
+const clearSelection = (includeActived: boolean) => {
+  Object.values(objects).forEach((obj) => {
+    if ("selected" in obj) {
+      obj.selected = false;
+      Manager.update(obj);
+    }
+  });
+  if (includeActived) {
+    activedId='';
   }
 };
 
-// 点击处理：选择和激活
+// 点击处理
 const onMouseDown = (e: MouseEvent) => {
   const id = idFromEvent(e, ".node-group");
+
+  // 获取当前设置值
+  const extendKey = getSetting("selector.extendKey")?.value as string || "Shift";
+  const boxSelectButton = getSetting("selector.boxSelectButton")?.value as number || 1;
 
   // 框选
   if (e.button === boxSelectButton && !id) {
     e.preventDefault();
-    isBoxSelecting = true;
 
-    // 保存扩展键状态
-    isExtendSelection = isKeyPressed(extendKey, e);
+    // 获取扩展键状态
+    const isExtendSelection = isKeyPressed(extendKey, e);
 
     // 非扩展模式下清除选择
     if (!isExtendSelection) {
       clearSelection(true);
     }
 
-    selectionBox = {
+    // 创建框选框
+    const selectionBox: SelectionBox = {
       id: "selection-box",
       type: "ui/selectionBox",
       updater: atom(0),
-      start: { x: e.clientX, y: e.clientY },
-      end: { x: e.clientX, y: e.clientY },
+      start: screen2Viewport({ x: e.clientX, y: e.clientY }),
+      end: screen2Viewport({ x: e.clientX, y: e.clientY }),
     };
     Manager.add(selectionBox);
 
+    // 框选状态管理（闭包内）
+    let isSelecting = true;
+    const extendMode = isExtendSelection;
+
+    const onBlur = () => {
+      if (isSelecting) {
+        Manager.deleteId(selectionBox.id);
+        isSelecting = false;
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+        window.removeEventListener("blur", onBlur);
+      }
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isSelecting) return;
+
+      // 更新框选区域
+      selectionBox.end = screen2Viewport({ x: e.clientX, y: e.clientY });
+      Manager.update(selectionBox);
+
+      // 动态更新框选内的节点状态
+      Object.values(objects).forEach((obj) => {
+        if (!obj.type.startsWith("node/")) return;
+
+        const node = obj as Node;
+        const inBox = isNodeInBox(node, selectionBox);
+
+        if (extendMode) {
+          // 扩展模式：只在框内时选中，不取消
+          if (inBox && !node.selected) {
+            node.selected = true;
+            Manager.update(obj);
+          }
+        } else {
+          // 普通模式：根据是否在框内设置选中状态
+          if (node.selected !== inBox) {
+            node.selected = inBox;
+            Manager.update(obj);
+          }
+        }
+      });
+    };
+
+    const onMouseUp = () => {
+      if (isSelecting) {
+        isSelecting = false;
+        Manager.deleteId(selectionBox.id);
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+        window.removeEventListener("blur", onBlur);
+      }
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
     window.addEventListener("blur", onBlur);
     return;
   }
@@ -124,90 +157,35 @@ const onMouseDown = (e: MouseEvent) => {
   node.selected = !node.selected;
 
   // 设置为激活状态
-  activedId = id;
+  activedId="";
   Manager.updateId(id);
 };
 
-const onMouseMove = (e: MouseEvent) => {
-  if (!isBoxSelecting || !selectionBox) return;
-
-  // 更新框选区域
-  selectionBox.end = { x: e.clientX, y: e.clientY };
-  Manager.update(selectionBox);
-
-  // 动态更新框选内的节点状态
-  Object.values(objects).forEach((obj) => {
-    if (!obj.type.startsWith("node/")) return;
-
-    const node = obj as Node;
-    const inBox = isNodeInBox(node, selectionBox!);
-
-    if (isExtendSelection) {
-      // 扩展模式：只在框内时选中，不取消
-      if (inBox && !node.selected) {
-        node.selected = true;
-        Manager.update(obj);
-      }
-    } else {
-      // 普通模式：根据是否在框内设置选中状态
-      if (node.selected !== inBox) {
-        node.selected = inBox;
-        Manager.update(obj);
-      }
-    }
-  });
-};
-
-const onMouseUp = (_e: MouseEvent) => {
-  if (!isBoxSelecting || !selectionBox) return;
-
-  isBoxSelecting = false;
-
-  // 清除框选框和 blur 监听
-  Manager.deleteId(selectionBox.id);
-  selectionBox = null;
-  window.removeEventListener("blur", onBlur);
-};
-
-// 清除所有选中状态
-const clearSelection = (includeActived: boolean) => {
-  Object.values(objects).forEach((obj) => {
-    if ("selected" in obj) {
-      obj.selected = false;
-      Manager.update(obj);
-    }
-  });
-  if (includeActived) {
-    activedId = "";
-  }
-};
-
-// 获取当前激活的节点ID
-export const getActivedId = () => activedId;
-
-// 检查节点是否被激活
-export const isActived = (id: string) => activedId === id;
-
-// 清除选择
+// 清除选择（供外部调用）
 export const clearAllSelection = () => clearSelection(true);
 
-Operators.push({
-  Begin: () => {
-    window.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  },
-  End: () => {
-    window.removeEventListener("mousedown", onMouseDown);
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-    window.removeEventListener("blur", onBlur);
+// 注册设置项
+registerSetting({
+  id: "selector.extendKey",
+  category: "Selector",
+  title: "扩展选中键",
+  type: "key",
+  defaultValue: "Shift",
+  value: "Shift",
+  description: "按下此键时选择节点会保留当前选中状态",
+});
 
-    // 清理可能的框选残留
-    if (isBoxSelecting && selectionBox) {
-      Manager.deleteId(selectionBox.id);
-      selectionBox = null;
-      isBoxSelecting = false;
-    }
-  },
+registerSetting({
+  id: "selector.boxSelectButton",
+  category: "Selector",
+  title: "框选触发键",
+  type: "number",
+  defaultValue: 1,
+  value: 1,
+  description: "1=左键, 2=中键, 0/2=右键(取决于系统)",
+});
+
+Operators.push({
+  Begin: () => window.addEventListener("mousedown", onMouseDown),
+  End: () => window.removeEventListener("mousedown", onMouseDown),
 });

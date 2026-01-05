@@ -1,9 +1,24 @@
 import Manager, { objects } from "../Manager";
-import Settings from "../Settings";
 import { idFromEvent, Node, Operators, viewport } from "../Globals";
+import { registerSetting } from "../Option";
+
+let draggingKey: number = 0
+
+registerSetting(
+  {
+      id: "dragger.key",
+      category: "Dragger",
+      title: "拖动节点",
+      type: "number",
+      defaultValue: 0,
+      value: 0,
+      // description?: "string",
+      onChange:(v)=>draggingKey=v,// 值变化时通知注册者
+  }
+)
 
 export const onClickNode = (e: MouseEvent) => {
-  if (e.button !== Settings.Dragging) return;
+  if (e.button !== draggingKey) return;
   const id = idFromEvent(e, ".node-group");
   if (!id) return;
 

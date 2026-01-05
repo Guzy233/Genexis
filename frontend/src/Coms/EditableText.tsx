@@ -7,8 +7,8 @@ interface EditableTextProps {
     newText: string,
     newSize: { width: number; height: number }
   ) => void;
-  onStartEditing?: () => void; // 通知外层开始编辑（如锁定画布滚动）
-  onEndEditing?: () => void; // 通知外层结束编辑
+  onStartEditing?: () => void;
+  onEndEditing?: () => void;
   fontSize?: string;
 }
 
@@ -31,14 +31,12 @@ export const EditableText: React.FC<EditableTextProps> = ({
     onStartEditing?.();
   }, [onStartEditing]);
 
-  // 2. 结束编辑并清理
   const stopEditing = useCallback(() => {
     setIsEditing(false);
     onEndEditing?.();
     window.removeEventListener("mousedown", onMouseDown, true);
   }, [onEndEditing]);
 
-  // 3. 尺寸计算逻辑
   const measureText = useCallback(
     (val: string) => {
       const canvas = document.createElement("canvas");
@@ -59,12 +57,6 @@ export const EditableText: React.FC<EditableTextProps> = ({
       stopEditing();
     }
   };
-  useEffect(() => {
-    if (!isEditing) return;
-
-    window.addEventListener("mousedown", onMouseDown, true);
-    return () => window.removeEventListener("mousedown", onMouseDown, true);
-  }, [isEditing, stopEditing]);
 
   useEffect(() => {
     if (isEditing) {
