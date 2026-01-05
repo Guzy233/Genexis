@@ -336,3 +336,12 @@ body {
   justify-content: center;
   pointer-events: none;
 }
+
+/* ImageNode styles */
+.node-url-input {
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.node-url-input::placeholder {
+  color: #bbb;
+}

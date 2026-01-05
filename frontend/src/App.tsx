@@ -8,6 +8,7 @@ import SettingsPanel from "./Coms/SettingPanel";
 import ToolBar from "./Coms/ToolBar";
 
 import "./Coms/TextNode";
+import "./Coms/ImageNode";
 import "./Coms/CurveEdge";
 import "./Coms/SelectionBox";
 
