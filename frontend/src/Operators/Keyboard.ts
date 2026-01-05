@@ -1,5 +1,7 @@
-import { Operators } from "../Globals";
+import { Operators, Obj } from "../Globals";
 import { registerSetting, setValue, getSetting } from "../Option";
+import Manager from "../Manager";
+import { objects } from "../Manager";
 
 // 键盘操作枚举
 export const KeyAction = {
@@ -52,9 +54,7 @@ function updateBinding(action: KeyAction, key: string): void {
 
 // 键盘事件处理
 const onKeyDown = (e: KeyboardEvent): void => {
-  if (e.key === "Tab") {
-    e.preventDefault();
-  }
+  e.preventDefault();
   if (e.repeat) return;
 
   const query =
@@ -70,7 +70,6 @@ const onKeyDown = (e: KeyboardEvent): void => {
 };
 
 const executeAction = (action: KeyAction): void => {
-  // TODO: 实现具体的操作逻辑
   switch (action) {
     case KeyAction.COPY:
       console.log("Copy");
@@ -78,18 +77,53 @@ const executeAction = (action: KeyAction): void => {
     case KeyAction.PASTE:
       console.log("Paste");
       break;
-    case KeyAction.DELETE:
-      console.log("Delete");
+    case KeyAction.DELETE: {
+      // 删除选中的节点及其连接的边
+      const objs = Object.values(objects);
+      // 找出选中的节点ID
+      const selectedNodeIds = new Set<string>();
+      objs.forEach((obj) => {
+        if (obj.type.startsWith("node/") && "selected" in obj && (obj as { selected?: boolean }).selected) {
+          selectedNodeIds.add(obj.id);
+        }
+      });
+
+      if (selectedNodeIds.size === 0) return;
+
+      // 找出连接到选中节点的边
+      const edgesToDelete: string[] = [];
+      objs.forEach((obj) => {
+        if (obj.type.startsWith("edge/")) {
+          const edge = obj as unknown as { id: string; source: { id: string }; target: { id: string } };
+          if (selectedNodeIds.has(edge.source.id) || selectedNodeIds.has(edge.target.id)) {
+            edgesToDelete.push(edge.id);
+          }
+        }
+      });
+
+      // 删除边
+      edgesToDelete.forEach((id) => Manager.deleteId(id));
+      // 删除节点
+      selectedNodeIds.forEach((id) => Manager.deleteId(id));
       break;
+    }
     case KeyAction.UNDO:
       console.log("Undo");
       break;
     case KeyAction.REDO:
       console.log("Redo");
       break;
-    case KeyAction.SELECT_ALL:
-      console.log("Select All");
+    case KeyAction.SELECT_ALL: {
+      // 选中所有节点
+      const objs = Object.values(objects);
+      objs.forEach((obj) => {
+        if (obj.type.startsWith("node/")) {
+          (obj as { selected?: boolean }).selected = true;
+          Manager.update(obj);
+        }
+      });
       break;
+    }
     case KeyAction.SHOW_ACTIONS:
       // 切换显示设置面板（由外部处理）
       break;
