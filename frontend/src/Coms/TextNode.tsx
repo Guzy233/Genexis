@@ -1,6 +1,7 @@
+import React from "react";
 import { atom, useAtom } from "jotai";
-import Manager, { objects } from "../Manager";
-import { Obj, Anchor, anchors_rect, Node, Coms, idFromEvent } from "../Globals";
+import Manager from "../Manager";
+import { Obj, Anchor, anchors_rect, Node, Coms, NodeFactories, ToolItems } from "../Globals";
 import { activedId } from "../Operators/Selector";
 import { EditableText } from "./EditableText";
 
@@ -21,17 +22,32 @@ const getStrokeColor = (node: TextNode) => {
 };
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
-export const defaultTextNode: TextNode = {
-  id: "base",
-  type: "node/text",
-  updater: atom(0),
-  pos: { x: 0, y: 0 },
-  size: { x: 100, y: 50 },
-  text: "New Node",
-  selected: false,
-  eAncs: anchors_default,
-  aAncs: anchors_rect,
+
+// 工厂函数：创建新的文本节点
+export const createTextNode = (): TextNode => {
+  return {
+    id: crypto.randomUUID(),
+    type: "node/text",
+    updater: atom(0),
+    pos: { x: 0, y: 0 },
+    size: { x: 100, y: 50 },
+    text: "New Node",
+    selected: false,
+    eAncs: anchors_default,
+    aAncs: anchors_rect,
+  };
 };
+
+// 注册节点工厂
+NodeFactories["node/text"] = createTextNode;
+
+// 注册工具项
+ToolItems.push({
+  id: "node/text",
+  category: "Nodes",
+  icon: <span style={{ fontSize: 16 }}>📄</span>,
+  createNode: createTextNode,
+});
 
 export const TextNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   useAtom(obj.updater);

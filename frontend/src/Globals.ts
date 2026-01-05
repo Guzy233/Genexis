@@ -102,6 +102,20 @@ export const Coms: Record<
 
 export const Operators: { Begin: () => any, End: () => any }[] = [];
 
+// 工具注册表（由各模块注册）
+export interface ToolItem {
+  id: string;
+  category: string;
+  icon: React.ReactNode;
+  createNode: () => Node;
+}
+
+// 节点工厂字典：用于从类型创建虚拟节点预览
+export const NodeFactories: Record<string, () => Node> = {};
+
+// 工具项注册表
+export const ToolItems: ToolItem[] = [];
+
 export default {
   distance,
   subtract,

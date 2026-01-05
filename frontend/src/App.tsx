@@ -5,6 +5,7 @@ import { useAtom } from "jotai";
 import { objects, canvasUpdater } from "./Manager";
 
 import SettingsPanel from "./Coms/SettingPanel";
+import ToolBar from "./Coms/ToolBar";
 
 import "./Coms/TextNode";
 import "./Coms/CurveEdge";
@@ -52,6 +53,9 @@ const App: React.FC = () => {
 
       {/* 设置面板 */}
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+
+      {/* 工具栏 */}
+      <ToolBar />
 
       <svg width="100%" height="100%" className="mindmap-svg">
         <defs>

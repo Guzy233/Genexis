@@ -67,7 +67,7 @@ body {
 .settings-toggle {
   position: fixed;
   top: 10px;
-  left: 10px;
+  left: 90px;
   width: 36px;
   height: 36px;
   border: none;
@@ -87,7 +87,7 @@ body {
 .settings-panel {
   position: fixed;
   top: 50px;
-  left: 10px;
+  left: 90px;
   width: 280px;
   max-height: calc(100vh - 70px);
   background: rgba(255, 255, 255, 0.95);
@@ -267,4 +267,72 @@ body {
 
 .dragging .node-group {
   cursor: grabbing !important;
+}
+
+/* ToolBar styles */
+.toolbar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 80px;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  border-right: 1px solid #e0e0e0;
+  overflow-y: auto;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.toolbar-category {
+  margin-bottom: 16px;
+}
+
+.toolbar-category-title {
+  font-size: 10px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  text-align: center;
+}
+
+.toolbar-items {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-item {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  transition: all 0.15s ease;
+}
+
+.toolbar-item:hover {
+  background: #e8e8e8;
+}
+
+.toolbar-item.selected {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+
+.toolbar-item-preview {
+  width: 60px;
+  height: 60px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
