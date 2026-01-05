@@ -7,7 +7,7 @@ import {
   Node,
   Coms,
 } from "./Globals";
-import { actionBus } from "./ActionServer";
+// import { actionBus } from "./ActionServer";
 import { atom, Atom, PrimitiveAtom, useAtom } from "jotai";
 
 // import "./Edge.css";
@@ -174,16 +174,6 @@ const CurveEdgeComponent: React.FC<{
     return `M ${source.x} ${source.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${finalTargetX} ${finalTargetY}`;
   }, [resolvedPoints, edge]);
 
-  // 事件处理函数
-  const handleReconnect = (side: "s" | "t", e: React.MouseEvent) => {
-    e.stopPropagation();
-    actionBus.despacth({
-      type: "RECONNECT",
-      target: edge,
-      side: side,
-      pos: { x: e.clientX, y: e.clientY },
-    });
-  };
 
   if (!resolvedPoints) return null;
 
@@ -210,21 +200,10 @@ const CurveEdgeComponent: React.FC<{
         stroke="transparent"
         strokeWidth="14"
         onMouseDown={(e) => {
-          actionBus.despacth({
-            type: "POINTER_DOWN",
-            target: edge,
-            pos: screen2Viewport({ x: e.clientX, y: e.clientY }),
-            button: e.button,
-          });
-          e.stopPropagation();
+
         }}
         onDoubleClick={(e) => {
-          actionBus.despacth({
-            type: "POINTER_DBCLICK",
-            target: edge,
-            pos: screen2Viewport({ x: e.clientX, y: e.clientY }),
-          });
-          e.stopPropagation();
+
         }}
       />
 
@@ -243,7 +222,7 @@ const CurveEdgeComponent: React.FC<{
         cy={resolvedPoints.source.y}
         r="12"
         className="reconnect-trigger"
-        onMouseDown={(e) => handleReconnect("s", e)}
+        onMouseDown={(e) => {}}
       />
 
       {/* 终点圆点 */}
@@ -261,7 +240,7 @@ const CurveEdgeComponent: React.FC<{
         cy={resolvedPoints.target.y}
         r="12"
         className="reconnect-trigger"
-        onMouseDown={(e) => handleReconnect("t", e)}
+        onMouseDown={(e) => {}}
       />
     </g>
   );

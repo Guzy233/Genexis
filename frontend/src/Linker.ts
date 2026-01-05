@@ -1,12 +1,28 @@
 import Manager, { objects } from "./Manager";
-import Settings from "./Settings";
 import { newCurveEdge } from "./CurveEdge";
 import { idFromEvent, Node, Operators } from "./Globals";
 import { defaultTextNode } from "./TextNode";
 import { atom } from "jotai";
+import { registerSetting } from "./Option";
+
+// 连接器状态
+let isLinking = false; // TODO: 实现连接状态管理
+let linkingKey = "Space"; // TODO: 实现键盘触发的连接开始
+
+// 注册设置项
+registerSetting({
+  id: "linker.startKey",
+  category: "Linker",
+  title: "开始连接",
+  type: "key",
+  defaultValue: "Space",
+  value: "Space",
+  description: "按下此键进入连接模式",
+  onChange: (v) => { linkingKey = v; },
+});
 
 export const onClickNode = (e: MouseEvent) => {
-  if (e.button !== Settings.Linking) return;
+  if (e.button !== 2) return; // 右键
   const id = idFromEvent(e, ".node-group");
   if (!id) return;
 

@@ -1,106 +1,25 @@
 import { atom, useAtom } from "jotai";
 import { useRef, useEffect, useCallback } from "react";
 import Manager, { actived, objects } from "./Manager";
-import { actionBus, ConsumeType } from "./ActionServer";
-import {
-  screen2Viewport,
-  Obj,
-  Anchor,
-  anchors_rect,
-  add,
-  subtract,
-  Node,
-  Coms
-} from "./Globals";
-
-import Settings from "./Settings";
+import { Obj, Anchor, anchors_rect, Node, Coms } from "./Globals";
+import { isEditing } from "./Editor";
 
 export interface TextNode extends Node {
   text: string;
 }
 
-let editingElement = "";
-
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
 export const defaultTextNode: TextNode = {
   id: "base",
   type: "node/text",
-  updater:atom<number>(0),
+  updater: atom<number>(0),
   pos: { x: 0, y: 0 },
   size: { x: 200, y: 100 },
   text: "New Node",
   selected: false,
   eAncs: anchors_default,
   aAncs: anchors_rect,
-}
-
-actionBus.addListener((a) => {
-  switch (a.type) {
-    case "POINTER_DOWN": {
-      if (a.target.type !== "text") return ConsumeType.Continue;
-      let node = a.target as TextNode;
-      if (Settings.Dragging == a.button) {
-        actionBus.addListener((a) => {
-          switch (a.type) {
-            case "POINTER_MOVE": {
-              node.pos.x += a.dPos.x;
-              node.pos.y += a.dPos.y;
-              Manager.updateId(node.id);
-              break;
-            }
-            case "POINTER_UP": {
-              return ConsumeType.Finish;
-            }
-          }
-          return ConsumeType.Continue;
-        });
-      } else if (Settings.Linking == a.button) {
-        // const vAtom: PrimitiveAtom<TextNode> = atom<TextNode>({
-          
-        //   id: "temp",
-        //   type: "text",
-        //   tags:tags,
-        //   pos:a.pos,
-        //   size:{x:200,y:100},
-        //   text: "New Node",
-        //   aAncs: anchors_rect,
-        //   eAncs: anchors_rect,
-        //   selected:false,
-        // });
-          
-      }
-      break;
-    }
-    case "CREATE_CENTERED":
-      {
-        if (a.target.type === "text") {
-          const node: TextNode = {
-            id: crypto.randomUUID(),
-            type: "node/text",
-            updater:atom<number>(0),
-            pos: {x:a.center.x - 100,y: a.center.y - 50},
-            size: { x: 200, y: 100 },
-            text: "New Node",
-            selected: true,
-            eAncs: anchors_default,
-            aAncs: anchors_rect,
-          };
-          Manager.add(node);
-        }
-      }
-      break;
-    case "POINTER_DBCLICK":
-      {
-        if (a.target.type !== "text") return ConsumeType.Continue;
-        editingElement = a.target.id;
-        Manager.updateId(a.target.id);
-      }
-      break;
-    default:
-      return ConsumeType.Continue;
-  }
-  return ConsumeType.Consume;
-});
+};
 
 export const TextNodeComponent: React.FC<{
   obj: Obj;
@@ -110,9 +29,10 @@ export const TextNodeComponent: React.FC<{
 
   const nodeRef = useRef<SVGGElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const isEditing = node.id === editingElement;
+  const isNodeEditing = isEditing(node.id);
+
   useEffect(() => {
-    if (isEditing && inputRef.current) {
+    if (isNodeEditing && inputRef.current) {
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
@@ -120,7 +40,7 @@ export const TextNodeComponent: React.FC<{
         }
       }, 0);
     }
-  }, [isEditing]);
+  }, [isNodeEditing]);
 
   // 计算文本边界尺寸
   const textBoundSize = useCallback((text: string, fontSize = "14px") => {
@@ -150,9 +70,7 @@ export const TextNodeComponent: React.FC<{
         node.text = target.value;
         const size = textBoundSize(target.value);
         if (size.width > 0 && size.height > 0) {
-          // node.width = size.width;
-          // node.height = size.height;
-          node.size={x:size.width,y:size.height}
+          node.size = { x: size.width, y: size.height };
         }
       }
     },
@@ -169,27 +87,23 @@ export const TextNodeComponent: React.FC<{
   }, []);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    // TODO: 撤销处理，待键盘操作器实现后对接
     if (e.key === "z" && e.ctrlKey) {
       wasUndoIntercepted = false;
-      setTimeout(() => {
-        if (!wasUndoIntercepted) {
-          actionBus.despacth({ type: "UNDO_REACH_LIMIT" });
-        }
-      }, 0);
     }
   }, []);
 
-    const getFillColor = () => {
-      if (actived===node.id) return "#8ce7ab33";
-      if (node.selected) return "#e3f2fd33";
-      return "rgba(59, 59, 59, 0.15)";
-    };
+  const getFillColor = () => {
+    if (actived === node.id) return "#8ce7ab33";
+    if (node.selected) return "#e3f2fd33";
+    return "rgba(59, 59, 59, 0.15)";
+  };
 
-    const getStrokeColor = () => {
-      if (actived===node.id) return "#7d6bb4ff";
-      if (node.selected) return "#765a80ff";
-      return "#805a5a78";
-    };
+  const getStrokeColor = () => {
+    if (actived === node.id) return "#7d6bb4ff";
+    if (node.selected) return "#765a80ff";
+    return "#805a5a78";
+  };
 
   return (
     <g
@@ -197,30 +111,13 @@ export const TextNodeComponent: React.FC<{
       className="node-group"
       data-id={node.id}
       ref={nodeRef}
-      // onMouseDown={(e) => {
-      //   e.stopPropagation();
-      //   actionBus.despacth({
-      //     type: "POINTER_DOWN",
-      //     target: node,
-      //     pos: screen2Viewport({ x: e.clientX, y: e.clientY }),
-      //     button: e.button,
-      //   });
-      // }}
-      // onMouseUp={(e) => {
-      //   e.stopPropagation();
-      //   actionBus.despacth({
-      //     type: "POINTER_UP",
-      //     target: node,
-      //     pos: screen2Viewport({ x: e.clientX, y: e.clientY }),
-      //   });
-      // }}
       onDoubleClick={(e) => {
-        e.stopPropagation();
-        actionBus.despacth({
-          type: "POINTER_DBCLICK",
-          target: node,
-          pos: screen2Viewport({ x: e.clientX, y: e.clientY }),
-        });
+        // e.stopPropagation();
+        // actionBus.despacth({
+        //   type: "POINTER_DBCLICK",
+        //   target: node,
+        //   pos: screen2Viewport({ x: e.clientX, y: e.clientY }),
+        // });
       }}
     >
       {/* 背景矩形 */}
@@ -236,7 +133,7 @@ export const TextNodeComponent: React.FC<{
       {/* 内容区域 */}
       <foreignObject width={node.size.x} height={node.size.y}>
         <div className="content-container">
-          {isEditing ? (
+          {isNodeEditing ? (
             <input
               ref={inputRef}
               className="edit-input"
@@ -256,4 +153,5 @@ export const TextNodeComponent: React.FC<{
     </g>
   );
 };
+
 Coms["node/text"] = TextNodeComponent;

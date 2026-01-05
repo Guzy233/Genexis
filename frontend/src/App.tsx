@@ -1,14 +1,15 @@
 import "./App.css";
-import { Coms, Obj, Operators, screen2Viewport, viewport } from "./Globals";
-import React, { useEffect, useMemo } from "react";
-import { atom, getDefaultStore, useAtom } from "jotai";
+import { Coms, Obj, Operators, viewport } from "./Globals";
+import React, { useEffect, useMemo, useState } from "react";
+import { useAtom } from "jotai";
 import { objects, idsAtom } from "./Manager";
 
-import {
-  handleMouseMove,
-  registerKeyBindings,
-  actionBus,
-} from "./ActionServer";
+
+import SettingsPanel from "./Coms/SettingPanel";
+
+import "./Keyboard";
+import "./Creator";
+import "./Editor";
 
 import "./TextNode";
 import "./CurveEdge";
@@ -16,8 +17,11 @@ import "./Linker";
 import "./Dragger";
 import "./Selector";
 
+
+
 const App: React.FC = () => {
   const [ids] = useAtom(idsAtom);
+  const [showSettings, setShowSettings] = useState(false);
 
   // 为ids排序，按edge->node的顺序
   const sortedIds = useMemo(() => {
@@ -27,14 +31,10 @@ const App: React.FC = () => {
   }, [ids]);
 
   useEffect(() => {
-    window.addEventListener("mousemove", handleMouseMove);
     Operators.map((op) => op.Begin());
-    registerKeyBindings();
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-    Operators.map((op) => op.End());
-
+      Operators.map((op) => op.End());
     };
   }, []);
 
@@ -42,18 +42,21 @@ const App: React.FC = () => {
     <div
       className="canvas-container"
       tabIndex={0}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        actionBus.despacth({
-          type: "POINTER_DBCLICK",
-          target: { id: "base", type: "canvas", updater: atom<number>(0) },
-          pos: screen2Viewport({ x: e.clientX, y: e.clientY }),
-        });
-      }}
       onContextMenu={(e) => {
         e.preventDefault();
       }}
     >
+      {/* 设置按钮 */}
+      <button
+        className="settings-toggle"
+        onClick={() => setShowSettings(!showSettings)}
+      >
+        ⚙
+      </button>
+
+      {/* 设置面板 */}
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+
       <svg width="100%" height="100%" className="mindmap-svg">
         <defs>
           <marker
