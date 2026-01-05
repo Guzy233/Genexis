@@ -45,6 +45,7 @@ export const onClickNode = (e: MouseEvent) => {
 
   // 窗口失去焦点时清理所有临时监听器
   const onBlur = () => {
+    Manager.deleteId(vEdge.id)
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("mouseover", onMouseOver);
