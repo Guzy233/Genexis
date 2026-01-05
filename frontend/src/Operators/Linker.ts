@@ -1,9 +1,10 @@
 import Manager, { objects } from "../Manager";
 import { newCurveEdge } from "../Coms/CurveEdge";
-import { idFromEvent, Node, Operators } from "../Globals";
+import { idFromEvent, Node, Operators, screen2Viewport } from "../Globals";
 import { defaultTextNode } from "../Coms/TextNode";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
+import { viewport } from "../Globals";
 
 // 连接器状态
 let linkingKey = "Space";
@@ -29,11 +30,13 @@ export const onClickNode = (e: MouseEvent) => {
 
   //选中节点，开始链接
   e.stopPropagation();
+
+  const startPos = screen2Viewport({ x: e.clientX, y: e.clientY });
   const vNode: Node = {
     //创建虚拟节点
     ...defaultTextNode,
     id: `${Math.random()}`,
-    pos: { x: e.clientX, y: e.clientY },
+    pos: { x: startPos.x, y: startPos.y },
     updater: atom(0),
   };
   // 定义虚拟边，暂时不加入管理器，直到鼠标移出本节点时再加入
@@ -51,8 +54,8 @@ export const onClickNode = (e: MouseEvent) => {
 
   // 移动鼠标时更新节点（边由于订阅了节点的更新器，会自动更新）
   const onMouseMove = (e: MouseEvent) => {
-    vNode.pos.x += e.movementX;
-    vNode.pos.y += e.movementY;
+    vNode.pos.x += e.movementX / viewport.zoom;
+    vNode.pos.y += e.movementY / viewport.zoom;
     Manager.update(vNode);
   };
 

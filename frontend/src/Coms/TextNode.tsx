@@ -1,13 +1,41 @@
 import { atom, useAtom } from "jotai";
 import { useRef, useEffect, useCallback } from "react";
 import Manager, { objects } from "../Manager";
-import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
-import { isEditing } from "../Operators/Editor";
+import { Obj, Anchor, anchors_rect, Node, Coms, idFromEvent } from "../Globals";
 import { isActived } from "../Operators/Selector";
 
 export interface TextNode extends Node {
   text: string;
 }
+
+const endEditing = new CustomEvent("end-editing", {
+  bubbles: true,
+});
+
+let editingElement = "";
+
+export const setEditing = (id: string) => {
+  editingElement = id;
+  Manager.updateId(id);
+
+  // 临时注册点击监听器，闭包内捕获当前 id
+  const onMouseDown = (e: MouseEvent) => {
+    const clickedId = idFromEvent(e, ".node-group");
+    if (clickedId !== id) {
+      // 清除编辑状态并移除自己
+      editingElement = "";
+      Manager.updateId(id);
+      window.removeEventListener("mousedown", onMouseDown, true);
+    }
+  };
+  const onEndEditing = (e: Event) => {
+    editingElement = "";
+    Manager.updateId(id);
+    window.removeEventListener("mousedown", onMouseDown, true);
+  };
+  window.addEventListener("mousedown", onMouseDown, true);
+  window.addEventListener("end-editing", onEndEditing, true);
+};
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
 export const defaultTextNode: TextNode = {
@@ -30,7 +58,7 @@ export const TextNodeComponent: React.FC<{
 
   const nodeRef = useRef<SVGGElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const isNodeEditing = isEditing(node.id);
+  const isNodeEditing = editingElement === node.id;
 
   useEffect(() => {
     if (isNodeEditing && inputRef.current) {
@@ -73,27 +101,33 @@ export const TextNodeComponent: React.FC<{
         if (size.width > 0 && size.height > 0) {
           node.size = { x: size.width, y: size.height };
         }
-        Manager.update(node)
+        Manager.update(node);
       }
     },
     [node, textBoundSize]
   );
 
-  // let wasUndoIntercepted = false;
+  let wasUndoIntercepted = false;
 
-  // const beforeInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
-  //   const inputEvent = e as unknown as InputEvent;
-  //   if (inputEvent.inputType === "historyUndo") {
-  //     wasUndoIntercepted = true;
-  //   }
-  // }, []);
+  const beforeInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
+    const inputEvent = e as unknown as InputEvent;
+    if (inputEvent.inputType === "historyUndo") {
+      wasUndoIntercepted = true;
+    }
+  }, []);
 
-  // const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-  //   // TODO: 撤销处理，待键盘操作器实现后对接
-  //   if (e.key === "z" && e.ctrlKey) {
-  //     wasUndoIntercepted = false;
-  //   }
-  // }, []);
+  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "z" && e.ctrlKey) {
+      wasUndoIntercepted = false;
+      setTimeout(() => {
+        if (!wasUndoIntercepted) {
+          // 按下撤销键但没撤销，退出编辑
+          window.dispatchEvent(endEditing);
+        }
+      }, 0);
+    }
+    if (!e.shiftKey && e.key === "Enter") window.dispatchEvent(endEditing);
+  }, []);
 
   const getFillColor = () => {
     if (isActived(node.id)) return "#8ce7ab33";
@@ -114,12 +148,7 @@ export const TextNodeComponent: React.FC<{
       data-id={node.id}
       ref={nodeRef}
       onDoubleClick={(e) => {
-        // e.stopPropagation();
-        // actionBus.despacth({
-        //   type: "POINTER_DBCLICK",
-        //   target: node,
-        //   pos: screen2Viewport({ x: e.clientX, y: e.clientY }),
-        // });
+        setEditing(node.id);
       }}
     >
       {/* 背景矩形 */}
@@ -140,10 +169,9 @@ export const TextNodeComponent: React.FC<{
               ref={inputRef}
               className="edit-input"
               value={node.text || ""}
-              // onInput={onInput}
               onMouseDown={(e) => e.stopPropagation()}
-              // onBeforeInput={beforeInput}
-              // onKeyDown={onKeyDown}
+              onBeforeInput={beforeInput}
+              onKeyDown={onKeyDown}
               onChange={onInput}
               style={{
                 fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',

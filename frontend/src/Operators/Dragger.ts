@@ -1,6 +1,6 @@
 import Manager, { objects } from "../Manager";
 import Settings from "../Settings";
-import { idFromEvent, Node, Operators } from "../Globals";
+import { idFromEvent, Node, Operators, viewport } from "../Globals";
 
 export const onClickNode = (e: MouseEvent) => {
   if (e.button !== Settings.Dragging) return;
@@ -8,6 +8,8 @@ export const onClickNode = (e: MouseEvent) => {
   if (!id) return;
 
   const node = objects[id] as Node;
+  let lastX = e.clientX;
+  let lastY = e.clientY;
 
   const onBlur = () => {
     window.removeEventListener("mousemove", onMouseMove);
@@ -16,8 +18,12 @@ export const onClickNode = (e: MouseEvent) => {
   };
 
   const onMouseMove = (e: MouseEvent) => {
-    node.pos.x += e.movementX;
-    node.pos.y += e.movementY;
+    const deltaX = (e.clientX - lastX) / viewport.zoom;
+    const deltaY = (e.clientY - lastY) / viewport.zoom;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    node.pos.x += deltaX;
+    node.pos.y += deltaY;
     Manager.update(node);
   };
 

@@ -16,21 +16,10 @@ import "./Operators/Linker";
 import "./Operators/Dragger";
 import "./Operators/Selector";
 import "./Operators/Camera";
-import "./Operators/Editor";
 
 const App: React.FC = () => {
-  const [_canvasVersion, setCanvasVersion] = useAtom(canvasUpdater);
+  useAtom(canvasUpdater);
   const [showSettings, setShowSettings] = useState(false);
-
-  // 订阅画布更新
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCanvasVersion((v) => v + 1);
-    }, 100);
-    return () => clearInterval(interval);
-  }, [setCanvasVersion]);
-
-  // 从 objects 遍历并排序
 
   const objs = Object.values(objects);
   const edges = objs.filter((obj) => obj.type.startsWith("edge"));
@@ -40,7 +29,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     Operators.map((op) => op.Begin());
-
     return () => {
       Operators.map((op) => op.End());
     };
