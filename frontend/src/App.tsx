@@ -2,37 +2,41 @@ import "./css/App.css";
 import { Coms, Obj, Operators, viewport } from "./Globals";
 import React, { useEffect, useMemo, useState } from "react";
 import { useAtom } from "jotai";
-import { objects, idsAtom } from "./Manager";
-
+import { objects, canvasUpdater } from "./Manager";
 
 import SettingsPanel from "./Coms/SettingPanel";
-
-
 
 import "./Coms/TextNode";
 import "./Coms/CurveEdge";
 import "./Coms/SelectionBox";
 
-// import "./Operators/Keyboard";
+import "./Operators/Keyboard";
 import "./Operators/Creator";
-// import "./Operators/Linker";
-// import "./Operators/Dragger";
-// import "./Operators/Selector";
+import "./Operators/Linker";
+import "./Operators/Dragger";
+import "./Operators/Selector";
+import "./Operators/Camera";
 import "./Operators/Editor";
 
-
-
 const App: React.FC = () => {
-  const [ids] = useAtom(idsAtom);
+  const [_canvasVersion, setCanvasVersion] = useAtom(canvasUpdater);
   const [showSettings, setShowSettings] = useState(false);
 
-  // 为ids排序，按edge->node->ui的顺序
-  const sortedIds = useMemo(() => {
-    const edges = ids.filter((id) => objects[id].type.startsWith("edge"));
-    const nodes = ids.filter((id) => objects[id].type.startsWith("node"));
-    const uis = ids.filter((id) => objects[id].type.startsWith("ui"));
-    return [...edges, ...nodes, ...uis];
-  }, [ids]);
+  // 订阅画布更新
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCanvasVersion((v) => v + 1);
+    }, 100);
+    return () => clearInterval(interval);
+  }, [setCanvasVersion]);
+
+  // 从 objects 遍历并排序
+
+  const objs = Object.values(objects);
+  const edges = objs.filter((obj) => obj.type.startsWith("edge"));
+  const nodes = objs.filter((obj) => obj.type.startsWith("node"));
+  const uis = objs.filter((obj) => obj.type.startsWith("ui"));
+  const sortedObjects = [...edges, ...nodes, ...uis];
 
   useEffect(() => {
     Operators.map((op) => op.Begin());
@@ -109,9 +113,9 @@ const App: React.FC = () => {
             fill="url(#grid)"
           />
 
-          {sortedIds.map((id) => {
-            const Com = Coms[objects[id].type];
-            if (Com) return <Com obj={objects[id]} key={id} />;
+          {sortedObjects.map((obj) => {
+            const Com = Coms[obj.type];
+            if (Com) return <Com obj={obj} key={obj.id} />;
           })}
         </g>
       </svg>

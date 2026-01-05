@@ -65,6 +65,15 @@ const isNodeInBox = (node: Node, box: SelectionBox): boolean => {
   return nodeLeft < maxX && nodeRight > minX && nodeTop < maxY && nodeBottom > minY;
 };
 
+// 窗口失去焦点时清理框选
+const onBlur = () => {
+  if (isBoxSelecting && selectionBox) {
+    Manager.deleteId(selectionBox.id);
+    selectionBox = null;
+    isBoxSelecting = false;
+  }
+};
+
 // 点击处理：选择和激活
 const onMouseDown = (e: MouseEvent) => {
   const id = idFromEvent(e, ".node-group");
@@ -90,6 +99,8 @@ const onMouseDown = (e: MouseEvent) => {
       end: { x: e.clientX, y: e.clientY },
     };
     Manager.add(selectionBox);
+
+    window.addEventListener("blur", onBlur);
     return;
   }
 
@@ -152,9 +163,10 @@ const onMouseUp = (_e: MouseEvent) => {
 
   isBoxSelecting = false;
 
-  // 清除框选框
+  // 清除框选框和 blur 监听
   Manager.deleteId(selectionBox.id);
   selectionBox = null;
+  window.removeEventListener("blur", onBlur);
 };
 
 // 清除所有选中状态
@@ -189,5 +201,13 @@ Operators.push({
     window.removeEventListener("mousedown", onMouseDown);
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
+    window.removeEventListener("blur", onBlur);
+
+    // 清理可能的框选残留
+    if (isBoxSelecting && selectionBox) {
+      Manager.deleteId(selectionBox.id);
+      selectionBox = null;
+      isBoxSelecting = false;
+    }
   },
 });

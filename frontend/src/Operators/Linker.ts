@@ -6,8 +6,7 @@ import { atom } from "jotai";
 import { registerSetting } from "../Option";
 
 // 连接器状态
-let isLinking = false; // TODO: 实现连接状态管理
-let linkingKey = "Space"; // TODO: 实现键盘触发的连接开始
+let linkingKey = "Space";
 
 // 注册设置项
 registerSetting({
@@ -40,6 +39,15 @@ export const onClickNode = (e: MouseEvent) => {
   // 定义虚拟边，暂时不加入管理器，直到鼠标移出本节点时再加入
   const vEdge = newCurveEdge(objects[id] as Node, vNode);
   vEdge.anchorTarget = { type: "absPos" };
+
+  // 窗口失去焦点时清理所有临时监听器
+  const onBlur = () => {
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+    window.removeEventListener("mouseover", onMouseOver);
+    window.removeEventListener("mouseout", onMouseOut);
+    window.removeEventListener("blur", onBlur);
+  };
 
   // 移动鼠标时更新节点（边由于订阅了节点的更新器，会自动更新）
   const onMouseMove = (e: MouseEvent) => {
@@ -97,12 +105,14 @@ export const onClickNode = (e: MouseEvent) => {
     window.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("mouseover", onMouseOver);
     window.removeEventListener("mouseout", onMouseOut);
+    window.removeEventListener("blur", onBlur);
   };
 
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
   window.addEventListener("mouseover", onMouseOver);
   window.addEventListener("mouseout", onMouseOut);
+  window.addEventListener("blur", onBlur);
 };
 
 Operators.push({

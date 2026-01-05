@@ -143,6 +143,55 @@ useEffect(() => {
 
 这种方式使功能模块化，可以随时添加/移除操作器。
 
+### 过程式设计 vs 状态式设计
+
+本项目采用**过程式设计**而非状态式设计，核心原则是：**监听器只在需要时临时添加，函数闭包内捕获当前状态，不需要外部变量标记过程**。
+
+**反模式（状态式）**：
+```typescript
+let isEditing = false;
+
+export const setEditing = (id: string) => {
+  isEditing = true;
+  editingId = id;
+};
+
+// 在 Begin 中注册全局监听器，效率低
+Operators.push({
+  Begin: () => window.addEventListener("mousedown", onMouseDown),
+  End: () => window.removeEventListener("mousedown", onMouseDown),
+});
+```
+
+**正模式（过程式）**：
+```typescript
+// Operators/Editor.ts
+let editingElement = "";
+
+export const setEditing = (id: string) => {
+  editingElement = id;
+  Manager.updateId(id);
+
+  // 临时注册监听器，闭包内直接捕获 id
+  const onMouseDown = (e: MouseEvent) => {
+    const clickedId = idFromEvent(e, ".node-group");
+    if (clickedId !== id) {
+      editingElement = "";
+      Manager.updateId(id);
+      window.removeEventListener("mousedown", onMouseDown, true);  // 自己移除自己
+    }
+  };
+  window.addEventListener("mousedown", onMouseDown, true);
+};
+```
+
+**优势**：
+1. **非编辑状态下无监听开销**：只在需要时临时注册
+2. **无需清理函数**：监听器自己管理生命周期，在适当时机移除自己
+3. **闭包捕获当前状态**：不需要外部状态变量，减少同步问题
+
+参考 [Linker.ts](src/Operators/Linker.ts) 中连接操作的实现：虚拟节点和边在闭包内创建，鼠标事件中直接使用。
+
 ## 锚点系统 (Anchor)
 
 锚点定义了节点的连接点位置：
