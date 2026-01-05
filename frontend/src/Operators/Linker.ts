@@ -18,7 +18,9 @@ registerSetting({
   defaultValue: "Space",
   value: "Space",
   description: "按下此键进入连接模式",
-  onChange: (v) => { linkingKey = v; },
+  onChange: (v) => {
+    linkingKey = v;
+  },
 });
 
 export const onClickNode = (e: MouseEvent) => {
@@ -79,10 +81,12 @@ export const onClickNode = (e: MouseEvent) => {
   const onMouseUp = (e: MouseEvent) => {
     const aNodeId = idFromEvent(e, ".node-group");
     if (aNodeId) {
-      //在已有节点上松开鼠标，设置为目标节点
-      vEdge.target = objects[aNodeId] as Node;
-      vEdge.anchorTarget = { type: "auto" };
-      Manager.updateId(vEdge.id);
+      if (aNodeId !== vEdge.source.id) {
+        //在已有节点上松开鼠标，设置为目标节点
+        vEdge.target = objects[aNodeId] as Node;
+        vEdge.anchorTarget = { type: "auto" };
+        Manager.updateId(vEdge.id);
+      }
     } else {
       //在空白处松开鼠标，将虚拟节点作为新节点加入
       vNode.id = `${Math.random()}`;

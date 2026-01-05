@@ -14,7 +14,7 @@ const defaultTextNode: TextNode = {
   type: "node/text",
   updater: atom<number>(0),
   pos: { x: 0, y: 0 },
-  size: { x: 200, y: 100 },
+  size: { x: 100, y: 50 },
   text: "New Node",
   selected: false,
   eAncs: anchors_default,
@@ -31,7 +31,7 @@ const onDblClick = (e: MouseEvent) => {
   const node: TextNode = {
     ...defaultTextNode,
     id: crypto.randomUUID(),
-    pos: { x: pos.x - 100, y: pos.y - 50 },
+    pos: { x: pos.x - 50, y: pos.y - 25 },
     selected: true,
   };
 

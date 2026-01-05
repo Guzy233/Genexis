@@ -7,15 +7,18 @@ import { objects, idsAtom } from "./Manager";
 
 import SettingsPanel from "./Coms/SettingPanel";
 
-import "./Operators/Keyboard";
-import "./Operators/Creator";
-import "./Operators/Editor";
+
 
 import "./Coms/TextNode";
 import "./Coms/CurveEdge";
-import "./Operators/Linker";
-import "./Operators/Dragger";
-import "./Operators/Selector";
+import "./Coms/SelectionBox";
+
+// import "./Operators/Keyboard";
+import "./Operators/Creator";
+// import "./Operators/Linker";
+// import "./Operators/Dragger";
+// import "./Operators/Selector";
+import "./Operators/Editor";
 
 
 
@@ -23,11 +26,12 @@ const App: React.FC = () => {
   const [ids] = useAtom(idsAtom);
   const [showSettings, setShowSettings] = useState(false);
 
-  // 为ids排序，按edge->node的顺序
+  // 为ids排序，按edge->node->ui的顺序
   const sortedIds = useMemo(() => {
     const edges = ids.filter((id) => objects[id].type.startsWith("edge"));
     const nodes = ids.filter((id) => objects[id].type.startsWith("node"));
-    return [...edges, ...nodes];
+    const uis = ids.filter((id) => objects[id].type.startsWith("ui"));
+    return [...edges, ...nodes, ...uis];
   }, [ids]);
 
   useEffect(() => {

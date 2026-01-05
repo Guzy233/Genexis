@@ -1,8 +1,9 @@
 import { atom, useAtom } from "jotai";
 import { useRef, useEffect, useCallback } from "react";
-import Manager, { actived, objects } from "../Manager";
+import Manager, { objects } from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { isEditing } from "../Operators/Editor";
+import { isActived } from "../Operators/Selector";
 
 export interface TextNode extends Node {
   text: string;
@@ -14,7 +15,7 @@ export const defaultTextNode: TextNode = {
   type: "node/text",
   updater: atom<number>(0),
   pos: { x: 0, y: 0 },
-  size: { x: 200, y: 100 },
+  size: { x: 100, y: 50 },
   text: "New Node",
   selected: false,
   eAncs: anchors_default,
@@ -72,35 +73,36 @@ export const TextNodeComponent: React.FC<{
         if (size.width > 0 && size.height > 0) {
           node.size = { x: size.width, y: size.height };
         }
+        Manager.update(node)
       }
     },
     [node, textBoundSize]
   );
 
-  let wasUndoIntercepted = false;
+  // let wasUndoIntercepted = false;
 
-  const beforeInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
-    const inputEvent = e as unknown as InputEvent;
-    if (inputEvent.inputType === "historyUndo") {
-      wasUndoIntercepted = true;
-    }
-  }, []);
+  // const beforeInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
+  //   const inputEvent = e as unknown as InputEvent;
+  //   if (inputEvent.inputType === "historyUndo") {
+  //     wasUndoIntercepted = true;
+  //   }
+  // }, []);
 
-  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    // TODO: 撤销处理，待键盘操作器实现后对接
-    if (e.key === "z" && e.ctrlKey) {
-      wasUndoIntercepted = false;
-    }
-  }, []);
+  // const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+  //   // TODO: 撤销处理，待键盘操作器实现后对接
+  //   if (e.key === "z" && e.ctrlKey) {
+  //     wasUndoIntercepted = false;
+  //   }
+  // }, []);
 
   const getFillColor = () => {
-    if (actived === node.id) return "#8ce7ab33";
+    if (isActived(node.id)) return "#8ce7ab33";
     if (node.selected) return "#e3f2fd33";
     return "rgba(59, 59, 59, 0.15)";
   };
 
   const getStrokeColor = () => {
-    if (actived === node.id) return "#7d6bb4ff";
+    if (isActived(node.id)) return "#7d6bb4ff";
     if (node.selected) return "#765a80ff";
     return "#805a5a78";
   };
@@ -138,9 +140,11 @@ export const TextNodeComponent: React.FC<{
               ref={inputRef}
               className="edit-input"
               value={node.text || ""}
-              onInput={onInput}
-              onBeforeInput={beforeInput}
-              onKeyDown={onKeyDown}
+              // onInput={onInput}
+              onMouseDown={(e) => e.stopPropagation()}
+              // onBeforeInput={beforeInput}
+              // onKeyDown={onKeyDown}
+              onChange={onInput}
               style={{
                 fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
               }}

@@ -8,8 +8,6 @@ export const store = getDefaultStore();
 
 let state: number = 0;
 
-export let actived: string = "";
-
 export default {
   add: (obj: Obj) => {
     objects[obj.id] = obj;
@@ -25,16 +23,8 @@ export default {
     store.set(idsAtom, (ids) => ids.filter((i) => i !== id));
     delete objects[id];
   },
-  actived: (id: string) => {
-    const last = actived;
-    if (last) store.set(objects[last].updater, state++);
-    actived = id;
-    store.set(objects[id].updater, state++);
-  },
   clearSelected: () => {
-    // const last = actived;
-    // if (last) store.set(objects[last].updater, state++);
-    actived = "";
+    // 此方法已废弃，请使用 Selector.clearSelection()
     Object.values(objects).forEach((obj) => {
       if("selected" in obj) obj.selected = false;
       store.set(obj.updater, state++);
