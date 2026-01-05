@@ -1,8 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
-import { Obj, Anchor, anchors_rect, Node, Coms, NodeFactories, ToolItems } from "../Globals";
+import {
+  Obj,
+  Anchor,
+  anchors_rect,
+  Node,
+  Coms,
+  NodeFactories,
+  ToolItems,
+} from "../Globals";
 import { activedId } from "../Operators/Selector";
+import {
+  registerSerializer,
+  serializeAnchors,
+  deserializeAnchors,
+} from "../Serialization";
 
 export interface ImageNode extends Node {
   src: string;
@@ -23,25 +36,19 @@ const getStrokeColor = (node: ImageNode) => {
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
 
-// 默认图片节点数据
-const defaultImageNode: ImageNode = {
-  id: "base",
-  type: "node/image",
-  updater: atom(0),
-  pos: { x: 0, y: 0 },
-  size: { x: 200, y: 150 },
-  src: "",
-  imageSize: { width: 192, height: 116 },
-  selected: false,
-  eAncs: anchors_default,
-  aAncs: anchors_rect,
-};
-
 // 工厂函数：创建新的图片节点
 export const createImageNode = (): ImageNode => {
   return {
-    ...defaultImageNode,
     id: crypto.randomUUID(),
+    type: "node/image",
+    updater: atom(0),
+    pos: { x: 0, y: 0 },
+    size: { x: 200, y: 150 },
+    src: "",
+    imageSize: { width: 192, height: 116 },
+    selected: false,
+    eAncs: anchors_default,
+    aAncs: anchors_rect,
   };
 };
 
@@ -62,7 +69,10 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   const node = obj as ImageNode;
   const [isEditing, setIsEditing] = useState(false);
   const [tempSrc, setTempSrc] = useState(node.src);
-  const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
+  const [imageNaturalSize, setImageNaturalSize] = useState({
+    width: 0,
+    height: 0,
+  });
   const imgRef = useRef<SVGImageElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -99,6 +109,7 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
     setIsEditing(false);
     node.src = tempSrc;
     Manager.update(node);
+    Manager.saveHistory();
   };
 
   // 输入框变化
@@ -170,7 +181,11 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
       </foreignObject>
 
       {/* 图片区域 */}
-      <g transform={`translate(${(node.size.x - (node.imageSize.width || 100)) / 2}, 28)`}>
+      <g
+        transform={`translate(${
+          (node.size.x - (node.imageSize.width || 100)) / 2
+        }, 28)`}
+      >
         {node.src ? (
           <image
             ref={imgRef}
@@ -198,3 +213,27 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   );
 };
 Coms["node/image"] = ImageNodeComponent;
+
+// 注册序列化函数
+registerSerializer(
+  "node/image",
+  (node: ImageNode) => {
+    return {
+      id: node.id,
+      type: node.type,
+      pos: node.pos,
+      size: node.size,
+      aAncs: serializeAnchors(node.aAncs),
+      eAncs: serializeAnchors(node.eAncs),
+      src: node.src,
+      imageSize: node.imageSize,
+    };
+  },
+  (data: any) => {
+    const node = data as ImageNode;
+    node.updater = atom(0);
+    node.aAncs = deserializeAnchors(data.aAncs);
+    node.eAncs = deserializeAnchors(data.eAncs);
+    return node;
+  }
+);

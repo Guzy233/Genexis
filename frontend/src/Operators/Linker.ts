@@ -1,9 +1,16 @@
 import Manager, { objects } from "../Manager";
 import { newCurveEdge } from "../Coms/CurveEdge";
-import { idFromEvent, Node, NodeFactories, Operators, screen2Viewport } from "../Globals";
+import {
+  idFromEvent,
+  Node,
+  NodeFactories,
+  Operators,
+  screen2Viewport,
+} from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { viewport } from "../Globals";
+import { createNodeCentered } from "./Creator";
 
 // 连接器状态
 let linkingKey = "Space";
@@ -31,24 +38,15 @@ export const onClickNode = (e: MouseEvent) => {
   e.stopPropagation();
 
   const startPos = screen2Viewport({ x: e.clientX, y: e.clientY });
-  // const vNode: Node = {
-  //   id: "temp",
-    
-  //   //创建虚拟节点
-  //   // ...defaultTextNode,
-  //   // id: `${Math.random()}`,
-  //   // pos: { x: startPos.x, y: startPos.y },
-  //   updater: atom(0),
-  // };
-  const vNode = NodeFactories["node/text"]()
-  vNode.pos=startPos
+  const vNode = NodeFactories["node/text"]();
+  vNode.pos = startPos;
   // 定义虚拟边，暂时不加入管理器，直到鼠标移出本节点时再加入
   const vEdge = newCurveEdge(objects[id] as Node, vNode);
   vEdge.anchorTarget = { type: "absPos" };
 
   // 窗口失去焦点时清理所有临时监听器
   const onBlur = () => {
-    Manager.deleteId(vEdge.id)
+    Manager.deleteId(vEdge.id);
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("mouseover", onMouseOver);
@@ -101,12 +99,20 @@ export const onClickNode = (e: MouseEvent) => {
         vEdge.target = objects[aNodeId] as Node;
         vEdge.anchorTarget = { type: "auto" };
         Manager.updateId(vEdge.id);
+        Manager.saveHistory();
       }
     } else {
-      //在空白处松开鼠标，将虚拟节点作为新节点加入
-      vNode.id = `${Math.random()}`;
+      const node = createNodeCentered(
+        screen2Viewport({ x: e.clientX, y: e.clientY })
+      );
       vEdge.anchorTarget = { type: "auto" };
-      Manager.add(vNode);
+      if (node) {
+        vEdge.target = node;
+        Manager.add(node)
+        Manager.saveHistory();
+      } else {
+        Manager.deleteId(vEdge.id)
+      }
     }
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);

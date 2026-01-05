@@ -105,13 +105,15 @@ const executeAction = (action: KeyAction): void => {
       edgesToDelete.forEach((id) => Manager.deleteId(id));
       // 删除节点
       selectedNodeIds.forEach((id) => Manager.deleteId(id));
+      // 删除完成，保存历史
+      Manager.saveHistory();
       break;
     }
     case KeyAction.UNDO:
-      console.log("Undo");
+      Manager.undo();
       break;
     case KeyAction.REDO:
-      console.log("Redo");
+      Manager.redo();
       break;
     case KeyAction.SELECT_ALL: {
       // 选中所有节点

@@ -12,6 +12,9 @@ import { atom, Atom, PrimitiveAtom, useAtom } from "jotai";
 
 // import "./Edge.css";
 import { objects } from "../Manager";
+import {
+  registerSerializer,
+} from "../Serialization";
 
 // 类型定义
 interface ResolvedPoint {
@@ -28,7 +31,7 @@ export interface CurveEdge extends Obj {
 }
 
 export const newCurveEdge = (source: Node, target: Node): CurveEdge => {
-  const id = `edge-${Math.random()}`;
+  const id = crypto.randomUUID();
   const edge: CurveEdge = {
     id: id,
     type: "edge/curve",
@@ -246,3 +249,23 @@ const CurveEdgeComponent: React.FC<{
   );
 };
 Coms["edge/curve"] = CurveEdgeComponent;
+
+// 注册序列化函数
+registerSerializer(
+  "edge/curve",
+  (edge: CurveEdge) => {
+    return {
+      id: edge.id,
+      type: edge.type,
+      sourceId: edge.source.id,
+      targetId: edge.target.id,
+      anchorSource: edge.anchorSource,
+      anchorTarget: edge.anchorTarget,
+    };
+  },
+  (data: any) => {
+    const edge = data as CurveEdge;
+    edge.updater = atom(0);
+    return edge;
+  }
+);

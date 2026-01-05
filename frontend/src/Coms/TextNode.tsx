@@ -4,6 +4,11 @@ import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms, NodeFactories, ToolItems } from "../Globals";
 import { activedId } from "../Operators/Selector";
 import { EditableText } from "./EditableText";
+import {
+  registerSerializer,
+  serializeAnchors,
+  deserializeAnchors,
+} from "../Serialization";
 
 export interface TextNode extends Node {
   text: string;
@@ -79,8 +84,34 @@ export const TextNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
         onStartEditing={() => {
           Manager.update(node);
         }}
+        onEndEditing={() => {
+          Manager.saveHistory();
+        }}
       />
     </g>
   );
 };
 Coms["node/text"] = TextNodeComponent;
+
+// 注册序列化函数
+registerSerializer(
+  "node/text",
+  (node: TextNode) => {
+    return {
+      id: node.id,
+      type: node.type,
+      pos: node.pos,
+      size: node.size,
+      aAncs: serializeAnchors(node.aAncs),
+      eAncs: serializeAnchors(node.eAncs),
+      text: node.text,
+    };
+  },
+  (data: any) => {
+    const node = data as TextNode;
+    node.updater = atom(0);
+    node.aAncs = deserializeAnchors(data.aAncs);
+    node.eAncs = deserializeAnchors(data.eAncs);
+    return node;
+  }
+);

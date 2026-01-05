@@ -1,6 +1,16 @@
 import Manager from "../Manager";
-import { screen2Viewport, Operators, NodeFactories } from "../Globals";
+import { screen2Viewport, Operators, NodeFactories, Vec2 } from "../Globals";
 import { getCurrentTool } from "../Coms/ToolBar";
+
+export function createNodeCentered(pos: Vec2) {
+  const currentTool = getCurrentTool();
+  if (currentTool && NodeFactories[currentTool]) {
+    const node = NodeFactories[currentTool]();
+    node.pos = { x: pos.x - node.size.x / 2, y: pos.y - node.size.y / 2 };
+    node.selected = true;
+    return node;
+  }
+}
 
 // 双击创建节点
 const onDblClick = (e: MouseEvent) => {
@@ -8,14 +18,12 @@ const onDblClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
   if (target.closest(".node-group")) return;
 
-  // 如果当前选中了工具，使用对应的工厂函数
-  const currentTool = getCurrentTool();
-  if (currentTool && NodeFactories[currentTool]) {
-    const pos = screen2Viewport({ x: e.clientX, y: e.clientY });
-    const node = NodeFactories[currentTool]();
-    node.pos = { x: pos.x - node.size.x / 2, y: pos.y - node.size.y / 2 };
-    node.selected = true;
+  const node = createNodeCentered(
+    screen2Viewport({ x: e.clientX, y: e.clientY })
+  );
+  if (node) {
     Manager.add(node);
+    Manager.saveHistory();
   }
 };
 

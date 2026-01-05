@@ -2,20 +2,18 @@ import Manager, { objects } from "../Manager";
 import { idFromEvent, Node, Operators, viewport } from "../Globals";
 import { registerSetting } from "../Option";
 
-let draggingKey: number = 0
+let draggingKey: number = 0;
 
-registerSetting(
-  {
-      id: "dragger.key",
-      category: "Dragger",
-      title: "拖动节点",
-      type: "number",
-      defaultValue: 0,
-      value: 0,
-      // description?: "string",
-      onChange:(v)=>draggingKey=v,// 值变化时通知注册者
-  }
-)
+registerSetting({
+  id: "dragger.key",
+  category: "Dragger",
+  title: "拖动节点",
+  type: "number",
+  defaultValue: 0,
+  value: 0,
+  // description?: "string",
+  onChange: (v) => (draggingKey = v), // 值变化时通知注册者
+});
 
 export const onClickNode = (e: MouseEvent) => {
   if (e.button !== draggingKey) return;
@@ -25,6 +23,8 @@ export const onClickNode = (e: MouseEvent) => {
   const node = objects[id] as Node;
   let lastX = e.clientX;
   let lastY = e.clientY;
+
+  const originPos = {x:node.pos.x,y:node.pos.y};
 
   const onBlur = () => {
     window.removeEventListener("mousemove", onMouseMove);
@@ -46,6 +46,8 @@ export const onClickNode = (e: MouseEvent) => {
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("blur", onBlur);
+    // 拖动结束，保存历史
+    if (originPos !== node.pos) Manager.saveHistory();
   };
 
   window.addEventListener("mousemove", onMouseMove);

@@ -11,7 +11,7 @@ interface ToolItemInternal {
 }
 
 // 工具栏状态
-let currentToolId: string = "";
+let currentToolId: string = ToolItems[0]?.id || "";
 const toolSubscribers: Set<(toolId: string) => void> = new Set();
 
 export const setCurrentTool = (toolId: string) => {
