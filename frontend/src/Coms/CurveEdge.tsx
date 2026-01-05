@@ -6,12 +6,12 @@ import {
   Obj,
   Node,
   Coms,
-} from "./Globals";
+} from "../Globals";
 // import { actionBus } from "./ActionServer";
 import { atom, Atom, PrimitiveAtom, useAtom } from "jotai";
 
 // import "./Edge.css";
-import { objects } from "./Manager";
+import { objects } from "../Manager";
 
 // 类型定义
 interface ResolvedPoint {

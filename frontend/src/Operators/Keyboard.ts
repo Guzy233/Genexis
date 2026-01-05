@@ -1,5 +1,5 @@
-import { Operators } from "./Globals";
-import { registerSetting, setValue, getSetting } from "./Option";
+import { Operators } from "../Globals";
+import { registerSetting, setValue, getSetting } from "../Option";
 
 // 键盘操作枚举
 export const KeyAction = {

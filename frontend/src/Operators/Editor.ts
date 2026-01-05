@@ -1,5 +1,5 @@
-import Manager, { objects } from "./Manager";
-import { idFromEvent, Operators } from "./Globals";
+import Manager, { objects } from "../Manager";
+import { idFromEvent, Operators } from "../Globals";
 
 let editingElement = "";
 

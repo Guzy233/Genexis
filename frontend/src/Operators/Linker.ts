@@ -1,9 +1,9 @@
-import Manager, { objects } from "./Manager";
-import { newCurveEdge } from "./CurveEdge";
-import { idFromEvent, Node, Operators } from "./Globals";
-import { defaultTextNode } from "./TextNode";
+import Manager, { objects } from "../Manager";
+import { newCurveEdge } from "../Coms/CurveEdge";
+import { idFromEvent, Node, Operators } from "../Globals";
+import { defaultTextNode } from "../Coms/TextNode";
 import { atom } from "jotai";
-import { registerSetting } from "./Option";
+import { registerSetting } from "../Option";
 
 // 连接器状态
 let isLinking = false; // TODO: 实现连接状态管理

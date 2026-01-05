@@ -1,4 +1,4 @@
-import "./App.css";
+import "./css/App.css";
 import { Coms, Obj, Operators, viewport } from "./Globals";
 import React, { useEffect, useMemo, useState } from "react";
 import { useAtom } from "jotai";
@@ -7,15 +7,15 @@ import { objects, idsAtom } from "./Manager";
 
 import SettingsPanel from "./Coms/SettingPanel";
 
-import "./Keyboard";
-import "./Creator";
-import "./Editor";
+import "./Operators/Keyboard";
+import "./Operators/Creator";
+import "./Operators/Editor";
 
-import "./TextNode";
-import "./CurveEdge";
-import "./Linker";
-import "./Dragger";
-import "./Selector";
+import "./Coms/TextNode";
+import "./Coms/CurveEdge";
+import "./Operators/Linker";
+import "./Operators/Dragger";
+import "./Operators/Selector";
 
 
 

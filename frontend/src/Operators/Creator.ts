@@ -1,7 +1,7 @@
-import Manager from "./Manager";
-import { screen2Viewport, Operators, Node } from "./Globals";
+import Manager from "../Manager";
+import { screen2Viewport, Operators, Node } from "../Globals";
 import { atom } from "jotai";
-import { Anchor, anchors_rect } from "./Globals";
+import { Anchor, anchors_rect } from "../Globals";
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
 

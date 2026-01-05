@@ -1,6 +1,6 @@
-import Manager, { objects } from "./Manager";
-import Settings from "./Settings";
-import { idFromEvent, Node, Operators } from "./Globals";
+import Manager, { objects } from "../Manager";
+import Settings from "../Settings";
+import { idFromEvent, Node, Operators } from "../Globals";
 
 export const onClickNode = (e: MouseEvent) => {
   if (e.button !== Settings.Dragging) return;

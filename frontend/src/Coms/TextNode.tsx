@@ -1,8 +1,8 @@
 import { atom, useAtom } from "jotai";
 import { useRef, useEffect, useCallback } from "react";
-import Manager, { actived, objects } from "./Manager";
-import { Obj, Anchor, anchors_rect, Node, Coms } from "./Globals";
-import { isEditing } from "./Editor";
+import Manager, { actived, objects } from "../Manager";
+import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
+import { isEditing } from "../Operators/Editor";
 
 export interface TextNode extends Node {
   text: string;
