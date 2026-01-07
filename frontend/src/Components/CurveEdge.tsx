@@ -368,8 +368,8 @@ registerSerializer(
     return {
       id: edge.id,
       type: edge.type,
-      sourceId: edge.source.id,
-      targetId: edge.target.id,
+      source: {...edge.source},
+      target: {...edge.target},
       anchorSource: { ...edge.anchorSource },
       anchorTarget: { ...edge.anchorTarget },
       isSelected: edge.isSelected,

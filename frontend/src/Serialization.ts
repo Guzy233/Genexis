@@ -113,8 +113,8 @@ export const deserializeCanvas = (
   data.objects
     .filter((obj) => obj.type.startsWith("edge/"))
     .forEach((edgeData) => {
-      const source = nodeMap[edgeData.sourceId];
-      const target = nodeMap[edgeData.targetId];
+      const source = nodeMap[edgeData.source.id];
+      const target = nodeMap[edgeData.target.id];
 
       if (!source || !target) {
         console.warn(`Cannot find nodes for edge ${edgeData.id}`);

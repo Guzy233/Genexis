@@ -17,7 +17,7 @@ export const onMouseDown = (e: MouseEvent) => {
 
   // 阻止默认右键菜单
   const onContextMenu = (e: MouseEvent) => {
-    if(pos.x === e.clientX && pos.y === e.clientY)return;
+    if (pos.x === e.clientX && pos.y === e.clientY) return;
     e.preventDefault();
     e.stopImmediatePropagation();
   };
@@ -63,6 +63,7 @@ export const onMouseDown = (e: MouseEvent) => {
   const onMouseUp = () => {
     Manager.saveHistory();
     window.removeEventListener("mouseover", onMouseOver, true);
+    window.removeEventListener("mouseup", onMouseUp, true);
     window.removeEventListener("blur", onBlur);
     setTimeout(() => {
       window.removeEventListener("contextmenu", onContextMenu, true);
