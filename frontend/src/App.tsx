@@ -21,6 +21,7 @@ import "./Controllers/Linker";
 import "./Controllers/Dragger";
 import "./Controllers/Selector";
 import "./Controllers/Camera";
+import "./Controllers/Deleter";
 
 const App: React.FC = () => {
   useAtom(canvasUpdater);

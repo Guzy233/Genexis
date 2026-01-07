@@ -1,10 +1,6 @@
 import Manager, { objects } from "../Manager";
 import { newCurveEdge } from "../Components/CurveEdge";
-import {
-  idFromEvent,
-  Node,
-  Operators,
-} from "../Globals";
+import { idFromEvent, Node, Operators } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
@@ -37,7 +33,7 @@ export const onClickNode = (e: MouseEvent) => {
 
   const startPos = screen2Viewport({ x: e.clientX, y: e.clientY });
   const vNode = NodeFactories["node/text"]();
-  vNode.pos = startPos;
+  vNode.pos = { ...startPos };
   // 定义虚拟边，暂时不加入管理器，直到鼠标移出本节点时再加入
   const vEdge = newCurveEdge(objects[id] as Node, vNode);
   vEdge.anchorTarget = { type: "absPos" };
@@ -89,6 +85,12 @@ export const onClickNode = (e: MouseEvent) => {
     }
   };
 
+  const onContextMenu = (e: MouseEvent) => {
+    if(!(vEdge.id in objects)) return; // 未移动，不创建节点
+    e.preventDefault(); // 阻止默认右键菜单
+    e.stopImmediatePropagation();
+  };
+
   const onMouseUp = (e: MouseEvent) => {
     const aNodeId = idFromEvent(e, ".node-group");
     if (aNodeId) {
@@ -106,21 +108,26 @@ export const onClickNode = (e: MouseEvent) => {
       vEdge.anchorTarget = { type: "auto" };
       if (node) {
         vEdge.target = node;
-        Manager.add(node)
+        Manager.add(node);
         Manager.saveHistory();
       } else {
-        Manager.deleteId(vEdge.id)
+        Manager.deleteId(vEdge.id);
       }
     }
     window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
+    window.removeEventListener("mouseup", onMouseUp, true);
     window.removeEventListener("mouseover", onMouseOver);
     window.removeEventListener("mouseout", onMouseOut);
     window.removeEventListener("blur", onBlur);
+
+    setTimeout(() => {
+      window.removeEventListener("contextmenu", onContextMenu, true);
+    }, 0);
   };
 
   window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
+  window.addEventListener("mouseup", onMouseUp, true);
+  window.addEventListener("contextmenu", onContextMenu, true);
   window.addEventListener("mouseover", onMouseOver);
   window.addEventListener("mouseout", onMouseOut);
   window.addEventListener("blur", onBlur);

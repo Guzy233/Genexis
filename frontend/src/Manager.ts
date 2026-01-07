@@ -13,7 +13,7 @@ let currentIndex = -1;
 // 空的更新器，用于触发画布重新渲染
 export const canvasUpdater = atom<number>(0);
 
-let state: number = 0;
+let state: number = 1;
 
 // 更新画布（viewport 变化时调用）
 export const updateCanvas = () => {
