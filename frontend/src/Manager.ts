@@ -89,15 +89,12 @@ export default {
   },
   updateId: (id: string) => {
     store.set(objects[id].updater, state++);
-    updateCanvas();
   },
   update: (obj: Obj) => {
     store.set(obj.updater, state++);
-    updateCanvas();
   },
   deleteId: (id: string) => {
     delete objects[id];
-    // 不在这里保存历史，由操作完成时显式调用 saveHistory
     updateCanvas();
   },
   clearSelected: () => {

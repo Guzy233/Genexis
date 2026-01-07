@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { idFromEvent, Operators } from "../Globals";
 import { updateCanvas } from "../Manager";
 
@@ -46,7 +47,7 @@ const onMouseDown = (e: MouseEvent) => {
   const onMouseMove = (e: MouseEvent) => {
     viewport.x = startViewportX + (e.clientX - startX);
     viewport.y = startViewportY + (e.clientY - startY);
-    updateCanvas();
+    updateViewport();
   };
 
   const onMouseUp = () => {
@@ -85,8 +86,23 @@ const onWheel = (e: WheelEvent) => {
   viewport.x = mouseX - worldX * newZoom;
   viewport.y = mouseY - worldY * newZoom;
 
-  updateCanvas();
+  updateViewport();
 };
+
+let canvas:SVGGElement|null = null;
+
+function updateViewport() {
+
+  if (canvas) {
+    canvas.setAttribute(
+      "transform",
+      `translate(${viewport.x},${viewport.y}) scale(${viewport.zoom})`
+    );
+  }else{
+    canvas = document.querySelector("#canvas");
+    updateViewport();
+  }
+}
 
 Operators.push({
   Begin: () => {

@@ -1,6 +1,6 @@
 import "./css/App.css";
-import { Coms, Obj, Operators } from "./Globals";
-import React, { useEffect, useMemo, useState } from "react";
+import { Coms, Operators } from "./Globals";
+import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { objects, canvasUpdater } from "./Manager";
 import { viewport } from "./Controllers/Camera";
@@ -12,7 +12,7 @@ import "./Components/TextNode";
 import "./Components/ImageNode";
 import "./Components/CurveEdge";
 import "./Components/SelectionBox";
-import "./Components/ContextMenu"
+import "./Components/ContextMenu";
 
 import "./Controllers/Keyboard";
 import "./Controllers/Creator";
@@ -43,13 +43,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div
-      className="canvas-container"
-      tabIndex={0}
-      // onContextMenu={(e) => {
-      //   e.preventDefault();
-      // }}
-    >
+    <div className="canvas-container" tabIndex={0}>
       {/* 设置按钮 */}
       <button
         className="settings-toggle"
@@ -103,6 +97,7 @@ const App: React.FC = () => {
 
         <g
           transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}
+          id="canvas"
         >
           <rect
             x={-50000}
