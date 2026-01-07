@@ -1,12 +1,23 @@
 import Manager from "../Manager";
-import { Operators, Vec2, Node } from "../Globals";
+import { Operators, Vec2, Node, Obj } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { getCurrentTool } from "../Components/ToolBar";
 
-// ==================== 节点工厂相关 ====================
+// ==================== 通用工厂系统 ====================
 
+// 节点工厂
 export type NodeFactory = () => Node;
 export const NodeFactories: Record<string, NodeFactory> = {};
+
+// 边工厂
+export type EdgeFactory = (source: Node, target: Node) => Obj;
+export const EdgeFactories: Record<string, EdgeFactory> = {};
+
+// UI 组件工厂
+export type UIComponentFactory = () => Obj;
+export const UIComponentFactories: Record<string, UIComponentFactory> = {};
+
+// ==================== 节点创建 ====================
 
 export function createNodeCentered(pos: Vec2) {
   const currentTool = getCurrentTool();

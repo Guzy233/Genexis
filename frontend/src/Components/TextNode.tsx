@@ -4,6 +4,7 @@ import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { ToolItems } from "./ToolBar";
 import { NodeFactories } from "../Controllers/Creator";
+import { ContextMenuFactories, ContextMenuItem } from "../Controllers/ContextMenu";
 import { activedId } from "../Controllers/Selector";
 import { EditableText } from "./EditableText";
 import {
@@ -15,6 +16,46 @@ import {
 export interface TextNode extends Node {
   text: string;
 }
+
+// 注册序列化函数
+registerSerializer(
+  "node/text",
+  (obj: Obj) => {
+    const node = obj as TextNode;
+    return {
+      id: node.id,
+      type: node.type,
+      pos: { ...node.pos },
+      size: { ...node.size },
+      aAncs: serializeAnchors(node.aAncs),
+      eAncs: serializeAnchors(node.eAncs),
+      text: node.text,
+      selected: node.selected,
+    };
+  },
+  (data) => {
+    const node: TextNode = {
+      id: data.id,
+      type: data.type,
+      pos: { ...data.pos },
+      size: { ...data.size },
+      aAncs: deserializeAnchors(data.aAncs),
+      eAncs: deserializeAnchors(data.eAncs),
+      text: data.text,
+      selected: data.selected ?? false,
+      updater: atom(0),
+    };
+    return node;
+  }
+);
+
+
+// 注册文本节点特定右键菜单
+ContextMenuFactories["node"] = (): ContextMenuItem[] => {
+  // 文本节点暂无特定选项
+  return [];
+};
+
 
 const getFillColor = (node: TextNode) => {
   if (node.id===activedId) return "#8ce7ab33";
@@ -94,35 +135,3 @@ export const TextNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   );
 };
 Coms["node/text"] = TextNodeComponent;
-
-// 注册序列化函数
-registerSerializer(
-  "node/text",
-  (obj: Obj) => {
-    const node = obj as TextNode;
-    return {
-      id: node.id,
-      type: node.type,
-      pos: { ...node.pos },
-      size: { ...node.size },
-      aAncs: serializeAnchors(node.aAncs),
-      eAncs: serializeAnchors(node.eAncs),
-      text: node.text,
-      selected: node.selected,
-    };
-  },
-  (data) => {
-    const node: TextNode = {
-      id: data.id,
-      type: data.type,
-      pos: { ...data.pos },
-      size: { ...data.size },
-      aAncs: deserializeAnchors(data.aAncs),
-      eAncs: deserializeAnchors(data.eAncs),
-      text: data.text,
-      selected: data.selected ?? false,
-      updater: atom(0),
-    };
-    return node;
-  }
-);

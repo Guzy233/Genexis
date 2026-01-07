@@ -12,9 +12,11 @@ import "./Components/TextNode";
 import "./Components/ImageNode";
 import "./Components/CurveEdge";
 import "./Components/SelectionBox";
+import "./Components/ContextMenu"
 
 import "./Controllers/Keyboard";
 import "./Controllers/Creator";
+import "./Controllers/ContextMenu";
 import "./Controllers/Linker";
 import "./Controllers/Dragger";
 import "./Controllers/Selector";
@@ -30,6 +32,8 @@ const App: React.FC = () => {
   const uis = objs.filter((obj) => obj.type.startsWith("ui"));
   const sortedObjects = [...edges, ...nodes, ...uis];
 
+  // sortedObjects.forEach((o)=>console.log(o.id))
+
   useEffect(() => {
     Operators.map((op) => op.Begin());
     return () => {
@@ -41,9 +45,9 @@ const App: React.FC = () => {
     <div
       className="canvas-container"
       tabIndex={0}
-      onContextMenu={(e) => {
-        e.preventDefault();
-      }}
+      // onContextMenu={(e) => {
+      //   e.preventDefault();
+      // }}
     >
       {/* 设置按钮 */}
       <button

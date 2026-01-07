@@ -1,15 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
-import {
-  Obj,
-  Anchor,
-  anchors_rect,
-  Node,
-  Coms,
-} from "../Globals";
+import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { ToolItems } from "./ToolBar";
 import { NodeFactories } from "../Controllers/Creator";
+import {
+  ContextMenuFactories,
+  ContextMenuItem,
+} from "../Controllers/ContextMenu";
 import { activedId } from "../Controllers/Selector";
 import {
   registerSerializer,
@@ -62,6 +60,63 @@ ToolItems.push({
   icon: <span style={{ fontSize: 16 }}>🖼️</span>,
   createNode: createImageNode,
 });
+
+// 注册序列化函数
+registerSerializer(
+  "node/image",
+  (obj: Obj) => {
+    const node = obj as ImageNode;
+    return {
+      id: node.id,
+      type: node.type,
+      pos: { ...node.pos },
+      size: { ...node.size },
+      aAncs: serializeAnchors(node.aAncs),
+      eAncs: serializeAnchors(node.eAncs),
+      src: node.src,
+      imageSize: { ...node.imageSize },
+      selected: node.selected,
+    };
+  },
+  (data) => {
+    const node: ImageNode = {
+      id: data.id,
+      type: data.type,
+      pos: { ...data.pos },
+      size: { ...data.size },
+      aAncs: deserializeAnchors(data.aAncs),
+      eAncs: deserializeAnchors(data.eAncs),
+      src: data.src,
+      imageSize: { ...data.imageSize },
+      selected: data.selected ?? false,
+      updater: atom(0),
+    };
+    return node;
+  }
+);
+
+// 注册图片节点特定右键菜单
+ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
+  const node = target as ImageNode;
+  const items: ContextMenuItem[] = [];
+
+  // 清除图像选项（仅当有图像时显示）
+  if (node.src) {
+    items.push({
+      id: "clearImage",
+      label: "清除图像",
+      icon: "🗑️",
+      onClick: (t: Obj) => {
+        const n = t as ImageNode;
+        n.src = "";
+        Manager.update(n);
+        Manager.saveHistory();
+      },
+    });
+  }
+
+  return items;
+};
 
 // 图片节点组件
 export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
@@ -213,37 +268,3 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   );
 };
 Coms["node/image"] = ImageNodeComponent;
-
-// 注册序列化函数
-registerSerializer(
-  "node/image",
-  (obj: Obj) => {
-    const node = obj as ImageNode;
-    return {
-      id: node.id,
-      type: node.type,
-      pos: { ...node.pos },
-      size: { ...node.size },
-      aAncs: serializeAnchors(node.aAncs),
-      eAncs: serializeAnchors(node.eAncs),
-      src: node.src,
-      imageSize: { ...node.imageSize },
-      selected: node.selected,
-    };
-  },
-  (data) => {
-    const node: ImageNode = {
-      id: data.id,
-      type: data.type,
-      pos: { ...data.pos },
-      size: { ...data.size },
-      aAncs: deserializeAnchors(data.aAncs),
-      eAncs: deserializeAnchors(data.eAncs),
-      src: data.src,
-      imageSize: { ...data.imageSize },
-      selected: data.selected ?? false,
-      updater: atom(0),
-    };
-    return node;
-  }
-);

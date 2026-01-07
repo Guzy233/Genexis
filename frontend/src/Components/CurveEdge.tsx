@@ -15,6 +15,7 @@ import { objects } from "../Manager";
 import {
   registerSerializer,
 } from "../Serialization";
+import { ContextMenuFactories, ContextMenuItem } from "../Controllers/ContextMenu";
 
 // 类型定义
 interface ResolvedPoint {
@@ -279,3 +280,11 @@ registerSerializer(
     return edge;
   }
 );
+
+// ==================== 右键菜单 ====================
+
+// 注册边特定右键菜单
+ContextMenuFactories["edge"] = (): ContextMenuItem[] => {
+  // 边暂无特定选项
+  return [];
+};
