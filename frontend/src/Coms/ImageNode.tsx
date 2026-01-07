@@ -217,23 +217,33 @@ Coms["node/image"] = ImageNodeComponent;
 // 注册序列化函数
 registerSerializer(
   "node/image",
-  (node: ImageNode) => {
+  (obj: Obj) => {
+    const node = obj as ImageNode;
     return {
       id: node.id,
       type: node.type,
-      pos: node.pos,
-      size: node.size,
+      pos: { ...node.pos },
+      size: { ...node.size },
       aAncs: serializeAnchors(node.aAncs),
       eAncs: serializeAnchors(node.eAncs),
       src: node.src,
-      imageSize: node.imageSize,
+      imageSize: { ...node.imageSize },
+      selected: node.selected,
     };
   },
-  (data: any) => {
-    const node = data as ImageNode;
-    node.updater = atom(0);
-    node.aAncs = deserializeAnchors(data.aAncs);
-    node.eAncs = deserializeAnchors(data.eAncs);
+  (data) => {
+    const node: ImageNode = {
+      id: data.id,
+      type: data.type,
+      pos: { ...data.pos },
+      size: { ...data.size },
+      aAncs: deserializeAnchors(data.aAncs),
+      eAncs: deserializeAnchors(data.eAncs),
+      src: data.src,
+      imageSize: { ...data.imageSize },
+      selected: data.selected ?? false,
+      updater: atom(0),
+    };
     return node;
   }
 );

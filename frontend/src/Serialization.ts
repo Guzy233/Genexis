@@ -1,4 +1,5 @@
-import { Anchor } from "./Globals";
+import { atom } from "jotai";
+import { Anchor, Obj, Node } from "./Globals";
 
 // ==================== 序列化类型定义 ====================
 
@@ -8,8 +9,13 @@ export type SerializedAnchor =
 
 export interface SerializedCanvas {
   version: number;
-  nodes: any[];
-  edges: any[];
+  objects: SerializedObj[];
+}
+
+export interface SerializedObj {
+  id: string;
+  type: string;
+  [key: string]: any;
 }
 
 // ==================== 锚点预设系统 ====================
@@ -31,8 +37,8 @@ export const registerAnchorPreset = (name: string, anchors: Anchor[]): void => {
 
 // ==================== 注册表 ====================
 
-export type Serializer = (obj: any) => any;
-export type Deserializer = (obj: any) => any;
+export type Serializer = (obj: Obj) => SerializedObj;
+export type Deserializer = (data: SerializedObj) => Obj & { sourceId?: string; targetId?: string };
 
 export const Serializers: Record<string, Serializer> = {};
 export const Deserializers: Record<string, Deserializer> = {};
@@ -71,59 +77,58 @@ export const deserializeAnchors = (serialized: SerializedAnchor[]): Anchor[] => 
 
 // ==================== 画布序列化/反序列化 ====================
 
-export const serializeCanvas = (objects: Record<string, any>): SerializedCanvas => {
-  const nodes: any[] = [];
-  const edges: any[] = [];
+export const serializeCanvas = (objects: Record<string, Obj>): SerializedCanvas => {
+  const serializedObjects: SerializedObj[] = [];
 
   Object.values(objects).forEach((obj) => {
     const serializer = Serializers[obj.type];
     const data = serializer ? serializer(obj) : { ...obj };
-
-    if (obj.type.startsWith("node/")) {
-      nodes.push(data);
-    } else if (obj.type.startsWith("edge/")) {
-      edges.push(data);
-    }
+    serializedObjects.push(data);
   });
 
   return {
     version: 1,
-    nodes,
-    edges,
+    objects: serializedObjects,
   };
 };
 
 export const deserializeCanvas = (
   data: SerializedCanvas,
-  Objects: Record<string, any>
+  Objects: Record<string, Obj>
 ): void => {
-  // 先创建所有节点
-  const nodeMap: Record<string, any> = {};
-  data.nodes.forEach((nodeData) => {
-    const deserializer = Deserializers[nodeData.type];
-    const node = deserializer ? deserializer(nodeData) : { ...nodeData };
-    nodeMap[nodeData.id] = node;
-    Objects[nodeData.id] = node;
-  });
+  // 先创建所有节点（建立 id 映射）
+  const nodeMap: Record<string, Node> = {};
+  data.objects
+    .filter((obj) => obj.type.startsWith("node/"))
+    .forEach((nodeData) => {
+      const deserializer = Deserializers[nodeData.type];
+      const node = deserializer
+        ? (deserializer(nodeData) as unknown as Node)
+        : ({ ...nodeData, updater: atom(0) } as unknown as Node);
+      nodeMap[nodeData.id] = node;
+      Objects[nodeData.id] = node;
+    });
 
-  // 再创建所有边
-  data.edges.forEach((edgeData) => {
-    const source = nodeMap[edgeData.sourceId];
-    const target = nodeMap[edgeData.targetId];
+  // 再处理边（通过 id 映射查找源和目标）
+  data.objects
+    .filter((obj) => obj.type.startsWith("edge/"))
+    .forEach((edgeData) => {
+      const source = nodeMap[edgeData.sourceId];
+      const target = nodeMap[edgeData.targetId];
 
-    if (!source || !target) {
-      console.warn(`Cannot find nodes for edge ${edgeData.id}`);
-      return;
-    }
+      if (!source || !target) {
+        console.warn(`Cannot find nodes for edge ${edgeData.id}`);
+        return;
+      }
 
-    const baseEdge = {
-      ...edgeData,
-      source,
-      target,
-    };
+      const deserializer = Deserializers[edgeData.type];
+      // 先调用 deserializer 处理额外属性
+      let edge = deserializer(edgeData);
 
-    const deserializer = Deserializers[edgeData.type];
-    const edge = deserializer ? deserializer(baseEdge) : baseEdge;
-    Objects[edgeData.id] = edge;
-  });
+      // 再设置 source 和 target
+      (edge as any).source = source;
+      (edge as any).target = target;
+
+      Objects[edgeData.id] = edge as Obj;
+    });
 };

@@ -96,22 +96,31 @@ Coms["node/text"] = TextNodeComponent;
 // 注册序列化函数
 registerSerializer(
   "node/text",
-  (node: TextNode) => {
+  (obj: Obj) => {
+    const node = obj as TextNode;
     return {
       id: node.id,
       type: node.type,
-      pos: node.pos,
-      size: node.size,
+      pos: { ...node.pos },
+      size: { ...node.size },
       aAncs: serializeAnchors(node.aAncs),
       eAncs: serializeAnchors(node.eAncs),
       text: node.text,
+      selected: node.selected,
     };
   },
-  (data: any) => {
-    const node = data as TextNode;
-    node.updater = atom(0);
-    node.aAncs = deserializeAnchors(data.aAncs);
-    node.eAncs = deserializeAnchors(data.eAncs);
+  (data) => {
+    const node: TextNode = {
+      id: data.id,
+      type: data.type,
+      pos: { ...data.pos },
+      size: { ...data.size },
+      aAncs: deserializeAnchors(data.aAncs),
+      eAncs: deserializeAnchors(data.eAncs),
+      text: data.text,
+      selected: data.selected ?? false,
+      updater: atom(0),
+    };
     return node;
   }
 );

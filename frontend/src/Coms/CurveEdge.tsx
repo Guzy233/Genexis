@@ -253,19 +253,29 @@ Coms["edge/curve"] = CurveEdgeComponent;
 // 注册序列化函数
 registerSerializer(
   "edge/curve",
-  (edge: CurveEdge) => {
+  (obj: Obj) => {
+    const edge = obj as CurveEdge;
     return {
       id: edge.id,
       type: edge.type,
       sourceId: edge.source.id,
       targetId: edge.target.id,
-      anchorSource: edge.anchorSource,
-      anchorTarget: edge.anchorTarget,
+      anchorSource: { ...edge.anchorSource },
+      anchorTarget: { ...edge.anchorTarget },
+      isSelected: edge.isSelected,
     };
   },
-  (data: any) => {
-    const edge = data as CurveEdge;
-    edge.updater = atom(0);
+  (data) => {
+    const edge: CurveEdge = {
+      id: data.id,
+      type: data.type,
+      anchorSource: { ...data.anchorSource },
+      anchorTarget: { ...data.anchorTarget },
+      isSelected: data.isSelected ?? false,
+      updater: atom(0),
+      source: null as unknown as Node,
+      target: null as unknown as Node,
+    };
     return edge;
   }
 );

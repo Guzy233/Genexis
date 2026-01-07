@@ -296,6 +296,144 @@ registerSetting({
 });
 ```
 
+## 序列化系统
+
+### 概述
+
+序列化系统负责将画布内容保存为 JSON 格式，以及从 JSON 恢复画布状态。
+
+### 核心类型
+
+```typescript
+interface SerializedCanvas {
+  version: number;
+  objects: any[];  // 统一存储所有对象，通过 type 前缀区分（如 "node/text", "edge/curve"）
+}
+```
+
+### 注册序列化器
+
+每种节点/边类型需要注册对应的序列化和反序列化函数：
+
+```typescript
+import { registerSerializer, registerAnchorPreset } from "../Serialization";
+
+interface TextNode extends Node {
+  text: string;
+}
+
+// 注册锚点预设
+registerAnchorPreset("rect", [
+  { type: "posDir", pos: { x: 0.5, y: 0 }, dir: { x: 0, y: -1 } },
+  // ... 其他锚点
+]);
+
+// 注册序列化器
+registerSerializer(
+  "node/text",
+  (obj: TextNode) => ({
+    id: obj.id,
+    type: obj.type,
+    pos: obj.pos,
+    size: obj.size,
+    text: obj.text,
+    eAncs: serializeAnchors(obj.eAncs),  // 使用工具函数
+  }),
+  (data: any) => ({
+    ...data,
+    eAncs: deserializeAnchors(data.eAncs),
+    updater: atom(0),
+  })
+);
+```
+
+### 锚点预设系统
+
+锚点支持预设功能，可以减少重复数据：
+
+```typescript
+// 预设锚点会被序列化为 { preset: "rect" } 而不是完整数据
+registerAnchorPreset("rect", [...]);
+```
+
+### 序列化 API
+
+| 函数 | 用途 |
+|------|------|
+| `serializeCanvas(objects)` | 将所有对象序列化为 `SerializedCanvas`（统一 objects 数组） |
+| `deserializeCanvas(data, objects)` | 从 `SerializedCanvas` 恢复对象到 `objects` |
+| `serializeAnchors(anchors)` | 序列化锚点数组，支持预设 |
+| `deserializeAnchors(data)` | 反序列化锚点数组 |
+
+### 序列化流程
+
+1. **保存时**：遍历所有对象，统一放入 `objects` 数组，通过 `type` 前缀区分类型
+2. **恢复时**：先处理所有 `node/*` 类型建立 id 映射，再处理 `edge/*` 类型通过 id 映射查找源和目标
+
+```typescript
+// 保存到 localStorage
+const data = serializeCanvas(Manager.objects);
+localStorage.setItem("mindgraph", JSON.stringify(data));
+
+// 从 localStorage 恢复
+const saved = localStorage.getItem("mindgraph");
+if (saved) {
+  deserializeCanvas(JSON.parse(saved), Manager.objects);
+  Manager.updateCanvas();
+}
+```
+
+## 撤销/重做系统
+
+### 概述
+
+撤销重做系统使用命令模式，记录画布的完整状态快照。
+
+### 历史记录管理
+
+```typescript
+// Manager.ts
+const MAX_HISTORY = 50;      // 最大历史记录数
+const history: SerializedCanvas[] = [];
+let currentIndex = -1;       // 当前历史位置
+```
+
+### 核心 API
+
+| 函数 | 用途 |
+|------|------|
+| `saveHistory()` | 保存当前状态到历史记录 |
+| `undo()` | 撤销到上一状态，返回是否成功 |
+| `redo()` | 重做到下一状态，返回是否成功 |
+| `canUndo()` | 是否有可撤销的历史 |
+| `canRedo()` | 是否有可重做的历史 |
+
+### 使用方式
+
+在操作完成后调用 `saveHistory()`：
+
+```typescript
+// Operators/Dragger.ts - 拖拽结束
+const onMouseUp = () => {
+  window.removeEventListener("mousemove", onMouseMove);
+  window.removeEventListener("mouseup", onMouseMove);
+  Manager.saveHistory();  // 保存历史
+};
+```
+
+### 历史记录行为
+
+- **新操作会删除当前光标之后的所有历史**（如撤销后再做新操作）
+- **最多保留 50 条历史记录**，超出时删除最旧的记录
+- **初始化时会保存一条空状态**作为起点
+
+### 快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl+Z` | 撤销 |
+| `Ctrl+Y` 或 `Ctrl+Shift+Z` | 重做 |
+
 ## 新增功能指南
 
 ### 添加新节点类型

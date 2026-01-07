@@ -54,7 +54,7 @@ function updateBinding(action: KeyAction, key: string): void {
 
 // 键盘事件处理
 const onKeyDown = (e: KeyboardEvent): void => {
-  e.preventDefault();
+  // e.preventDefault();
   if (e.repeat) return;
 
   const query =
