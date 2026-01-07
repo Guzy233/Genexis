@@ -1,5 +1,5 @@
 import Manager, { objects } from "../Manager";
-import { newCurveEdge } from "../Coms/CurveEdge";
+import { newCurveEdge } from "../Components/CurveEdge";
 import {
   idFromEvent,
   Node,

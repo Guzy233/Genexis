@@ -9,8 +9,8 @@ import {
   Coms,
 } from "../Globals";
 import { ToolItems } from "./ToolBar";
-import { NodeFactories } from "../Operators/Creator";
-import { activedId } from "../Operators/Selector";
+import { NodeFactories } from "../Controllers/Creator";
+import { activedId } from "../Controllers/Selector";
 import {
   registerSerializer,
   serializeAnchors,

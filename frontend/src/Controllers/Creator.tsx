@@ -1,7 +1,7 @@
 import Manager from "../Manager";
 import { Operators, Vec2, Node } from "../Globals";
 import { screen2Viewport } from "./Camera";
-import { getCurrentTool } from "../Coms/ToolBar";
+import { getCurrentTool } from "../Components/ToolBar";
 
 // ==================== 节点工厂相关 ====================
 

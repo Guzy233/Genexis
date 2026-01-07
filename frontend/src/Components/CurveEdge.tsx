@@ -8,7 +8,7 @@ import {
 } from "../Globals";
 // import { actionBus } from "./ActionServer";
 import { atom, Atom, PrimitiveAtom, useAtom } from "jotai";
-import { screen2Viewport } from "../Operators/Camera";
+import { screen2Viewport } from "../Controllers/Camera";
 
 // import "./Edge.css";
 import { objects } from "../Manager";

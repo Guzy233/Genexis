@@ -3,22 +3,22 @@ import { Coms, Obj, Operators } from "./Globals";
 import React, { useEffect, useMemo, useState } from "react";
 import { useAtom } from "jotai";
 import { objects, canvasUpdater } from "./Manager";
-import { viewport } from "./Operators/Camera";
+import { viewport } from "./Controllers/Camera";
 
-import SettingsPanel from "./Coms/SettingPanel";
-import ToolBar from "./Coms/ToolBar";
+import SettingsPanel from "./Components/SettingPanel";
+import ToolBar from "./Components/ToolBar";
 
-import "./Coms/TextNode";
-import "./Coms/ImageNode";
-import "./Coms/CurveEdge";
-import "./Coms/SelectionBox";
+import "./Components/TextNode";
+import "./Components/ImageNode";
+import "./Components/CurveEdge";
+import "./Components/SelectionBox";
 
-import "./Operators/Keyboard";
-import "./Operators/Creator";
-import "./Operators/Linker";
-import "./Operators/Dragger";
-import "./Operators/Selector";
-import "./Operators/Camera";
+import "./Controllers/Keyboard";
+import "./Controllers/Creator";
+import "./Controllers/Linker";
+import "./Controllers/Dragger";
+import "./Controllers/Selector";
+import "./Controllers/Camera";
 
 const App: React.FC = () => {
   useAtom(canvasUpdater);

@@ -41,7 +41,7 @@ update: (obj: Obj) => {
 
 ### 3. 订阅模式详解
 
-以 [CurveEdge.tsx](src/Coms/CurveEdge.tsx) 为例，边组件同时订阅源节点和目标节点的更新器：
+以 [CurveEdge.tsx](src/Components/CurveEdge.tsx) 为例，边组件同时订阅源节点和目标节点的更新器：
 
 ```typescript
 const CurveEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
@@ -93,11 +93,11 @@ Selector 实现了框选功能，支持以下设置：
 
 ```
 src/
-├── Coms/           # React 渲染组件
+├── Components/     # React 渲染组件
 │   ├── TextNode.tsx    # 文本节点组件
 │   ├── CurveEdge.tsx   # 曲线边组件
 │   └── SelectionBox.tsx  # 框选组件（UI层）
-├── Operators/      # 操作处理器（逻辑层）
+├── Controllers/    # 控制器（逻辑层）
 │   ├── Dragger.ts      # 拖拽逻辑
 │   ├── Creator.ts      # 创建节点逻辑
 │   ├── Linker.ts       # 连接节点逻辑
@@ -119,13 +119,13 @@ src/
 
 ### 组件与操作分离
 
-**Coms** 只负责渲染：
+**Components** 只负责渲染：
 - 接收 `obj` 数据
 - 根据 `obj.type` 从 `Coms` 字典获取对应组件
 - 不包含交互逻辑
 
-**Operators** 只负责处理用户操作：
-- 每个 Operator 是一个对象 `{ Begin: () => void, End: () => void }`
+**Controllers** 只负责处理用户操作：
+- 每个 Controller 是一个对象 `{ Begin: () => void, End: () => void }`
 - `Begin()`: 注册事件监听器
 - `End()`: 移除事件监听器
 - 操作完成后直接修改对象并调用 `Manager.update()`
@@ -136,12 +136,12 @@ src/
 
 ```typescript
 useEffect(() => {
-  Operators.map((op) => op.Begin());  // 挂载时启动所有操作器
-  return () => Operators.map((op) => op.End());  // 卸载时清理
+  Controllers.map((op) => op.Begin());  // 挂载时启动所有控制器
+  return () => Controllers.map((op) => op.End());  // 卸载时清理
 }, []);
 ```
 
-这种方式使功能模块化，可以随时添加/移除操作器。
+这种方式使功能模块化，可以随时添加/移除控制器。
 
 ### 过程式设计 vs 状态式设计
 
@@ -157,7 +157,7 @@ export const setEditing = (id: string) => {
 };
 
 // 在 Begin 中注册全局监听器，效率低
-Operators.push({
+Controllers.push({
   Begin: () => window.addEventListener("mousedown", onMouseDown),
   End: () => window.removeEventListener("mousedown", onMouseDown),
 });
@@ -165,7 +165,7 @@ Operators.push({
 
 **正模式（过程式）**：
 ```typescript
-// Operators/Editor.ts
+// Controllers/Editor.ts
 let editingElement = "";
 
 export const setEditing = (id: string) => {
@@ -190,7 +190,7 @@ export const setEditing = (id: string) => {
 2. **无需清理函数**：监听器自己管理生命周期，在适当时机移除自己
 3. **闭包捕获当前状态**：不需要外部状态变量，减少同步问题
 
-参考 [Linker.ts](src/Operators/Linker.ts) 中连接操作的实现：虚拟节点和边在闭包内创建，鼠标事件中直接使用。
+参考 [Linker.ts](src/Controllers/Linker.ts) 中连接操作的实现：虚拟节点和边在闭包内创建，鼠标事件中直接使用。
 
 ## 锚点系统 (Anchor)
 
@@ -228,7 +228,7 @@ export const viewport = {
 设置项通过 `registerSetting()` 注册到全局设置系统：
 
 ```typescript
-// Operators/Linker.ts
+// Controllers/Linker.ts
 import { registerSetting } from "../Option";
 
 let linkingKey = "Space";
@@ -413,7 +413,7 @@ let currentIndex = -1;       // 当前历史位置
 在操作完成后调用 `saveHistory()`：
 
 ```typescript
-// Operators/Dragger.ts - 拖拽结束
+// Controllers/Dragger.ts - 拖拽结束
 const onMouseUp = () => {
   window.removeEventListener("mousemove", onMouseMove);
   window.removeEventListener("mouseup", onMouseMove);
@@ -441,7 +441,7 @@ const onMouseUp = () => {
 节点类型定义在组件文件中，而非 `Globals.ts`。这种方式确保使用节点时必须导入组件文件。
 
 ```typescript
-// Coms/ImageNode.tsx
+// Components/ImageNode.tsx
 import { Obj, Node, Coms } from "../Globals";
 import { atom } from "jotai";
 
@@ -483,7 +483,7 @@ UI 组件（如 SelectionBox）是纯视觉元素，用于显示临时状态（�
 - 渲染在最顶层
 
 ```typescript
-// Coms/SelectionBox.tsx
+// Components/SelectionBox.tsx
 import { Obj, Coms } from "../Globals";
 import { atom } from "jotai";
 
@@ -514,19 +514,19 @@ const SelectionBoxComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
 Coms["ui/selectionBox"] = SelectionBoxComponent;
 ```
 
-### 添加新操作
+### 添加新控制器
 
-1. 在 `Operators/` 下创建文件
+1. 在 `Controllers/` 下创建文件
 2. 定义事件处理函数
-3. 注册到 `Operators` 数组
+3. 注册到 `Controllers` 数组
 
 ```typescript
-// Operators/Zoomer.ts
+// Controllers/Zoomer.ts
 export const onWheel = (e: WheelEvent) => {
   viewport.zoom *= e.deltaY > 0 ? 0.9 : 1.1;
 };
 
-Operators.push({
+Controllers.push({
   Begin: () => window.addEventListener("wheel", onWheel),
   End: () => window.removeEventListener("wheel", onWheel),
 });
@@ -534,10 +534,10 @@ Operators.push({
 
 ### 添加新设置项
 
-在 Operator 文件中直接注册：
+在 Controller 文件中直接注册：
 
 ```typescript
-// Operators/MyFeature.ts
+// Controllers/MyFeature.ts
 import { registerSetting } from "../Option";
 
 let myKey = "Control";
@@ -558,6 +558,6 @@ registerSetting({
 1. **不要依赖 updater 的值**：它只用于触发更新，内部数值无意义
 2. **对象是可变的**：直接修改 `obj.pos` 等属性是预期行为
 3. **修改后必须调用 Manager.update()**：否则 UI 不会更新
-4. **Operator 必须在 Begin/End 中配对**：防止内存泄漏
+4. **Controller 必须在 Begin/End 中配对**：防止内存泄漏
 5. **selected 可以多个，actived 只能一个**
 6. **节点类型定义在组件文件中**，使用新节点类型时需确保组件已导入
