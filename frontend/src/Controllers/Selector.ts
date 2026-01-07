@@ -30,10 +30,12 @@ const isNodeInBox = (node: Node, box: SelectionBox): boolean => {
   const nodeTop = node.pos.y;
   const nodeBottom = node.pos.y + node.size.y;
 
-  return nodeLeft < maxX && nodeRight > minX && nodeTop < maxY && nodeBottom > minY;
+  return (
+    nodeLeft < maxX && nodeRight > minX && nodeTop < maxY && nodeBottom > minY
+  );
 };
 
-export let activedId=''
+export let activedId = "";
 
 // 清除所有选中状态
 const clearSelection = (includeActived: boolean) => {
@@ -44,7 +46,7 @@ const clearSelection = (includeActived: boolean) => {
     }
   });
   if (includeActived) {
-    activedId='';
+    activedId = "";
   }
 };
 
@@ -53,8 +55,10 @@ const onMouseDown = (e: MouseEvent) => {
   const id = idFromEvent(e, ".node-group");
 
   // 获取当前设置值
-  const extendKey = getSetting("selector.extendKey")?.value as string || "Shift";
-  const boxSelectButton = getSetting("selector.boxSelectButton")?.value as number || 1;
+  const extendKey =
+    (getSetting("selector.extendKey")?.value as string) || "Shift";
+  const boxSelectButton =
+    (getSetting("selector.boxSelectButton")?.value as number) || 1;
 
   // 框选
   if (e.button === boxSelectButton && !id) {
@@ -78,23 +82,17 @@ const onMouseDown = (e: MouseEvent) => {
     };
     Manager.add(selectionBox);
 
-    // 框选状态管理（闭包内）
-    let isSelecting = true;
     const extendMode = isExtendSelection;
 
     const onBlur = () => {
-      if (isSelecting) {
-        Manager.deleteId(selectionBox.id);
-        isSelecting = false;
-        window.removeEventListener("mousemove", onMouseMove);
-        window.removeEventListener("mouseup", onMouseUp);
-        window.removeEventListener("blur", onBlur);
-      }
+      Manager.deleteId(selectionBox.id);
+
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("blur", onBlur);
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!isSelecting) return;
-
       // 更新框选区域
       selectionBox.end = screen2Viewport({ x: e.clientX, y: e.clientY });
       Manager.update(selectionBox);
@@ -123,13 +121,10 @@ const onMouseDown = (e: MouseEvent) => {
     };
 
     const onMouseUp = () => {
-      if (isSelecting) {
-        isSelecting = false;
-        Manager.deleteId(selectionBox.id);
-        window.removeEventListener("mousemove", onMouseMove);
-        window.removeEventListener("mouseup", onMouseUp);
-        window.removeEventListener("blur", onBlur);
-      }
+      Manager.deleteId(selectionBox.id);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("blur", onBlur);
     };
 
     window.addEventListener("mousemove", onMouseMove);
@@ -158,7 +153,7 @@ const onMouseDown = (e: MouseEvent) => {
   node.selected = !node.selected;
 
   // 设置为激活状态
-  activedId="";
+  activedId = "";
   Manager.updateId(id);
 };
 

@@ -12,6 +12,9 @@ export interface ToolItem {
 }
 
 export const ToolItems: ToolItem[] = [];
+export const setDefaultTool = (toolId: string) => {
+  currentTool = toolId;
+};
 
 // 工具项类型（内部使用）
 interface ToolItemInternal {
@@ -22,15 +25,15 @@ interface ToolItemInternal {
 }
 
 // 工具栏状态
-let currentToolId: string = ToolItems[0]?.id || "";
+let currentTool: string ="";
 const toolSubscribers: Set<(toolId: string) => void> = new Set();
 
 export const setCurrentTool = (toolId: string) => {
-  currentToolId = toolId;
+  currentTool = toolId;
   toolSubscribers.forEach((cb) => cb(toolId));
 };
 
-export const getCurrentTool = () => currentToolId;
+export const getCurrentTool = () => currentTool;
 
 export const onToolChange = (callback: (toolId: string) => void): (() => void) => {
   toolSubscribers.add(callback);
@@ -52,7 +55,7 @@ const createPreviewNode = (factory: () => Node): Node => {
 
 // 工具栏组件
 export const ToolBar: React.FC = () => {
-  const [selectedTool, setSelectedTool] = useState<string>(() => currentToolId);
+  const [selectedTool, setSelectedTool] = useState<string>(() => currentTool);
 
   // 订阅工具变化
   React.useEffect(() => {
@@ -78,11 +81,6 @@ export const ToolBar: React.FC = () => {
     const node = createPreviewNode(factory);
     const Component = Coms[node.type];
     if (!Component) return null;
-
-    // 缩放预览图
-    const scale = 0.4;
-    const scaledWidth = node.size.x * scale;
-    const scaledHeight = node.size.y * scale;
 
     return (
       <svg

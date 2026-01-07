@@ -2,7 +2,7 @@ import React from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
-import { ToolItems } from "./ToolBar";
+import { setDefaultTool, ToolItems } from "./ToolBar";
 import { NodeFactories } from "../Controllers/Creator";
 import { ContextMenuFactories, ContextMenuItem } from "../Controllers/ContextMenu";
 import { activedId } from "../Controllers/Selector";
@@ -96,6 +96,8 @@ ToolItems.push({
   icon: <span style={{ fontSize: 16 }}>📄</span>,
   createNode: createTextNode,
 });
+
+setDefaultTool("node/text");
 
 export const TextNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   useAtom(obj.updater);

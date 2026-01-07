@@ -1,171 +1,199 @@
 import React, { useMemo } from "react";
+import { Anchor, Vec2, Obj, Node, Coms } from "../Globals";
+import { atom, useAtom } from "jotai";
+import { registerSerializer } from "../Serialization";
 import {
-  Anchor,
-  Vec2,
-  Obj,
-  Node,
-  Coms,
-} from "../Globals";
-// import { actionBus } from "./ActionServer";
-import { atom, Atom, PrimitiveAtom, useAtom } from "jotai";
-import { screen2Viewport } from "../Controllers/Camera";
+  ContextMenuFactories,
+  ContextMenuItem,
+} from "../Controllers/ContextMenu";
 
-// import "./Edge.css";
-import { objects } from "../Manager";
-import {
-  registerSerializer,
-} from "../Serialization";
-import { ContextMenuFactories, ContextMenuItem } from "../Controllers/ContextMenu";
+// ==================== 类型定义 ====================
 
-// 类型定义
 interface ResolvedPoint {
   x: number;
   y: number;
   dir: Vec2;
 }
+
 export interface CurveEdge extends Obj {
-  source: Node; //需要拉取的信息源，定义为原子
+  source: Node;
   target: Node;
   anchorSource: Anchor;
   anchorTarget: Anchor;
   isSelected: boolean;
+  label?: string;
 }
 
-export const newCurveEdge = (source: Node, target: Node): CurveEdge => {
+export const newCurveEdge = (
+  source: Node,
+  target: Node,
+  label: string = ""
+): CurveEdge => {
   const id = crypto.randomUUID();
-  const edge: CurveEdge = {
-    id: id,
+  return {
+    id,
     type: "edge/curve",
     updater: atom<number>(0),
-    source: source,
-    target: target,
-    anchorSource: { type: "auto" }, // 默认自动
-    anchorTarget: { type: "auto" }, // 默认自动
+    source,
+    target,
+    anchorSource: { type: "auto" },
+    anchorTarget: { type: "auto" },
     isSelected: false,
+    label,
   };
-
-  return edge;
 };
 
-// export const defaultCurveEdge: CurveEdge = {
-//   id: "base",
-//   type: "edge",
-//   tags: new Set(["edge"]),
-//   source: objects[0],
-//   target: objects[1],
-//   anchorSource: { type: "auto" }, // 默认自动
-//   anchorTarget: { type: "auto" }, // 默认自动
-//   isSelected: false,
-// }
+// ==================== 几何计算逻辑 ====================
 
-const CurveEdgeComponent: React.FC<{
-  obj: Obj;
-}> = ({ obj }) => {
-  const edge = obj as CurveEdge;
-  useAtom(obj.updater);
-  useAtom(edge.source.updater);
-  useAtom(edge.target.updater);
+const getPresetAnchors = (node: Node): ResolvedPoint[] => {
+  return node.eAncs
+    .filter(
+      (a): a is Extract<Anchor, { type: "posDir" }> => a.type === "posDir"
+    )
+    .map((a) => ({
+      x: node.pos.x + a.pos.x * node.size.x,
+      y: node.pos.y + a.pos.y * node.size.y,
+      dir: a.dir,
+    }));
+};
 
-  const source = edge.source;
-  const target = edge.target;
+const resolveAnchor = (
+  node: Node,
+  anchor: Anchor
+): ResolvedPoint | ResolvedPoint[] => {
+  switch (anchor.type) {
+    case "posDir":
+      return {
+        x: node.pos.x + anchor.pos.x * node.size.x,
+        y: node.pos.y + anchor.pos.y * node.size.y,
+        dir: anchor.dir,
+      };
+    case "absPos":
+      return { x: node.pos.x, y: node.pos.y, dir: { x: 0, y: 0 } };
+    case "auto":
+      return getPresetAnchors(node);
+    default:
+      return { x: node.pos.x, y: node.pos.y, dir: { x: 0, y: 0 } };
+  }
+};
 
-  // 辅助函数：获取节点上所有预设的固定锚点坐标
-  const getPresetAnchors = (node: Node): ResolvedPoint[] => {
-    return node.eAncs
-      .filter(
-        (a): a is Extract<Anchor, { type: "posDir" }> => a.type === "posDir"
-      )
-      .map((a) => ({
-        x: node.pos.x + a.pos.x * node.size.x,
-        y: node.pos.y + a.pos.y * node.size.y,
-        dir: a.dir,
-      }));
-  };
+const resolvePoints = (
+  source: Node,
+  target: Node,
+  anchorSource: Anchor,
+  anchorTarget: Anchor
+): { source: ResolvedPoint; target: ResolvedPoint } => {
+  const sCandidates = resolveAnchor(source, anchorSource);
+  const tCandidates = resolveAnchor(target, anchorTarget);
+  const sArr = Array.isArray(sCandidates) ? sCandidates : [sCandidates];
+  const tArr = Array.isArray(tCandidates) ? tCandidates : [tCandidates];
 
-  // 核心计算：解析出起点和终点的绝对位置
-  const resolvedPoints = (() => {
-    const { anchorSource, anchorTarget } = edge;
+  let minDistance = Infinity;
+  let finalSource = sArr[0];
+  let finalTarget = tArr[0];
 
-    // 处理显式定义的固定点
-    const resolveSingle = (
-      node: Node,
-      anchor: Anchor
-    ): ResolvedPoint | ResolvedPoint[] => {
-      switch (anchor.type) {
-        case "posDir":
-          return {
-            x: node.pos.x + anchor.pos.x * node.size.x,
-            y: node.pos.y + anchor.pos.y * node.size.y,
-            dir: anchor.dir,
-          };
-        case "absPos":
-          return { x: node.pos.x, y: node.pos.y, dir: { x: 0, y: 0 } };
-        case "auto":
-          return getPresetAnchors(node);
-        default:
-          return { x: node.pos.x, y: node.pos.y, dir: { x: 0, y: 0 } };
-      }
-    };
-
-    const sCandidates = resolveSingle(source, anchorSource);
-    const tCandidates = resolveSingle(target, anchorTarget);
-
-    // 自动匹配最近点逻辑
-    const sArr = Array.isArray(sCandidates) ? sCandidates : [sCandidates];
-    const tArr = Array.isArray(tCandidates) ? tCandidates : [tCandidates];
-
-    let minDistance = Infinity;
-    let finalSource = sArr[0];
-    let finalTarget = tArr[0];
-
-    for (const s of sArr) {
-      for (const t of tArr) {
-        const dist = Math.hypot(s.x - t.x, s.y - t.y);
-        if (dist < minDistance) {
-          minDistance = dist;
-          finalSource = s;
-          finalTarget = t;
-        }
+  for (const s of sArr) {
+    for (const t of tArr) {
+      const dist = Math.hypot(s.x - t.x, s.y - t.y);
+      if (dist < minDistance) {
+        minDistance = dist;
+        finalSource = s;
+        finalTarget = t;
       }
     }
+  }
+  return { source: finalSource, target: finalTarget };
+};
 
-    return { source: finalSource, target: finalTarget };
-  })();
+/**
+ * 计算完整的 SVG 路径数据
+ */
+const calculatePath = (
+  source: ResolvedPoint,
+  target: ResolvedPoint,
+  anchorSourceType: Anchor["type"],
+  anchorTargetType: Anchor["type"]
+): string => {
+  const ARROW_GAP = 20;
+  const finalTargetX = target.x + target.dir.x * ARROW_GAP;
+  const finalTargetY = target.y + target.dir.y * ARROW_GAP;
 
-  // 计算 SVG 路径
-  const pathData = useMemo(() => {
-    if (!resolvedPoints) return "";
-    const { source, target } = resolvedPoints;
+  const isSourceFree = anchorSourceType === "absPos";
+  const isTargetFree = anchorTargetType === "absPos";
+  const dist = Math.hypot(source.x - target.x, source.y - target.y);
+  const curvature = Math.min(dist / 4, 100);
 
-    // 终点修正逻辑 (针对箭头)
-    const ARROW_GAP = 20;
-    const finalTargetX = target.x + target.dir.x * ARROW_GAP;
-    const finalTargetY = target.y + target.dir.y * ARROW_GAP;
-
-    // 曲线类型判定
-    const isSourceFree = edge.anchorSource.type === "absPos";
-    const isTargetFree = edge.anchorTarget.type === "absPos";
-
-    const dist = Math.hypot(source.x - target.x, source.y - target.y);
-    const curvature = Math.min(dist / 4, 100);
-
-    // 情况 A: 至少一端是自由无向点 -> 使用二次贝塞尔 (Q)
-    if (isSourceFree || isTargetFree) {
-      let cpX, cpY;
-      if (isTargetFree && !isSourceFree) {
-        cpX = source.x + source.dir.x * curvature * 2;
-        cpY = source.y + source.dir.y * curvature * 2;
-      } else if (isSourceFree && !isTargetFree) {
-        cpX = finalTargetX + target.dir.x * curvature * 2;
-        cpY = finalTargetY + target.dir.y * curvature * 2;
-      } else {
-        return `M ${source.x} ${source.y} L ${finalTargetX} ${finalTargetY}`;
-      }
-
+  if (isSourceFree || isTargetFree) {
+    if (isTargetFree && !isSourceFree) {
+      const cpX = source.x + source.dir.x * curvature * 2;
+      const cpY = source.y + source.dir.y * curvature * 2;
+      return `M ${source.x} ${source.y} Q ${cpX} ${cpY} ${finalTargetX} ${finalTargetY}`;
+    } else if (isSourceFree && !isTargetFree) {
+      const cpX = finalTargetX + target.dir.x * curvature * 2;
+      const cpY = finalTargetY + target.dir.y * curvature * 2;
       return `M ${source.x} ${source.y} Q ${cpX} ${cpY} ${finalTargetX} ${finalTargetY}`;
     }
+    return `M ${source.x} ${source.y} L ${finalTargetX} ${finalTargetY}`;
+  }
 
-    // 情况 B: 两端都有向 -> 使用三次贝塞尔 (C)
+  const cp1 = {
+    x: source.x + source.dir.x * curvature,
+    y: source.y + source.dir.y * curvature,
+  };
+  const cp2 = {
+    x: finalTargetX + target.dir.x * curvature,
+    y: finalTargetY + target.dir.y * curvature,
+  };
+  return `M ${source.x} ${source.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${finalTargetX} ${finalTargetY}`;
+};
+
+/**
+ * 计算中点位置、角度和标签预计宽度
+ */
+const calculateMidPoint = (
+  edge: CurveEdge,
+  source: ResolvedPoint,
+  target: ResolvedPoint
+) => {
+  if (!edge.label) return null;
+
+  const ARROW_GAP = 20;
+  const finalTargetX = target.x + target.dir.x * ARROW_GAP;
+  const finalTargetY = target.y + target.dir.y * ARROW_GAP;
+  const dist = Math.hypot(source.x - target.x, source.y - target.y);
+  const curvature = Math.min(dist / 4, 100);
+
+  const t = 0.5;
+  let x, y, dx, dy;
+
+  const isSourceFree = edge.anchorSource.type === "absPos";
+  const isTargetFree = edge.anchorTarget.type === "absPos";
+
+  if (isSourceFree || isTargetFree) {
+    if (isSourceFree && isTargetFree) {
+      x = (source.x + finalTargetX) / 2;
+      y = (source.y + finalTargetY) / 2;
+      dx = finalTargetX - source.x;
+      dy = finalTargetY - source.y;
+    } else {
+      const cpX = isTargetFree
+        ? source.x + source.dir.x * curvature * 2
+        : finalTargetX + target.dir.x * curvature * 2;
+      const cpY = isTargetFree
+        ? source.y + source.dir.y * curvature * 2
+        : finalTargetY + target.dir.y * curvature * 2;
+      x =
+        (1 - t) * (1 - t) * source.x +
+        2 * (1 - t) * t * cpX +
+        t * t * finalTargetX;
+      y =
+        (1 - t) * (1 - t) * source.y +
+        2 * (1 - t) * t * cpY +
+        t * t * finalTargetY;
+      dx = 2 * (1 - t) * (cpX - source.x) + 2 * t * (finalTargetX - cpX);
+      dy = 2 * (1 - t) * (cpY - source.y) + 2 * t * (finalTargetY - cpY);
+    }
+  } else {
     const cp1 = {
       x: source.x + source.dir.x * curvature,
       y: source.y + source.dir.y * curvature,
@@ -174,44 +202,125 @@ const CurveEdgeComponent: React.FC<{
       x: finalTargetX + target.dir.x * curvature,
       y: finalTargetY + target.dir.y * curvature,
     };
+    const mt = 1 - t;
+    x =
+      mt ** 3 * source.x +
+      3 * mt ** 2 * t * cp1.x +
+      3 * mt * t ** 2 * cp2.x +
+      t ** 3 * finalTargetX;
+    y =
+      mt ** 3 * source.y +
+      3 * mt ** 2 * t * cp1.y +
+      3 * mt * t ** 2 * cp2.y +
+      t ** 3 * finalTargetY;
+    dx =
+      3 * mt ** 2 * (cp1.x - source.x) +
+      6 * mt * t * (cp2.x - cp1.x) +
+      3 * t ** 2 * (finalTargetX - cp2.x);
+    dy =
+      3 * mt ** 2 * (cp1.y - source.y) +
+      6 * mt * t * (cp2.y - cp1.y) +
+      3 * t ** 2 * (finalTargetY - cp2.y);
+  }
 
-    return `M ${source.x} ${source.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${finalTargetX} ${finalTargetY}`;
-  }, [resolvedPoints, edge]);
+  let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
 
+  if (angle > 90 || angle < -90) {
+    angle += 180;
+  }
 
-  if (!resolvedPoints) return null;
+  return {
+    x,
+    y,
+    angle,
+    labelWidth: edge.label.length * 10 + 25, // 预留一点间隙
+  };
+};
+
+// ==================== 组件渲染 ====================
+
+const CurveEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
+  const edge = obj as CurveEdge;
+  useAtom(obj.updater);
+  useAtom(edge.source.updater);
+  useAtom(edge.target.updater);
+
+  const resolvedPoints = resolvePoints(
+    edge.source,
+    edge.target,
+    edge.anchorSource,
+    edge.anchorTarget
+  );
+  const pathData = calculatePath(
+    resolvedPoints.source,
+    resolvedPoints.target,
+    edge.anchorSource.type,
+    edge.anchorTarget.type
+  );
+  const midPoint = calculateMidPoint(
+    edge,
+    resolvedPoints.source,
+    resolvedPoints.target
+  );
+
+  // 为每个 edge 创建唯一的 Mask ID
+  const maskId = `mask-${edge.id}`;
 
   return (
-    <g className={`edge-group`} data-id={edge.id}>
-      {/* 可视连线 */}
+    <g className="edge-group" data-id={edge.id}>
+      <defs>
+        <mask id={maskId} maskUnits="userSpaceOnUse">
+          {/* 全白背景表示全部可见 */}
+          <rect
+            x="-10000"
+            y="-10000"
+            width="20000"
+            height="20000"
+            fill="white"
+          />
+          {/* 在标签位置放置黑色矩形，表示该处不可见（即挖空） */}
+          {midPoint && (
+            <g
+              transform={`translate(${midPoint.x}, ${midPoint.y}) rotate(${midPoint.angle})`}
+            >
+              <rect
+                x={-midPoint.labelWidth / 2}
+                y="-12"
+                width={midPoint.labelWidth}
+                height="24"
+                fill="black"
+              />
+            </g>
+          )}
+        </mask>
+      </defs>
+
+      {/* 视觉线：应用 Mask */}
       <path
         className="visual-line"
         d={pathData}
         fill="none"
         stroke={edge.isSelected ? "#f56c6c" : "#409eff"}
         strokeWidth="2"
+        mask={`url(#${maskId})`}
         markerEnd={
           edge.anchorTarget.type === "absPos"
             ? "url(#arrowhead)"
             : "url(#arrowhead1)"
         }
       />
-      {/* 点击区域 */}
+
+      {/* 点击区域：不加 Mask，确保整条线都能响应点击 */}
       <path
         d={pathData}
         className="hit-area"
         fill="none"
         stroke="transparent"
         strokeWidth="14"
-        onMouseDown={(e) => {
-
-        }}
-        onDoubleClick={(e) => {
-
-        }}
+        onMouseDown={() => {}}
       />
 
-      {/* 起点圆点 */}
+      {/* 起点/终点小圆点 */}
       <circle
         cx={resolvedPoints.source.x}
         cy={resolvedPoints.source.y}
@@ -219,17 +328,6 @@ const CurveEdgeComponent: React.FC<{
         fill="white"
         stroke="#409eff"
       />
-
-      {/* 起点重连触发器 */}
-      <circle
-        cx={resolvedPoints.source.x}
-        cy={resolvedPoints.source.y}
-        r="12"
-        className="reconnect-trigger"
-        onMouseDown={(e) => {}}
-      />
-
-      {/* 终点圆点 */}
       <circle
         cx={resolvedPoints.target.x}
         cy={resolvedPoints.target.y}
@@ -238,20 +336,31 @@ const CurveEdgeComponent: React.FC<{
         stroke="#409eff"
       />
 
-      {/* 终点重连触发器 */}
-      <circle
-        cx={resolvedPoints.target.x}
-        cy={resolvedPoints.target.y}
-        r="12"
-        className="reconnect-trigger"
-        onMouseDown={(e) => {}}
-      />
+      {/* 标签文字：放在挖空的位置 */}
+      {midPoint && (
+        <g
+          transform={`translate(${midPoint.x}, ${midPoint.y}) rotate(${midPoint.angle})`}
+        >
+          <text
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#666"
+            fontSize="16"
+            fontWeight="500"
+            style={{ pointerEvents: "none" }}
+          >
+            {edge.label}
+          </text>
+        </g>
+      )}
     </g>
   );
 };
+
 Coms["edge/curve"] = CurveEdgeComponent;
 
-// 注册序列化函数
+// ==================== 序列化与右键菜单 ====================
+
 registerSerializer(
   "edge/curve",
   (obj: Obj) => {
@@ -264,27 +373,20 @@ registerSerializer(
       anchorSource: { ...edge.anchorSource },
       anchorTarget: { ...edge.anchorTarget },
       isSelected: edge.isSelected,
+      label: edge.label,
     };
   },
-  (data) => {
-    const edge: CurveEdge = {
-      id: data.id,
-      type: data.type,
-      anchorSource: { ...data.anchorSource },
-      anchorTarget: { ...data.anchorTarget },
-      isSelected: data.isSelected ?? false,
-      updater: atom(0),
-      source: null as unknown as Node,
-      target: null as unknown as Node,
-    };
-    return edge;
-  }
+  (data) => ({
+    id: data.id,
+    type: data.type,
+    anchorSource: { ...data.anchorSource },
+    anchorTarget: { ...data.anchorTarget },
+    isSelected: data.isSelected ?? false,
+    label: data.label,
+    updater: atom(0),
+    source: null as any,
+    target: null as any,
+  })
 );
 
-// ==================== 右键菜单 ====================
-
-// 注册边特定右键菜单
-ContextMenuFactories["edge"] = (): ContextMenuItem[] => {
-  // 边暂无特定选项
-  return [];
-};
+ContextMenuFactories["edge"] = () => [];
