@@ -1,6 +1,17 @@
 import React, { useState } from "react";
-import { ToolItems, Node, Coms, Obj } from "../Globals";
+import { Node, Coms, Obj } from "../Globals";
 import { atom } from "jotai";
+
+// ==================== 工具项相关 ====================
+
+export interface ToolItem {
+  id: string;
+  category: string;
+  icon: React.ReactNode;
+  createNode: () => Node;
+}
+
+export const ToolItems: ToolItem[] = [];
 
 // 工具项类型（内部使用）
 interface ToolItemInternal {

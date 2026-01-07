@@ -1,5 +1,6 @@
 import Manager, { objects } from "../Manager";
-import { idFromEvent, Node, Operators, Obj, Vec2, screen2Viewport } from "../Globals";
+import { idFromEvent, Node, Operators, Obj, Vec2 } from "../Globals";
+import { screen2Viewport } from "./Camera";
 import { registerSetting, getSetting } from "../Option";
 import { atom } from "jotai";
 

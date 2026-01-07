@@ -7,9 +7,9 @@ import {
   anchors_rect,
   Node,
   Coms,
-  NodeFactories,
-  ToolItems,
 } from "../Globals";
+import { ToolItems } from "./ToolBar";
+import { NodeFactories } from "../Operators/Creator";
 import { activedId } from "../Operators/Selector";
 import {
   registerSerializer,

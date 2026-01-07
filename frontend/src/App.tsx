@@ -1,8 +1,9 @@
 import "./css/App.css";
-import { Coms, Obj, Operators, viewport } from "./Globals";
+import { Coms, Obj, Operators } from "./Globals";
 import React, { useEffect, useMemo, useState } from "react";
 import { useAtom } from "jotai";
 import { objects, canvasUpdater } from "./Manager";
+import { viewport } from "./Operators/Camera";
 
 import SettingsPanel from "./Coms/SettingPanel";
 import ToolBar from "./Coms/ToolBar";

@@ -1,5 +1,6 @@
 import Manager, { objects } from "../Manager";
-import { idFromEvent, Node, Operators, viewport } from "../Globals";
+import { idFromEvent, Node, Operators } from "../Globals";
+import { viewport } from "./Camera";
 import { registerSetting } from "../Option";
 
 let draggingKey: number = 0;

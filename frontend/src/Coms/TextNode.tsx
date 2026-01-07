@@ -1,7 +1,9 @@
 import React from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
-import { Obj, Anchor, anchors_rect, Node, Coms, NodeFactories, ToolItems } from "../Globals";
+import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
+import { ToolItems } from "./ToolBar";
+import { NodeFactories } from "../Operators/Creator";
 import { activedId } from "../Operators/Selector";
 import { EditableText } from "./EditableText";
 import {

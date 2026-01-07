@@ -2,13 +2,13 @@ import React, { useMemo } from "react";
 import {
   Anchor,
   Vec2,
-  screen2Viewport,
   Obj,
   Node,
   Coms,
 } from "../Globals";
 // import { actionBus } from "./ActionServer";
 import { atom, Atom, PrimitiveAtom, useAtom } from "jotai";
+import { screen2Viewport } from "../Operators/Camera";
 
 // import "./Edge.css";
 import { objects } from "../Manager";

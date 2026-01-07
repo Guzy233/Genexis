@@ -1,5 +1,26 @@
-import { viewport, idFromEvent, Operators } from "../Globals";
+import { idFromEvent, Operators } from "../Globals";
 import { updateCanvas } from "../Manager";
+
+// ==================== Viewport 相关 ====================
+export const viewport = {
+  x: 0,
+  y: 0,
+  zoom: 1,
+};
+
+export const screen2Viewport = (point: { x: number; y: number }): { x: number; y: number } => {
+  return {
+    x: (point.x - viewport.x) / viewport.zoom,
+    y: (point.y - viewport.y) / viewport.zoom,
+  };
+};
+
+export const viewport2Screen = (point: { x: number; y: number }): { x: number; y: number } => {
+  return {
+    x: point.x * viewport.zoom + viewport.x,
+    y: point.y * viewport.zoom + viewport.y,
+  };
+};
 
 // 开始拖动视角
 const onMouseDown = (e: MouseEvent) => {

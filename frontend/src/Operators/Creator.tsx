@@ -1,6 +1,12 @@
 import Manager from "../Manager";
-import { screen2Viewport, Operators, NodeFactories, Vec2 } from "../Globals";
+import { Operators, Vec2, Node } from "../Globals";
+import { screen2Viewport } from "./Camera";
 import { getCurrentTool } from "../Coms/ToolBar";
+
+// ==================== 节点工厂相关 ====================
+
+export type NodeFactory = () => Node;
+export const NodeFactories: Record<string, NodeFactory> = {};
 
 export function createNodeCentered(pos: Vec2) {
   const currentTool = getCurrentTool();

@@ -3,14 +3,12 @@ import { newCurveEdge } from "../Coms/CurveEdge";
 import {
   idFromEvent,
   Node,
-  NodeFactories,
   Operators,
-  screen2Viewport,
 } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
-import { viewport } from "../Globals";
-import { createNodeCentered } from "./Creator";
+import { screen2Viewport, viewport } from "./Camera";
+import { createNodeCentered, NodeFactories } from "./Creator";
 
 // 连接器状态
 let linkingKey = "Space";
