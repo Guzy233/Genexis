@@ -8,7 +8,8 @@ export interface Vec2 {
 export type Anchor =
   | { type: "posDir"; pos: Vec2; dir: Vec2 } //固定锚点
   | { type: "absPos" } //取目标节点的绝对位置
-  | { type: "auto" }; //自动选择可用锚点
+  | { type: "auto" } //自动选择可用锚点
+  | { type: "center" }; //中心锚点：位置在节点中心，方向指向目标
 
 export const anchors_rect: Anchor[] = [
   {

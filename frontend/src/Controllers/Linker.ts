@@ -5,6 +5,7 @@ import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
 import { createNodeCentered, NodeFactories } from "./Creator";
+import { newLineEdge } from "../Components/LineEdge";
 
 // 连接器状态
 let linkingKey = "Space";
@@ -35,7 +36,7 @@ export const onClickNode = (e: MouseEvent) => {
   const vNode = NodeFactories["node/text"]();
   vNode.pos = { ...startPos };
   // 定义虚拟边，暂时不加入管理器，直到鼠标移出本节点时再加入
-  const vEdge = newCurveEdge(objects[id] as Node, vNode);
+  const vEdge = newLineEdge(objects[id] as Node, vNode);
   vEdge.anchorTarget = { type: "absPos" };
 
   // 窗口失去焦点时清理所有临时监听器

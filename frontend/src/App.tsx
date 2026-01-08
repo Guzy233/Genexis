@@ -11,6 +11,7 @@ import ToolBar from "./Components/ToolBar";
 import "./Components/TextNode";
 import "./Components/ImageNode";
 import "./Components/CurveEdge";
+import "./Components/LineEdge";
 import "./Components/SelectionBox";
 import "./Components/ContextMenu";
 
