@@ -80,31 +80,15 @@ const executeAction = (action: KeyAction): void => {
     case KeyAction.DELETE: {
       // 删除选中的节点及其连接的边
       const objs = Object.values(objects);
-      // 找出选中的节点ID
-      const selectedNodeIds = new Set<string>();
-      objs.forEach((obj) => {
-        if (obj.type.startsWith("node/") && "selected" in obj && (obj as { selected?: boolean }).selected) {
-          selectedNodeIds.add(obj.id);
-        }
-      });
+      // 找出选中的对象ID
+      const selectedIds = objs
+        .filter((obj) => "selected" in obj && (obj as { selected?: boolean }).selected)
+        .map((obj) => obj.id);
 
-      if (selectedNodeIds.size === 0) return;
+      if (selectedIds.length === 0) return;
 
-      // 找出连接到选中节点的边
-      const edgesToDelete: string[] = [];
-      objs.forEach((obj) => {
-        if (obj.type.startsWith("edge/")) {
-          const edge = obj as unknown as { id: string; source: { id: string }; target: { id: string } };
-          if (selectedNodeIds.has(edge.source.id) || selectedNodeIds.has(edge.target.id)) {
-            edgesToDelete.push(edge.id);
-          }
-        }
-      });
-
-      // 删除边
-      edgesToDelete.forEach((id) => Manager.deleteId(id));
-      // 删除节点
-      selectedNodeIds.forEach((id) => Manager.deleteId(id));
+      // 使用 deleteIdWithEdges 删除（会自动处理连接的边）
+      selectedIds.forEach((id) => Manager.deleteIdWithEdges(id));
       // 删除完成，保存历史
       Manager.saveHistory();
       break;

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
-import { ToolItems } from "./ToolBar";
+import { ToolItems, CATEGORY_NODES } from "./ToolBar";
 import { ObjectFactories } from "../Controllers/Creator";
 import {
   ContextMenuFactories,
@@ -14,7 +14,6 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
-import { CATEGORY_NODES } from "./TextNode";
 
 export interface ImageNode extends Node {
   src: string;
@@ -60,7 +59,6 @@ ToolItems.push({
   type: "node",
   category: CATEGORY_NODES,
   icon: <span style={{ fontSize: 16 }}>🖼️</span>,
-  createNode: createImageNode,
 });
 
 // 注册序列化函数

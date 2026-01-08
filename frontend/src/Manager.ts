@@ -97,6 +97,29 @@ export default {
     delete objects[id];
     updateCanvas();
   },
+  deleteIdWithEdges: (id: string) => {
+    const obj = objects[id];
+    if (!obj) return;
+
+    // 如果是节点，找出并删除连接到它的所有边
+    if (obj.type.startsWith("node/")) {
+      const edgesToDelete: string[] = [];
+      Object.values(objects).forEach((other) => {
+        if (other.type.startsWith("edge/")) {
+          const edge = other as unknown as { id: string; source: { id: string }; target: { id: string } };
+          if (edge.source.id === id || edge.target.id === id) {
+            edgesToDelete.push(edge.id);
+          }
+        }
+      });
+      // 先删除所有连接的边
+      edgesToDelete.forEach((edgeId) => delete objects[edgeId]);
+    }
+
+    // 删除对象本身
+    delete objects[id];
+    updateCanvas();
+  },
   clearSelected: () => {
     Object.values(objects).forEach((obj) => {
       if ("selected" in obj) obj.selected = false;

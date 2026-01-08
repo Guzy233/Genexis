@@ -2,7 +2,7 @@ import React from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
-import { setDefaultTool, ToolItems } from "./ToolBar";
+import { setDefaultTool, ToolItems, CATEGORY_NODES } from "./ToolBar";
 import { ObjectFactories } from "../Controllers/Creator";
 import { ContextMenuFactories, ContextMenuItem } from "../Controllers/ContextMenu";
 import { activedId } from "../Controllers/Selector";
@@ -12,10 +12,6 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
-
-// 定义 category 常量
-export const CATEGORY_NODES = "Nodes";
-export const CATEGORY_EDGES = "Edges";
 
 export interface TextNode extends Node {
   text: string;
@@ -99,7 +95,6 @@ ToolItems.push({
   type: "node",
   category: CATEGORY_NODES,
   icon: <span style={{ fontSize: 16 }}>📄</span>,
-  createNode: createTextNode,
 });
 
 setDefaultTool(CATEGORY_NODES, "node/text");

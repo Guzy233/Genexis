@@ -1,7 +1,6 @@
 import Manager, { objects } from "../Manager";
 import { Obj, Controllers, idFromEvent } from "../Globals";
 import { screen2Viewport } from "./Camera";
-import { ToolItems } from "../Components/ToolBar";
 import React from "react";
 import { atom } from "jotai";
 
@@ -14,21 +13,25 @@ export interface ContextMenuItem {
 }
 
 // 右键菜单工厂
-export type ContextMenuFactory = (target: Obj) => ContextMenuItem[];
+export type ContextMenuFactory = (target: Obj, event: MouseEvent) => ContextMenuItem[];
 export const ContextMenuFactories: Record<string, ContextMenuFactory> = {};
 
 // 通用菜单项
 const generalItems: ContextMenuItem[] = [];
 
 // 获取右键菜单项（组合通用项和特定类型项）
-export const getContextMenuItems = (target: Obj): ContextMenuItem[] => {
+export const getContextMenuItems = (target: Obj, event: MouseEvent): ContextMenuItem[] => {
   const items: ContextMenuItem[] = [];
-  items.push(...generalItems);
 
   const typePrefix = target.type.split("/")[0];
   const factory = ContextMenuFactories[typePrefix];
   if (factory) {
-    items.push(...factory(target));
+    items.push(...factory(target, event));
+  }
+
+  // 对于非画布对象，添加通用菜单项
+  if (typePrefix !== "canvas") {
+    items.push(...generalItems);
   }
 
   return items;
@@ -47,40 +50,25 @@ const onContextMenu = (e: MouseEvent) => {
 
   // 查找点击的目标
   const targetId = idFromEvent(e, ".node-group, .edge-group");
-  let target: Obj | null = null;
-  let items: ContextMenuItem[] = [];
+  let target: Obj;
 
   if (targetId) {
     target = objects[targetId];
-    if (target) {
-      items = getContextMenuItems(target);
-    }
+  } else {
+    // 创建画布对象
+    target = {
+      id: "canvas",
+      type: "canvas",
+    } as Obj;
   }
 
-  // 点击空白处或没有特定菜单项时，显示节点创建菜单
-  if (!target || items.length === 0) {
-    // 创建节点菜单项
-    const nodeItems: ContextMenuItem[] = ToolItems.map((tool) => ({
-      id: `create-${tool.id}`,
-      label: tool.id.split("/").pop() || tool.id,
-      icon: tool.icon,
-      onClick: () => {
-        const node = tool.createNode();
-        const pos = screen2Viewport({ x: e.clientX, y: e.clientY });
-        node.pos = { x: pos.x - node.size.x / 2, y: pos.y - node.size.y / 2 };
-        node.selected = true;
-        Manager.add(node);
-        Manager.saveHistory();
-      },
-    }));
+  // 获取右键菜单项
+  const items = getContextMenuItems(target, e);
 
-    if (nodeItems.length === 0) {
-      return; // 没有可创建的节点类型
-    }
-
-    items = nodeItems;
-    target = null as unknown as Obj;
+  if (items.length === 0) {
+    return; // 没有菜单项，不显示菜单
   }
+
   const menu: ContextMenu = {
     id: "context-menu",
     type: "ui/contextMenu",
@@ -123,7 +111,7 @@ generalItems.push({
   label: "删除",
   icon: "🗑️",
   onClick: (target: Obj) => {
-    Manager.deleteId(target.id);
+    Manager.deleteIdWithEdges(target.id);
     Manager.saveHistory();
   },
 });

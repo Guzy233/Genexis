@@ -1,18 +1,21 @@
 import React, { useState } from "react";
 import { Node, Coms, Obj } from "../Globals";
 import { atom } from "jotai";
+import { ObjectFactories } from "../Controllers/Creator";
 
 // ==================== 工具项相关 ====================
 
 export type ToolItemType = "node" | "edge";
+
+// 定义 category 常量
+export const CATEGORY_NODES = "Nodes";
+export const CATEGORY_EDGES = "Edges";
 
 export interface ToolItem {
   id: string;
   type: ToolItemType;
   category: string;
   icon: React.ReactNode;
-  createNode?: () => Node;
-  createEdge?: () => any;
   preview?: React.ReactNode;
 }
 
@@ -104,8 +107,8 @@ export const ToolBar: React.FC = () => {
 
   // 创建预览
   const createPreview = (item: ToolItem): React.ReactNode => {
-    if (item.type === "node" && item.createNode) {
-      return createNodePreview(item.createNode);
+    if (item.type === "node" && ObjectFactories[item.id]) {
+      return createNodePreview(() => ObjectFactories[item.id]() as Node);
     }
     if (item.type === "edge" && item.preview) {
       return item.preview;

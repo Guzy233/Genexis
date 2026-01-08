@@ -1,11 +1,11 @@
 import Manager, { objects } from "../Manager";
-import { Edge, idFromEvent, Node, Controllers } from "../Globals";
+import { Edge, idFromEvent, Node, Controllers, Obj } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
 import { createNodeCentered, ObjectFactories } from "./Creator";
-import { getToolForCategory } from "../Components/ToolBar";
-import { CATEGORY_EDGES } from "../Components/TextNode";
+import { getToolForCategory, CATEGORY_EDGES } from "../Components/ToolBar";
+import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
 
 // 连接器状态
 let linkingKey = "Space";
@@ -24,24 +24,7 @@ registerSetting({
   },
 });
 
-export const onClickNode = (e: MouseEvent) => {
-  if (e.button !== 2) return; // 右键
-  const id = idFromEvent(e, ".node-group");
-  if (!id) return;
-
-  //选中节点，开始链接
-  e.stopPropagation();
-
-  // 获取 Edges category 的当前工具
-  const edgeType = getToolForCategory(CATEGORY_EDGES) || "edge/line";
-  const startPos = screen2Viewport({ x: e.clientX, y: e.clientY });
-  const vNode = ObjectFactories["node/text"]() as Node;
-  vNode.pos = { ...startPos };
-  const vEdge = ObjectFactories[edgeType]() as Edge;
-  vEdge.source = objects[id] as Node;
-  vEdge.target = vNode;
-  vEdge.anchorTarget = { type: "absPos" };
-
+const startLinking = (vEdge:Edge,vNode:Node) => {
   // 窗口失去焦点时清理所有临时监听器
   const onBlur = () => {
     Manager.deleteId(vEdge.id);
@@ -135,9 +118,65 @@ export const onClickNode = (e: MouseEvent) => {
   window.addEventListener("mouseover", onMouseOver);
   window.addEventListener("mouseout", onMouseOut);
   window.addEventListener("blur", onBlur);
+}
+
+export const onClickNode = (e: MouseEvent) => {
+  if (e.button !== 2) return; // 右键
+  const id = idFromEvent(e, ".node-group");
+  if (!id) return;
+
+  //选中节点，开始链接
+  e.stopPropagation();
+
+  // 获取 Edges category 的当前工具
+  const edgeType = getToolForCategory(CATEGORY_EDGES) || "edge/line";
+  const startPos = screen2Viewport({ x: e.clientX, y: e.clientY });
+  const vNode = ObjectFactories["node/text"]() as Node;
+  vNode.pos = { ...startPos };
+  const vEdge = ObjectFactories[edgeType]() as Edge;
+  vEdge.source = objects[id] as Node;
+  vEdge.target = vNode;
+  vEdge.anchorTarget = { type: "absPos" };
+
+  startLinking(vEdge,vNode);
 };
 
 Controllers.push({
   Begin: (canvas: SVGGElement) => canvas.addEventListener("mousedown", onClickNode),
   End: (canvas: SVGGElement) => canvas.removeEventListener("mousedown", onClickNode),
 });
+
+// ==================== 右键菜单注册 ====================
+
+// 注册节点的右键菜单工厂（连接选项）
+ContextMenuFactories["node"] = (target: Obj | null, event: MouseEvent): ContextMenuItem[] => {
+  if (!target) return [];
+
+  const items: ContextMenuItem[] = [];
+
+  // 遍历所有边类型的工具项，创建对应的菜单项
+  const edgeTools = Object.keys(ObjectFactories).filter(id => id.startsWith("edge/"));
+
+  for (const edgeId of edgeTools) {
+    const edgeLabel = edgeId.split("/").pop() || edgeId;
+    items.push({
+      id: `link-${edgeId}`,
+      label: `连接 (${edgeLabel})`,
+      icon: null,
+      onClick: () => {
+        const node = target as Node;
+        const startPos = screen2Viewport({ x: event.clientX, y: event.clientY });
+        const vNode = ObjectFactories["node/text"]() as Node;
+        vNode.pos = { ...startPos };
+        const vEdge = ObjectFactories[edgeId]() as Edge;
+        vEdge.source = node;
+        vEdge.target = vNode;
+        vEdge.anchorTarget = { type: "absPos" };
+
+        startLinking(vEdge, vNode);
+      },
+    });
+  }
+
+  return items;
+};

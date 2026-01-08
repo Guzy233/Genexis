@@ -1,8 +1,8 @@
 import Manager from "../Manager";
 import { Controllers, Vec2, Node, Obj } from "../Globals";
 import { screen2Viewport } from "./Camera";
-import { getToolForCategory } from "../Components/ToolBar";
-import { CATEGORY_NODES } from "../Components/TextNode";
+import { getToolForCategory, CATEGORY_NODES } from "../Components/ToolBar";
+import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
 
 // 通用对象工厂
 export type ObjectFactory = (...args: any[]) => Obj;
@@ -41,3 +41,34 @@ Controllers.push({
   Begin: (canvas: SVGGElement) => canvas.addEventListener("dblclick", onDblClick),
   End: (canvas: SVGGElement) => canvas.removeEventListener("dblclick", onDblClick),
 });
+
+// ==================== 右键菜单注册 ====================
+
+// 注册空白处的右键菜单工厂
+ContextMenuFactories["canvas"] = (_target: Obj, event: MouseEvent): ContextMenuItem[] => {
+  const items: ContextMenuItem[] = [];
+
+  // 遍历所有节点类型的工具项，创建对应的菜单项
+  const nodeTools = Object.keys(ObjectFactories).filter(id => id.startsWith("node/"));
+
+  for (const toolId of nodeTools) {
+    items.push({
+      id: `create-${toolId}`,
+      label: toolId.split("/").pop() || toolId,
+      icon: null,
+      onClick: () => {
+        const factory = ObjectFactories[toolId];
+        if (factory) {
+          const node = factory() as Node;
+          const pos = screen2Viewport({ x: event.clientX, y: event.clientY });
+          node.pos = { x: pos.x - node.size.x / 2, y: pos.y - node.size.y / 2 };
+          node.selected = true;
+          Manager.add(node);
+          Manager.saveHistory();
+        }
+      },
+    });
+  }
+
+  return items;
+};

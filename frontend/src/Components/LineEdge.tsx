@@ -6,8 +6,7 @@ import {
   ContextMenuFactories,
 } from "../Controllers/ContextMenu";
 import { ObjectFactories } from "../Controllers/Creator";
-import { ToolItems } from "./ToolBar";
-import { CATEGORY_EDGES } from "./TextNode";
+import { ToolItems, CATEGORY_EDGES } from "./ToolBar";
 
 // ==================== 类型定义 ====================
 
