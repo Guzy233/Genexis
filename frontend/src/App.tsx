@@ -14,6 +14,7 @@ import "./Components/CurveEdge";
 import "./Components/LineEdge";
 import "./Components/SelectionBox";
 import "./Components/ContextMenu";
+import "./Components/DeletionTrail"
 
 import "./Controllers/Keyboard";
 import "./Controllers/Creator";

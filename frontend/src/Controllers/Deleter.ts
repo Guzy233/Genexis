@@ -62,26 +62,7 @@ export const onMouseDown = (e: MouseEvent) => {
     const id = g.getAttribute("data-id");
     if (!id || !(id in objects)) return;
 
-    const obj = objects[id];
-
-    // 删除节点
-    if (obj.type.startsWith("node/")) {
-      // 先删除关联的边
-      for (const edgeId in objects) {
-        const edge = objects[edgeId];
-        if (edge.type.startsWith("edge/")) {
-          const curveEdge = edge as Obj & { source: Obj; target: Obj };
-          if (curveEdge.source.id === id || curveEdge.target.id === id) {
-            Manager.deleteId(edgeId);
-          }
-        }
-      }
-      Manager.deleteId(id);
-    }
-    // 删除边
-    else if (obj.type.startsWith("edge/")) {
-      Manager.deleteId(id);
-    }
+    Manager.deleteIdWithEdges(id);
   };
 
   const onMouseUp = () => {
