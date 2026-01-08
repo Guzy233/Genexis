@@ -13,6 +13,10 @@ import {
   deserializeAnchors,
 } from "../Serialization";
 
+// 定义 category 常量
+export const CATEGORY_NODES = "Nodes";
+export const CATEGORY_EDGES = "Edges";
+
 export interface TextNode extends Node {
   text: string;
 }
@@ -92,12 +96,13 @@ ObjectFactories["node/text"] = createTextNode;
 // 注册工具项
 ToolItems.push({
   id: "node/text",
-  category: "Nodes",
+  type: "node",
+  category: CATEGORY_NODES,
   icon: <span style={{ fontSize: 16 }}>📄</span>,
   createNode: createTextNode,
 });
 
-setDefaultTool("node/text");
+setDefaultTool(CATEGORY_NODES, "node/text");
 
 export const TextNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   useAtom(obj.updater);

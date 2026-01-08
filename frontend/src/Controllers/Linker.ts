@@ -1,11 +1,11 @@
 import Manager, { objects } from "../Manager";
-import { newCurveEdge } from "../Components/CurveEdge";
 import { Edge, idFromEvent, Node, Operators } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
 import { createNodeCentered, ObjectFactories } from "./Creator";
-import { newLineEdge } from "../Components/LineEdge";
+import { getToolForCategory } from "../Components/ToolBar";
+import { CATEGORY_EDGES } from "../Components/TextNode";
 
 // 连接器状态
 let linkingKey = "Space";
@@ -32,10 +32,12 @@ export const onClickNode = (e: MouseEvent) => {
   //选中节点，开始链接
   e.stopPropagation();
 
+  // 获取 Edges category 的当前工具
+  const edgeType = getToolForCategory(CATEGORY_EDGES) || "edge/line";
   const startPos = screen2Viewport({ x: e.clientX, y: e.clientY });
   const vNode = ObjectFactories["node/text"]() as Node;
   vNode.pos = { ...startPos };
-  const vEdge = ObjectFactories["edge/line"]() as Edge;
+  const vEdge = ObjectFactories[edgeType]() as Edge;
   vEdge.source = objects[id] as Node;
   vEdge.target = vNode;
   vEdge.anchorTarget = { type: "absPos" };

@@ -14,6 +14,7 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
+import { CATEGORY_NODES } from "./TextNode";
 
 export interface ImageNode extends Node {
   src: string;
@@ -56,7 +57,8 @@ ObjectFactories["node/image"] = createImageNode;
 // 注册工具项
 ToolItems.push({
   id: "node/image",
-  category: "Nodes",
+  type: "node",
+  category: CATEGORY_NODES,
   icon: <span style={{ fontSize: 16 }}>🖼️</span>,
   createNode: createImageNode,
 });

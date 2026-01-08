@@ -6,6 +6,8 @@ import {
   ContextMenuFactories,
 } from "../Controllers/ContextMenu";
 import { ObjectFactories } from "../Controllers/Creator";
+import { ToolItems } from "./ToolBar";
+import { CATEGORY_EDGES } from "./TextNode";
 
 // ==================== 类型定义 ====================
 
@@ -444,3 +446,36 @@ ContextMenuFactories["edge"] = () => [];
 ObjectFactories["edge/line"] = (source?: Node, target?: Node, label: string = "") => {
   return newLineEdge(source || null as any, target || null as any, label);
 };
+
+// 注册工具项
+ToolItems.push({
+  id: "edge/line",
+  type: "edge",
+  category: CATEGORY_EDGES,
+  icon: <span style={{ fontSize: 16 }}>📏</span>,
+  preview: (
+    <svg viewBox="0 0 60 30" style={{ width: "100%", height: "100%" }}>
+      <line
+        x1="5"
+        y1="15"
+        x2="55"
+        y2="15"
+        stroke="#409eff"
+        strokeWidth="2"
+        markerEnd="url(#arrowhead)"
+      />
+      <defs>
+        <marker
+          id="arrowhead"
+          markerWidth="10"
+          markerHeight="7"
+          refX="9"
+          refY="3.5"
+          orient="auto"
+        >
+          <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
+        </marker>
+      </defs>
+    </svg>
+  ),
+});

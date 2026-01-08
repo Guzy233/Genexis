@@ -4,62 +4,88 @@ import { atom } from "jotai";
 
 // ==================== 工具项相关 ====================
 
+export type ToolItemType = "node" | "edge";
+
 export interface ToolItem {
   id: string;
+  type: ToolItemType;
   category: string;
   icon: React.ReactNode;
-  createNode: () => Node;
+  createNode?: () => Node;
+  createEdge?: () => any;
+  preview?: React.ReactNode;
 }
 
 export const ToolItems: ToolItem[] = [];
-export const setDefaultTool = (toolId: string) => {
-  currentTool = toolId;
+
+// 工具栏状态：每个 category 都有自己的选中工具
+const categoryTools: Record<string, string> = {};
+const toolSubscribers: Set<(category: string, toolId: string) => void> = new Set();
+
+// 设置 category 的默认工具
+export const setDefaultTool = (category: string, toolId: string) => {
+  categoryTools[category] = toolId;
 };
 
-// 工具项类型（内部使用）
-interface ToolItemInternal {
-  id: string;
-  category: string;
-  icon: React.ReactNode;
-  createNode: () => Node;
-}
-
-// 工具栏状态
-let currentTool: string ="";
-const toolSubscribers: Set<(toolId: string) => void> = new Set();
-
-export const setCurrentTool = (toolId: string) => {
-  currentTool = toolId;
-  toolSubscribers.forEach((cb) => cb(toolId));
+// 设置 category 的当前工具
+export const setToolForCategory = (category: string, toolId: string) => {
+  categoryTools[category] = toolId;
+  toolSubscribers.forEach((cb) => cb(category, toolId));
 };
 
-export const getCurrentTool = () => currentTool;
+// 获取指定 category 的当前工具
+export const getToolForCategory = (category: string): string => {
+  return categoryTools[category] || "";
+};
 
-export const onToolChange = (callback: (toolId: string) => void): (() => void) => {
+// 订阅工具变化
+export const onToolChange = (
+  callback: (category: string, toolId: string) => void
+): (() => void) => {
   toolSubscribers.add(callback);
   return () => {
     toolSubscribers.delete(callback);
   };
 };
 
-// 虚拟预览节点（用于生成预览图）
+// 虚拟预览节点
 const createPreviewNode = (factory: () => Node): Node => {
   const node = factory();
   node.id = "preview";
-  // 使用原子确保预览能渲染
   if (!node.updater) {
     node.updater = atom(0);
   }
   return node;
 };
 
+// 创建节点预览
+const createNodePreview = (factory: () => Node): React.ReactNode => {
+  const node = createPreviewNode(factory);
+  const Component = Coms[node.type];
+  if (!Component) return null;
+
+  return (
+    <svg
+      viewBox={`0 0 ${node.size.x} ${node.size.y}`}
+      style={{
+        overflow: "visible",
+      }}
+    >
+      <Component obj={node as Obj} />
+    </svg>
+  );
+};
+
 // 工具栏组件
 export const ToolBar: React.FC = () => {
-  const [selectedTool, setSelectedTool] = useState<string>(() => currentTool);
+  // 为每个 category 维护选中状态
+  const [selectedTools, setSelectedTools] = useState<Record<string, string>>(() => ({ ...categoryTools }));
 
   // 订阅工具变化
   React.useEffect(() => {
-    return onToolChange(setSelectedTool);
+    return onToolChange((category, toolId) => {
+      setSelectedTools((prev) => ({ ...prev, [category]: toolId }));
+    });
   }, []);
 
   // 按分类分组工具项
@@ -69,29 +95,22 @@ export const ToolBar: React.FC = () => {
     }
     acc[item.category].push(item);
     return acc;
-  }, {} as Record<string, ToolItemInternal[]>);
+  }, {} as Record<string, ToolItem[]>);
 
   // 选择工具
-  const selectTool = (toolId: string) => {
-    setCurrentTool(toolId);
+  const selectTool = (category: string, toolId: string) => {
+    setToolForCategory(category, toolId);
   };
 
-  // 创建虚拟节点预览
-  const createPreview = (factory: () => Node): React.ReactNode => {
-    const node = createPreviewNode(factory);
-    const Component = Coms[node.type];
-    if (!Component) return null;
-
-    return (
-      <svg
-        viewBox={`0 0 ${node.size.x} ${node.size.y}`}
-        style={{
-          overflow: "visible",
-        }}
-      >
-          <Component obj={node as Obj} />
-      </svg>
-    );
+  // 创建预览
+  const createPreview = (item: ToolItem): React.ReactNode => {
+    if (item.type === "node" && item.createNode) {
+      return createNodePreview(item.createNode);
+    }
+    if (item.type === "edge" && item.preview) {
+      return item.preview;
+    }
+    return item.icon;
   };
 
   return (
@@ -103,12 +122,12 @@ export const ToolBar: React.FC = () => {
             {items.map((item) => (
               <div
                 key={item.id}
-                className={`toolbar-item ${selectedTool === item.id ? "selected" : ""}`}
-                onClick={() => selectTool(item.id)}
+                className={`toolbar-item ${selectedTools[category] === item.id ? "selected" : ""}`}
+                onClick={() => selectTool(category, item.id)}
                 title={item.id}
               >
                 <div className="toolbar-item-preview">
-                  {createPreview(item.createNode)}
+                  {createPreview(item)}
                 </div>
               </div>
             ))}
