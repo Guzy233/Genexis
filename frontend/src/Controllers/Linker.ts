@@ -1,10 +1,10 @@
 import Manager, { objects } from "../Manager";
 import { newCurveEdge } from "../Components/CurveEdge";
-import { idFromEvent, Node, Operators } from "../Globals";
+import { Edge, idFromEvent, Node, Operators } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
-import { createNodeCentered, NodeFactories } from "./Creator";
+import { createNodeCentered, ObjectFactories } from "./Creator";
 import { newLineEdge } from "../Components/LineEdge";
 
 // 连接器状态
@@ -33,10 +33,11 @@ export const onClickNode = (e: MouseEvent) => {
   e.stopPropagation();
 
   const startPos = screen2Viewport({ x: e.clientX, y: e.clientY });
-  const vNode = NodeFactories["node/text"]();
+  const vNode = ObjectFactories["node/text"]() as Node;
   vNode.pos = { ...startPos };
-  // 定义虚拟边，暂时不加入管理器，直到鼠标移出本节点时再加入
-  const vEdge = newLineEdge(objects[id] as Node, vNode);
+  const vEdge = ObjectFactories["edge/line"]() as Edge;
+  vEdge.source = objects[id] as Node;
+  vEdge.target = vNode;
   vEdge.anchorTarget = { type: "absPos" };
 
   // 窗口失去焦点时清理所有临时监听器
@@ -87,7 +88,7 @@ export const onClickNode = (e: MouseEvent) => {
   };
 
   const onContextMenu = (e: MouseEvent) => {
-    if(!(vEdge.id in objects)) return; // 未移动，不创建节点
+    if (!(vEdge.id in objects)) return; // 未移动，不创建节点
     e.preventDefault(); // 阻止默认右键菜单
     e.stopImmediatePropagation();
   };

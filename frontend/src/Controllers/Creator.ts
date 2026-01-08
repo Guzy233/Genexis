@@ -3,26 +3,17 @@ import { Operators, Vec2, Node, Obj } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { getCurrentTool } from "../Components/ToolBar";
 
-// ==================== 通用工厂系统 ====================
-
-// 节点工厂
-export type NodeFactory = () => Node;
-export const NodeFactories: Record<string, NodeFactory> = {};
-
-// 边工厂
-export type EdgeFactory = (source: Node, target: Node) => Obj;
-export const EdgeFactories: Record<string, EdgeFactory> = {};
-
-// UI 组件工厂
-export type UIComponentFactory = () => Obj;
-export const UIComponentFactories: Record<string, UIComponentFactory> = {};
+// 通用对象工厂
+export type ObjectFactory = (...args: any[]) => Obj;
+export const ObjectFactories: Record<string, ObjectFactory> = {};
 
 // ==================== 节点创建 ====================
 
 export function createNodeCentered(pos: Vec2) {
   const currentTool = getCurrentTool();
-  if (currentTool && NodeFactories[currentTool]) {
-    const node = NodeFactories[currentTool]();
+  if (currentTool && ObjectFactories[currentTool]) {
+    const factory = ObjectFactories[currentTool];
+    const node = factory() as Node;
     node.pos = { x: pos.x - node.size.x / 2, y: pos.y - node.size.y / 2 };
     node.selected = true;
     return node;

@@ -1,10 +1,11 @@
 import React from "react";
-import { Anchor, Vec2, Obj, Node, Coms } from "../Globals";
+import { Anchor, Vec2, Obj, Node, Edge, Coms } from "../Globals";
 import { atom, useAtom } from "jotai";
 import { registerSerializer } from "../Serialization";
 import {
   ContextMenuFactories,
 } from "../Controllers/ContextMenu";
+import { ObjectFactories } from "../Controllers/Creator";
 
 // ==================== 类型定义 ====================
 
@@ -14,13 +15,8 @@ interface ResolvedPoint {
   dir: Vec2;
 }
 
-export interface LineEdge extends Obj {
-  source: Node;
-  target: Node;
-  anchorSource: Anchor;
-  anchorTarget: Anchor;
-  isSelected: boolean;
-  label?: string;
+export interface LineEdge extends Edge {
+  // LineEdge 特有的属性可以在这里添加
 }
 
 export const newLineEdge = (
@@ -443,3 +439,8 @@ registerSerializer(
 );
 
 ContextMenuFactories["edge"] = () => [];
+
+// 注册对象工厂（边工厂需要参数，暂时设为 null）
+ObjectFactories["edge/line"] = (source?: Node, target?: Node, label: string = "") => {
+  return newLineEdge(source || null as any, target || null as any, label);
+};

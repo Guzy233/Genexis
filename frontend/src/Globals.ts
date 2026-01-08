@@ -52,6 +52,15 @@ export interface Node extends Obj {
   selected: boolean; // 节点是否被选中
 }
 
+export interface Edge extends Obj {
+  source: Node;
+  target: Node;
+  anchorSource: Anchor;
+  anchorTarget: Anchor;
+  isSelected: boolean;
+  label?: string;
+}
+
 export const Coms: Record<
   string,
   React.FC<{

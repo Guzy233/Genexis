@@ -3,7 +3,7 @@ import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { setDefaultTool, ToolItems } from "./ToolBar";
-import { NodeFactories } from "../Controllers/Creator";
+import { ObjectFactories } from "../Controllers/Creator";
 import { ContextMenuFactories, ContextMenuItem } from "../Controllers/ContextMenu";
 import { activedId } from "../Controllers/Selector";
 import { EditableText } from "./EditableText";
@@ -86,8 +86,8 @@ export const createTextNode = (): TextNode => {
   };
 };
 
-// 注册节点工厂
-NodeFactories["node/text"] = createTextNode;
+// 注册对象工厂
+ObjectFactories["node/text"] = createTextNode;
 
 // 注册工具项
 ToolItems.push({

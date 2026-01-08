@@ -3,7 +3,7 @@ import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { ToolItems } from "./ToolBar";
-import { NodeFactories } from "../Controllers/Creator";
+import { ObjectFactories } from "../Controllers/Creator";
 import {
   ContextMenuFactories,
   ContextMenuItem,
@@ -50,8 +50,8 @@ export const createImageNode = (): ImageNode => {
   };
 };
 
-// 注册节点工厂
-NodeFactories["node/image"] = createImageNode;
+// 注册对象工厂
+ObjectFactories["node/image"] = createImageNode;
 
 // 注册工具项
 ToolItems.push({

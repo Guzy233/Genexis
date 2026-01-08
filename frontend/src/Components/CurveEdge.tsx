@@ -1,11 +1,12 @@
 import React, { useMemo } from "react";
-import { Anchor, Vec2, Obj, Node, Coms } from "../Globals";
+import { Anchor, Vec2, Obj, Node, Edge, Coms } from "../Globals";
 import { atom, useAtom } from "jotai";
 import { registerSerializer } from "../Serialization";
 import {
   ContextMenuFactories,
   ContextMenuItem,
 } from "../Controllers/ContextMenu";
+import { ObjectFactories } from "../Controllers/Creator";
 
 // ==================== 类型定义 ====================
 
@@ -15,13 +16,8 @@ interface ResolvedPoint {
   dir: Vec2;
 }
 
-export interface CurveEdge extends Obj {
-  source: Node;
-  target: Node;
-  anchorSource: Anchor;
-  anchorTarget: Anchor;
-  isSelected: boolean;
-  label?: string;
+export interface CurveEdge extends Edge {
+  // CurveEdge 特有的属性可以在这里添加
 }
 
 export const newCurveEdge = (
@@ -390,3 +386,8 @@ registerSerializer(
 );
 
 ContextMenuFactories["edge"] = () => [];
+
+// 注册对象工厂（边工厂需要参数，暂时设为 null）
+ObjectFactories["edge/curve"] = (source?: Node, target?: Node, label: string = "") => {
+  return newCurveEdge(source || null as any, target || null as any, label);
+};
