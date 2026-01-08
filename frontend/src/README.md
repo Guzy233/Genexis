@@ -95,15 +95,22 @@ Selector 实现了框选功能，支持以下设置：
 src/
 ├── Components/     # React 渲染组件
 │   ├── TextNode.tsx    # 文本节点组件
+│   ├── ImageNode.tsx   # 图片节点组件
 │   ├── CurveEdge.tsx   # 曲线边组件
-│   └── SelectionBox.tsx  # 框选组件（UI层）
+│   ├── LineEdge.tsx    # 直线边组件
+│   ├── SelectionBox.tsx  # 框选组件（UI层）
+│   ├── ContextMenu.tsx   # 右键菜单组件（UI层）
+│   └── DeletionTrail.tsx # 删除轨迹组件（UI层）
 ├── Controllers/    # 控制器（逻辑层）
 │   ├── Dragger.ts      # 拖拽逻辑
 │   ├── Creator.ts      # 创建节点逻辑
 │   ├── Linker.ts       # 连接节点逻辑
-│   ├── Selector.ts     # 选择逻辑（含框选）
-│   ├── Editor.ts       # 编辑逻辑
-│   └── Keyboard.ts     # 键盘快捷键
+│   ├── Selector.ts     # 选择逻辑（含框选、键盘导航）
+│   ├── Deleter.ts      # 删除逻辑（划线删除）
+│   ├── Grower.ts       # 生长逻辑（Tab 键快速创建）
+│   ├── Keyboard.ts     # 键盘快捷键
+│   └── ContextMenu.ts  # 右键菜单逻辑
+├── NodeRelations.ts # 节点关系管理（上游/下游）
 ├── Globals.ts      # 全局类型定义
 ├── Manager.ts      # 全局状态管理
 ├── Option.ts       # 设置系统
@@ -561,3 +568,258 @@ registerSetting({
 4. **Controller 必须在 Begin/End 中配对**：防止内存泄漏
 5. **selected 可以多个，actived 只能一个**
 6. **节点类型定义在组件文件中**，使用新节点类型时需确保组件已导入
+
+## 新增功能详细说明
+
+### 1. 节点关系系统 (NodeRelations.ts)
+
+支持图结构（非纯树结构）的节点关系管理，使用两张表分别存储上游和下游关系：
+
+#### 数据结构
+
+```typescript
+// 上游表：nodeId -> Set<parentIds>
+const upstreamMap: Map<string, Set<string>> = new Map();
+
+// 下游表：nodeId -> Set<childIds>
+const downstreamMap: Map<string, Set<string>> = new Map();
+```
+
+#### API
+
+| 函数 | 用途 |
+|------|------|
+| `getUpstream(nodeId)` | 获取节点的所有上游节点 |
+| `getDownstream(nodeId)` | 获取节点的所有下游节点 |
+| `addEdgeRelation(sourceId, targetId)` | 添加边的关系（双向记录） |
+| `removeEdgeRelation(sourceId, targetId)` | 移除边的关系 |
+| `clearNodeRelations(nodeId)` | 清除节点所有关系 |
+| `updateRelationsFromEdge(edgeId)` | 从边对象更新关系 |
+
+#### 使用示例
+
+```typescript
+import { addEdgeRelation, getDownstream } from "../NodeRelations";
+
+// 创建边时自动记录关系
+addEdgeRelation(sourceNode.id, targetNode.id);
+
+// 获取节点的所有子节点
+const children = getDownstream(nodeId);
+```
+
+### 2. 生长控制器 (Grower.ts)
+
+通过 Tab 键快速从激活节点生长出新节点，支持 ijkl 移动和自动进入编辑模式。
+
+#### 工作流程
+
+1. **激活节点**：使用鼠标点击或 ijkl 键激活一个节点
+2. **按下 Tab**：创建新节点并连接到激活节点
+3. **移动位置**：按住 Tab 期间，用 ijkl 键移动新节点
+4. **松开 Tab**：自动进入编辑模式
+
+#### 设置项
+
+| 设置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `grower.enabled` | `true` | 启用生长模式 |
+
+#### 代码示例
+
+```typescript
+// 从激活节点生长
+const startGrowMode = (e: KeyboardEvent) => {
+  const sourceNode = objects[activedId] as Node;
+
+  // 计算新节点位置（基于布局算法）
+  const newPos = calculateChildPosition(activedId, {
+    x: sourceNode.pos.x + 300,
+    y: sourceNode.pos.y,
+  });
+
+  // 创建新节点
+  const newNode = ObjectFactories["node/text"]() as Node;
+  newNode.pos = newPos;
+  Manager.add(newNode);
+
+  // 创建连接边
+  const edge = ObjectFactories["edge/line"]() as Edge;
+  edge.source = sourceNode;
+  edge.target = newNode;
+  Manager.add(edge);
+};
+```
+
+### 3. 删除控制器 (Deleter.ts)
+
+右键划线删除节点和边，自动处理连接关系。
+
+#### 工作流程
+
+1. 在空白处按下右键
+2. 拖动鼠标划过要删除的节点/边
+3. 松开右键完成删除
+
+#### 特性
+
+- 删除节点时自动删除所有连接的边
+- 删除操作支持撤销/重做
+- 使用 `Manager.deleteIdWithEdges()` 统一处理
+
+### 4. 右键菜单系统 (ContextMenu.ts)
+
+模块化的右键菜单系统，支持自定义菜单工厂。
+
+#### 菜单工厂注册
+
+```typescript
+// Controllers/Creator.ts - 空白处菜单
+ContextMenuFactories["canvas"] = (_target: Obj, event: MouseEvent) => {
+  const items: ContextMenuItem[] = [];
+
+  // 遍历所有节点类型
+  const nodeTools = Object.keys(ObjectFactories).filter(id => id.startsWith("node/"));
+
+  for (const toolId of nodeTools) {
+    items.push({
+      id: `create-${toolId}`,
+      label: toolId.split("/").pop() || toolId,
+      onClick: () => {
+        // 创建节点逻辑
+      },
+    });
+  }
+
+  return items;
+};
+
+// Controllers/Linker.ts - 节点菜单
+ContextMenuFactories["node"] = (target: Obj, event: MouseEvent) => {
+  const items: ContextMenuItem[] = [];
+
+  // 添加连接选项
+  const edgeTools = Object.keys(ObjectFactories).filter(id => id.startsWith("edge/"));
+
+  for (const edgeId of edgeTools) {
+    items.push({
+      id: `link-${edgeId}`,
+      label: `连接 (${edgeId.split("/").pop()})`,
+      onClick: () => {
+        // 开始连接逻辑
+      },
+    });
+  }
+
+  return items;
+};
+```
+
+#### 菜单项接口
+
+```typescript
+interface ContextMenuItem {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+  onClick: (target: Obj) => void;
+}
+```
+
+### 5. 增强的删除系统
+
+所有删除操作统一使用 `Manager.deleteIdWithEdges()`，确保关系一致性。
+
+#### 删除行为
+
+```typescript
+// Manager.ts
+deleteIdWithEdges: (id: string) => {
+  // 1. 清理节点关系记录
+  clearNodeRelations(id);
+
+  // 2. 如果是节点，删除所有连接的边
+  if (obj.type.startsWith("node/")) {
+    edgesToDelete.forEach((edgeId) => delete objects[edgeId]);
+  }
+
+  // 3. 删除对象本身
+  delete objects[id];
+}
+```
+
+#### 触发位置
+
+- 键盘 Delete 键删除（Keyboard.ts）
+- 右键菜单删除（ContextMenu.ts）
+- 划线删除（Deleter.ts）
+
+### 6. 键盘导航增强 (Selector.ts)
+
+使用 ijkl 键在节点间导航，支持修饰键。
+
+#### 导航按键
+
+| 按键 | 方向 | 可配置 |
+|------|------|--------|
+| i | 上 | ✓ |
+| k | 下 | ✓ |
+| j | 左 | ✓ |
+| l | 右 | ✓ |
+
+#### 修饰键行为
+
+- **无修饰键**：仅移动激活节点
+- **Shift**：移动并选中目标节点
+- **Ctrl**：移动并取消选中目标节点
+
+#### 设置项
+
+| 设置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `selector.navUp` | `"i"` | 向上导航 |
+| `selector.navDown` | `"k"` | 向下导航 |
+| `selector.navLeft` | `"j"` | 向左导航 |
+| `selector.navRight` | `"l"` | 向右导航 |
+
+### 7. 对象工厂系统
+
+移除 ToolItem 的 `createNode`/`createEdge` 属性，改为统一的工厂注册。
+
+#### 工厂注册
+
+```typescript
+// Components/TextNode.tsx
+import { ObjectFactories } from "../Controllers/Creator";
+
+const createTextNode = (): TextNode => ({
+  id: uuid(),
+  type: "node/text",
+  updater: atom(0),
+  pos: { x: 0, y: 0 },
+  size: { x: 100, y: 50 },
+  text: "New Node",
+  selected: false,
+  eAncs: anchors_default,
+  aAncs: anchors_rect,
+});
+
+// 注册到工厂
+ObjectFactories["node/text"] = createTextNode;
+
+// 注册工具栏项（不再需要 createNode）
+ToolItems.push({
+  id: "node/text",
+  type: "node",
+  category: CATEGORY_NODES,
+  icon: <span>📄</span>,
+});
+```
+
+#### 使用工厂
+
+```typescript
+const node = ObjectFactories["node/text"]() as Node;
+node.pos = { x: 100, y: 100 };
+Manager.add(node);
+```

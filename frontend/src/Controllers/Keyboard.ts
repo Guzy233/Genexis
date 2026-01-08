@@ -12,6 +12,7 @@ export const KeyAction = {
   REDO: "REDO",
   SELECT_ALL: "SELECT_ALL",
   SHOW_ACTIONS: "SHOW_ACTIONS",
+  EDIT_NODE: "EDIT_NODE",
   EXIT: "EXIT",
 } as const;
 
@@ -113,6 +114,28 @@ const executeAction = (action: KeyAction): void => {
     case KeyAction.SHOW_ACTIONS:
       // 切换显示设置面板（由外部处理）
       break;
+    case KeyAction.EDIT_NODE: {
+      // 进入激活节点的编辑模式
+      const activedId = (globalThis as { activedId?: string }).activedId;
+      if (activedId) {
+        setTimeout(() => {
+          const nodeGroup = document.querySelector(`[data-id="${activedId}"]`);
+          if (nodeGroup) {
+            // 查找 node-group 下的 g 元素（EditableText 的容器）
+            const editableTextContainer = nodeGroup.querySelector("g");
+            if (editableTextContainer) {
+              const dblClickEvent = new MouseEvent("dblclick", {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+              });
+              editableTextContainer.dispatchEvent(dblClickEvent);
+            }
+          }
+        }, 0);
+      }
+      break;
+    }
     case KeyAction.EXIT:
       console.log("Exit");
       break;
@@ -206,6 +229,17 @@ registerSetting({
 });
 
 registerSetting({
+  id: "keyboard.editNode",
+  category: "Keyboard",
+  title: "编辑节点",
+  type: "key",
+  defaultValue: "Enter",
+  value: "Enter",
+  description: "进入当前激活节点的编辑模式",
+  onChange: (v) => updateBinding(KeyAction.EDIT_NODE, v),
+});
+
+registerSetting({
   id: "keyboard.exit",
   category: "Keyboard",
   title: "退出",
@@ -226,6 +260,7 @@ const initDefaultBindings = () => {
     { id: "keyboard.redo", action: KeyAction.REDO },
     { id: "keyboard.selectAll", action: KeyAction.SELECT_ALL },
     { id: "keyboard.showActions", action: KeyAction.SHOW_ACTIONS },
+    { id: "keyboard.editNode", action: KeyAction.EDIT_NODE },
     { id: "keyboard.exit", action: KeyAction.EXIT },
   ];
 
@@ -241,13 +276,13 @@ const initDefaultBindings = () => {
 Controllers.push({
   Begin: (canvas: SVGGElement) => {
     initDefaultBindings();
-    canvas.addEventListener("keydown", onKeyDown);
-    canvas.addEventListener("keyup", onKeyUp);
-    canvas.addEventListener("keypress", onKeyPress);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("keypress", onKeyPress);
   },
   End: (canvas: SVGGElement) => {
-    canvas.removeEventListener("keydown", onKeyDown);
-    canvas.removeEventListener("keyup", onKeyUp);
-    canvas.removeEventListener("keypress", onKeyPress);
+    window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("keyup", onKeyUp);
+    window.removeEventListener("keypress", onKeyPress);
   },
 });
