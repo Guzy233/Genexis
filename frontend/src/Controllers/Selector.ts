@@ -49,6 +49,12 @@ interface SelectionBox extends Obj {
 }
 
 export let activedId = "";
+export function active(id: string) {
+  const last = activedId
+  activedId = id;
+  if (last) Manager.updateId(last)
+  Manager.updateId(activedId)
+}
 
 // ==================== 键盘导航逻辑 ====================
 
@@ -122,10 +128,7 @@ const handleKeyboardNavigation = (e: KeyboardEvent) => {
   if (!activedId) {
     const firstNode = Object.values(objects).find(obj => obj.type.startsWith("node/")) as Node;
     if (firstNode) {
-      const last = activedId;
-      activedId = firstNode.id;
-      if (last) Manager.updateId(last);
-      Manager.updateId(activedId);
+      active(firstNode.id)
     }
     return;
   }
@@ -133,10 +136,7 @@ const handleKeyboardNavigation = (e: KeyboardEvent) => {
   const nearestNode = findNearestNodeInDirection(activedId, direction);
   if (!nearestNode) return;
 
-  const last = activedId;
-  activedId = nearestNode.id;
-  if (last) Manager.updateId(last);
-  Manager.updateId(activedId);
+  active(nearestNode.id)
 
   // 根据修饰键处理选中状态
   if (e.shiftKey) {
@@ -288,10 +288,7 @@ const handleNodeSelection = (e: MouseEvent, nodeId: string) => {
   node.selected = !node.selected;
 
   // 设置为激活状态
-  const last = activedId;
-  activedId = node.id;
-  if (last) Manager.updateId(last);
-  Manager.updateId(activedId);
+  active(node.id)
 };
 
 // ==================== 空白区域点击逻辑 ====================

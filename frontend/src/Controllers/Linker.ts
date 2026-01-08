@@ -6,6 +6,7 @@ import { screen2Viewport, viewport } from "./Camera";
 import { createNodeCentered, ObjectFactories } from "./Creator";
 import { getToolForCategory, CATEGORY_EDGES } from "../Components/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
+import { updateRelationsFromEdge } from "../NodeRelations";
 
 // 连接器状态
 let linkingKey = "Space";
@@ -86,6 +87,8 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
         vEdge.target = objects[aNodeId] as Node;
         vEdge.anchorTarget = { type: "auto" };
         Manager.updateId(vEdge.id);
+        // 更新节点关系
+        updateRelationsFromEdge(vEdge.id);
         Manager.saveHistory();
       }
     } else {
@@ -96,6 +99,8 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
       if (node) {
         vEdge.target = node;
         Manager.add(node);
+        // 更新节点关系
+        updateRelationsFromEdge(vEdge.id);
         Manager.saveHistory();
       } else {
         Manager.deleteId(vEdge.id);

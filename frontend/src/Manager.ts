@@ -101,6 +101,16 @@ export default {
     const obj = objects[id];
     if (!obj) return;
 
+    // 如果是节点，清理关系记录
+    if (obj.type.startsWith("node/")) {
+      // 动态导入清理函数，避免循环依赖
+      import("./NodeRelations").then(({ clearNodeRelations }) => {
+        clearNodeRelations(id);
+      }).catch(() => {
+        // 忽略模块未加载错误
+      });
+    }
+
     // 如果是节点，找出并删除连接到它的所有边
     if (obj.type.startsWith("node/")) {
       const edgesToDelete: string[] = [];
