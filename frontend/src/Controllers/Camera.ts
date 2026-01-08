@@ -1,5 +1,4 @@
-import { useRef } from "react";
-import { idFromEvent, Operators } from "../Globals";
+import { Controllers, idFromEvent } from "../Globals";
 import { updateCanvas } from "../Manager";
 
 // ==================== Viewport 相关 ====================
@@ -9,19 +8,27 @@ export const viewport = {
   zoom: 1,
 };
 
-export const screen2Viewport = (point: { x: number; y: number }): { x: number; y: number } => {
+export const screen2Viewport = (point: {
+  x: number;
+  y: number;
+}): { x: number; y: number } => {
   return {
     x: (point.x - viewport.x) / viewport.zoom,
     y: (point.y - viewport.y) / viewport.zoom,
   };
 };
 
-export const viewport2Screen = (point: { x: number; y: number }): { x: number; y: number } => {
+export const viewport2Screen = (point: {
+  x: number;
+  y: number;
+}): { x: number; y: number } => {
   return {
     x: point.x * viewport.zoom + viewport.x,
     y: point.y * viewport.zoom + viewport.y,
   };
 };
+
+let canvasEl: SVGGElement | null = null;
 
 // 开始拖动视角
 const onMouseDown = (e: MouseEvent) => {
@@ -37,13 +44,6 @@ const onMouseDown = (e: MouseEvent) => {
   const startViewportX = viewport.x;
   const startViewportY = viewport.y;
 
-  // 窗口失去焦点时清理所有临时监听器
-  const onBlur = () => {
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-    window.removeEventListener("blur", onBlur);
-  };
-
   const onMouseMove = (e: MouseEvent) => {
     viewport.x = startViewportX + (e.clientX - startX);
     viewport.y = startViewportY + (e.clientY - startY);
@@ -51,14 +51,12 @@ const onMouseDown = (e: MouseEvent) => {
   };
 
   const onMouseUp = () => {
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-    window.removeEventListener("blur", onBlur);
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
   };
 
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
-  window.addEventListener("blur", onBlur);
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
 };
 
 // 缩放视角
@@ -89,28 +87,28 @@ const onWheel = (e: WheelEvent) => {
   updateViewport();
 };
 
-let canvas:SVGGElement|null = null;
+let canvas: SVGGElement | null = null;
 
 function updateViewport() {
-
   if (canvas) {
     canvas.setAttribute(
       "transform",
       `translate(${viewport.x},${viewport.y}) scale(${viewport.zoom})`
     );
-  }else{
+  } else {
     canvas = document.querySelector("#canvas");
     updateViewport();
   }
 }
 
-Operators.push({
-  Begin: () => {
-    window.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("wheel", onWheel, { passive: false });
+Controllers.push({
+  Begin: (canvas: SVGGElement) => {
+    canvasEl = canvas;
+    canvas.addEventListener("mousedown", onMouseDown);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
   },
-  End: () => {
-    window.removeEventListener("mousedown", onMouseDown);
-    window.removeEventListener("wheel", onWheel);
+  End: (canvas: SVGGElement) => {
+    canvas.removeEventListener("mousedown", onMouseDown);
+    canvas.removeEventListener("wheel", onWheel);
   },
 });

@@ -1,5 +1,5 @@
 import "./css/App.css";
-import { Coms, Operators } from "./Globals";
+import { Coms, Controllers } from "./Globals";
 import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { objects, canvasUpdater } from "./Manager";
@@ -27,6 +27,7 @@ import "./Controllers/Deleter";
 const App: React.FC = () => {
   useAtom(canvasUpdater);
   const [showSettings, setShowSettings] = useState(false);
+  const canvasRef = React.useRef<SVGGElement>(null);
 
   const objs = Object.values(objects);
   const edges = objs.filter((obj) => obj.type.startsWith("edge"));
@@ -37,9 +38,12 @@ const App: React.FC = () => {
   // sortedObjects.forEach((o)=>console.log(o.id))
 
   useEffect(() => {
-    Operators.map((op) => op.Begin());
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    Controllers.map((controller) => controller.Begin(canvas));
     return () => {
-      Operators.map((op) => op.End());
+      Controllers.map((controller) => controller.End(canvas));
     };
   }, []);
 
@@ -97,6 +101,7 @@ const App: React.FC = () => {
         </defs>
 
         <g
+          ref={canvasRef}
           transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}
           id="canvas"
         >

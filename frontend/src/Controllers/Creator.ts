@@ -1,5 +1,5 @@
 import Manager from "../Manager";
-import { Operators, Vec2, Node, Obj } from "../Globals";
+import { Controllers, Vec2, Node, Obj } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { getToolForCategory } from "../Components/ToolBar";
 import { CATEGORY_NODES } from "../Components/TextNode";
@@ -37,7 +37,7 @@ const onDblClick = (e: MouseEvent) => {
   }
 };
 
-Operators.push({
-  Begin: () => window.addEventListener("dblclick", onDblClick),
-  End: () => window.removeEventListener("dblclick", onDblClick),
+Controllers.push({
+  Begin: (canvas: SVGGElement) => canvas.addEventListener("dblclick", onDblClick),
+  End: (canvas: SVGGElement) => canvas.removeEventListener("dblclick", onDblClick),
 });

@@ -1,5 +1,5 @@
 import Manager, { objects } from "../Manager";
-import { Edge, idFromEvent, Node, Operators } from "../Globals";
+import { Edge, idFromEvent, Node, Controllers } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
@@ -137,7 +137,7 @@ export const onClickNode = (e: MouseEvent) => {
   window.addEventListener("blur", onBlur);
 };
 
-Operators.push({
-  Begin: () => window.addEventListener("mousedown", onClickNode),
-  End: () => window.removeEventListener("mousedown", onClickNode),
+Controllers.push({
+  Begin: (canvas: SVGGElement) => canvas.addEventListener("mousedown", onClickNode),
+  End: (canvas: SVGGElement) => canvas.removeEventListener("mousedown", onClickNode),
 });

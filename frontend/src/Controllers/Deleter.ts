@@ -1,5 +1,5 @@
 import Manager, { objects } from "../Manager";
-import { Obj, Operators } from "../Globals";
+import { Obj, Controllers } from "../Globals";
 
 // 右键按下时进入删除模式
 export const onMouseDown = (e: MouseEvent) => {
@@ -76,7 +76,7 @@ export const onMouseDown = (e: MouseEvent) => {
   window.addEventListener("contextmenu", onContextMenu, true);
 };
 
-Operators.push({
-  Begin: () => window.addEventListener("mousedown", onMouseDown),
-  End: () => window.removeEventListener("mousedown", onMouseDown),
+Controllers.push({
+  Begin: (canvas: SVGGElement) => canvas.addEventListener("mousedown", onMouseDown),
+  End: (canvas: SVGGElement) => canvas.removeEventListener("mousedown", onMouseDown),
 });

@@ -68,4 +68,4 @@ export const Coms: Record<
   }>
 > = {};
 
-export const Operators: { Begin: () => any, End: () => any }[] = [];
+export const Controllers: { Begin: (canvas: SVGGElement) => any, End: (canvas: SVGGElement) => any }[] = [];

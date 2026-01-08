@@ -1,5 +1,5 @@
 import Manager, { objects } from "../Manager";
-import { idFromEvent, Node, Operators } from "../Globals";
+import { idFromEvent, Node, Controllers } from "../Globals";
 import { viewport } from "./Camera";
 import { registerSetting } from "../Option";
 
@@ -56,7 +56,7 @@ export const onClickNode = (e: MouseEvent) => {
   window.addEventListener("blur", onBlur);
 };
 
-Operators.push({
-  Begin: () => window.addEventListener("mousedown", onClickNode),
-  End: () => window.removeEventListener("mousedown", onClickNode),
+Controllers.push({
+  Begin: (canvas: SVGGElement) => canvas.addEventListener("mousedown", onClickNode),
+  End: (canvas: SVGGElement) => canvas.removeEventListener("mousedown", onClickNode),
 });

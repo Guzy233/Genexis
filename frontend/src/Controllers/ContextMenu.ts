@@ -1,5 +1,5 @@
 import Manager, { objects } from "../Manager";
-import { Obj, Operators, idFromEvent } from "../Globals";
+import { Obj, Controllers, idFromEvent } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { ToolItems } from "../Components/ToolBar";
 import React from "react";
@@ -108,12 +108,12 @@ const onContextMenu = (e: MouseEvent) => {
   };
   window.addEventListener("mousedown", onMenuMouseDown, true);
 };
-Operators.push({
-  Begin: () => {
-    window.addEventListener("contextmenu", onContextMenu);
+Controllers.push({
+  Begin: (canvas: SVGGElement) => {
+    canvas.addEventListener("contextmenu", onContextMenu);
   },
-  End: () => {
-    window.removeEventListener("contextmenu", onContextMenu);
+  End: (canvas: SVGGElement) => {
+    canvas.removeEventListener("contextmenu", onContextMenu);
   },
 });
 

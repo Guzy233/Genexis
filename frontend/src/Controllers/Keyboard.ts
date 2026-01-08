@@ -1,4 +1,4 @@
-import { Operators, Obj } from "../Globals";
+import { Controllers } from "../Globals";
 import { registerSetting, setValue, getSetting } from "../Option";
 import Manager from "../Manager";
 import { objects } from "../Manager";
@@ -254,16 +254,16 @@ const initDefaultBindings = () => {
 };
 
 // 按照操作器模式注册
-Operators.push({
-  Begin: () => {
+Controllers.push({
+  Begin: (canvas: SVGGElement) => {
     initDefaultBindings();
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("keypress", onKeyPress);
+    canvas.addEventListener("keydown", onKeyDown);
+    canvas.addEventListener("keyup", onKeyUp);
+    canvas.addEventListener("keypress", onKeyPress);
   },
-  End: () => {
-    window.removeEventListener("keydown", onKeyDown);
-    window.removeEventListener("keyup", onKeyUp);
-    window.removeEventListener("keypress", onKeyPress);
+  End: (canvas: SVGGElement) => {
+    canvas.removeEventListener("keydown", onKeyDown);
+    canvas.removeEventListener("keyup", onKeyUp);
+    canvas.removeEventListener("keypress", onKeyPress);
   },
 });

@@ -1,5 +1,5 @@
 import Manager, { objects } from "../Manager";
-import { idFromEvent, Node, Operators, Obj, Vec2 } from "../Globals";
+import { idFromEvent, Node, Controllers, Obj, Vec2 } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { registerSetting, getSetting } from "../Option";
 import { atom } from "jotai";
@@ -181,7 +181,7 @@ registerSetting({
   description: "1=左键, 2=中键, 0/2=右键(取决于系统)",
 });
 
-Operators.push({
-  Begin: () => window.addEventListener("mousedown", onMouseDown),
-  End: () => window.removeEventListener("mousedown", onMouseDown),
+Controllers.push({
+  Begin: (canvas: SVGGElement) => canvas.addEventListener("mousedown", onMouseDown),
+  End: (canvas: SVGGElement) => canvas.removeEventListener("mousedown", onMouseDown),
 });
