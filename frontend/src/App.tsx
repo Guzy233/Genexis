@@ -10,6 +10,7 @@ import ToolBar from "./Components/ToolBar";
 
 import "./Components/TextNode";
 import "./Components/ImageNode";
+import "./Components/MCItemNode";
 import "./Components/CurveEdge";
 import "./Components/LineEdge";
 import "./Components/SelectionBox";
@@ -25,6 +26,7 @@ import "./Controllers/Selector";
 import "./Controllers/Camera";
 import "./Controllers/Deleter";
 import "./Controllers/Grower";
+import "./Controllers/Recipes";
 
 const App: React.FC = () => {
   useAtom(canvasUpdater);
