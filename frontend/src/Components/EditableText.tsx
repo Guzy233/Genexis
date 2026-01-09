@@ -8,11 +8,22 @@ interface EditableTextProps {
     newSize: { width: number; height: number }
   ) => void;
   onStartEditing?: () => void;
-  onEndEditing?: () => void;
+  onEndEditing?: (finalText: string) => void;
   fontSize?: string;
+  containerClassName?: string;
+  inputClassName?: string;
+  displayClassName?: string;
+  clickToEdit?: boolean;
 }
 
 let wasUndoIntercepted = false;
+
+const beforeInput=(e: React.FormEvent<HTMLInputElement>) => {
+    const inputEvent = e as unknown as InputEvent;
+    if (inputEvent.inputType === "historyUndo") {
+      wasUndoIntercepted = true;
+    }
+  }
 
 export const EditableText: React.FC<EditableTextProps> = ({
   text,
@@ -21,21 +32,27 @@ export const EditableText: React.FC<EditableTextProps> = ({
   onStartEditing,
   onEndEditing,
   fontSize = "14px",
+  containerClassName,
+  inputClassName,
+  displayClassName,
+  clickToEdit = false,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [editingText, setEditingText] = useState(text);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // 1. 启动编辑
   const startEditing = useCallback(() => {
     setIsEditing(true);
+    setEditingText(text);
     onStartEditing?.();
-  }, [onStartEditing]);
+  }, [onStartEditing, text]);
 
   const stopEditing = useCallback(() => {
     setIsEditing(false);
-    onEndEditing?.();
+    onEndEditing?.(editingText);
     window.removeEventListener("mousedown", onMouseDown, true);
-  }, [onEndEditing]);
+  }, [onEndEditing, editingText]);
 
   const measureText = useCallback(
     (val: string) => {
@@ -51,12 +68,13 @@ export const EditableText: React.FC<EditableTextProps> = ({
     },
     [fontSize]
   );
-  const onMouseDown = (e: MouseEvent) => {
+
+  const onMouseDown = useCallback((e: MouseEvent) => {
     const target = e.target as HTMLElement;
     if (!inputRef.current?.contains(target)) {
       stopEditing();
     }
-  };
+  }, [stopEditing]);
 
   useEffect(() => {
     if (isEditing) {
@@ -64,13 +82,6 @@ export const EditableText: React.FC<EditableTextProps> = ({
       inputRef.current?.select();
     }
   }, [isEditing]);
-
-  const beforeInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
-    const inputEvent = e as unknown as InputEvent;
-    if (inputEvent.inputType === "historyUndo") {
-      wasUndoIntercepted = true;
-    }
-  }, []);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "z" && e.ctrlKey) {
@@ -82,38 +93,49 @@ export const EditableText: React.FC<EditableTextProps> = ({
       }, 0);
     }
     if (!e.shiftKey && e.key === "Enter") stopEditing();
-  }, []);
+  }, [stopEditing]);
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (!isEditing && clickToEdit) {
+      e.stopPropagation();
+      window.addEventListener("mousedown", onMouseDown, true);
+      startEditing();
+    }
+  }, [isEditing, clickToEdit, onMouseDown, startEditing]);
 
   return (
     <g
+      onClick={clickToEdit ? handleClick : undefined}
       onDoubleClick={(e) => {
-        e.stopPropagation();
-        window.addEventListener("mousedown", onMouseDown, true);
-        startEditing();
+        if (!clickToEdit) {
+          e.stopPropagation();
+          window.addEventListener("mousedown", onMouseDown, true);
+          startEditing();
+        }
       }}
     >
       <foreignObject width={size.x} height={size.y}>
-        <div
-          className="content-container"
-        >
+        <div className={containerClassName || "content-container"}>
           {isEditing ? (
             <input
               ref={inputRef}
-              className="edit-input"
-              value={text}
+              className={inputClassName || "edit-input"}
+              value={editingText}
               onMouseDown={(e) => e.stopPropagation()}
               onBeforeInput={beforeInput}
               onKeyDown={onKeyDown}
               onChange={(e) => {
                 const newVal = e.target.value;
+                setEditingText(newVal);
                 onTextChange(newVal, measureText(newVal));
               }}
               style={{
                 fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
               }}
+              onMouseDownCapture={(e)=>e.stopPropagation() }
             />
           ) : (
-            <span className="text-display no-select">{text}</span>
+            <span className={displayClassName || "text-display no-select"}>{text}</span>
           )}
         </div>
       </foreignObject>

@@ -14,6 +14,7 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
+import { EditableText } from "./EditableText";
 
 export interface ImageNode extends Node {
   src: string;
@@ -152,14 +153,11 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
 export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   useAtom(obj.updater);
   const node = obj as ImageNode;
-  const [isEditing, setIsEditing] = useState(false);
-  const [tempSrc, setTempSrc] = useState(node.src);
   const [imageNaturalSize, setImageNaturalSize] = useState({
     width: 0,
     height: 0,
   });
   const imgRef = useRef<SVGImageElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // 图片加载完成后的尺寸回调
   const onImageLoad = () => {
@@ -189,29 +187,11 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
     }
   };
 
-  // 离开编辑模式
-  const finishEditing = () => {
-    setIsEditing(false);
-    node.src = tempSrc;
+  // 处理 URL 变化
+  const handleUrlChange = (newSrc: string, newSize: { width: number; height: number }) => {
+    node.src = newSrc;
     Manager.update(node);
     Manager.saveHistory();
-  };
-
-  // 输入框变化
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTempSrc(e.target.value);
-  };
-
-  // 输入框失焦
-  const handleBlur = () => {
-    finishEditing();
-  };
-
-  // 按 Enter 完成
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      finishEditing();
-    }
   };
 
   // 自动调整节点高度
@@ -234,37 +214,17 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
       />
 
       {/* URL 输入框区域 */}
-      <foreignObject
-        x="4"
-        y="2"
-        width={node.size.x - 8}
-        height="26"
-        style={{ overflow: "visible" }}
-      >
-        <input
-          ref={inputRef}
-          className="node-url-input"
-          style={{
-            width: "100%",
-            height: "22px",
-            border: "none",
-            background: isEditing ? "rgba(255, 255, 255, 0.1)" : "transparent",
-            fontSize: "12px",
-            color: "#e4e4e7",
-            textAlign: "center",
-            outline: "none",
-            cursor: isEditing ? "text" : "pointer",
-            pointerEvents: "auto",
-            borderRadius: "4px",
-          }}
-          value={isEditing ? tempSrc : node.src}
-          onChange={handleInputChange}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsEditing(true)}
-          placeholder="输入图片URL..."
+      <g transform="translate(4, 2)">
+        <EditableText
+          text={node.src}
+          size={{ x: node.size.x - 8, y: 26 }}
+          onTextChange={handleUrlChange}
+          containerClassName="url-input-container"
+          inputClassName="node-url-input"
+          displayClassName="url-display"
+          fontSize="12px"
         />
-      </foreignObject>
+      </g>
 
       {/* 图片区域 */}
       <g
