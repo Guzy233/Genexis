@@ -1,8 +1,21 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { getSettingsByCategory, setValue } from "../Option";
+import { getSettingsByCategory, setValue, SettingItem } from "../Option";
 
 const SettingsPanel: React.FC<{ onClose: () => void; visible?: boolean }> = ({ onClose, visible = true }) => {
   const categories = getSettingsByCategory();
+
+  // 处理数字类型输入变化
+  const handleNumberChange = (item: SettingItem, newValue: string) => {
+    const num = parseFloat(newValue);
+    if (!isNaN(num)) {
+      setValue(item.id, num);
+    }
+  };
+
+  // 处理字符串类型输入变化
+  const handleStringChange = (item: SettingItem, newValue: string) => {
+    setValue(item.id, newValue);
+  };
 
   return (
     <div className={`settings-panel ${visible ? "visible" : ""}`}>
@@ -39,6 +52,25 @@ const SettingsPanel: React.FC<{ onClose: () => void; visible?: boolean }> = ({ o
                       className="settings-item-input"
                       checked={item.value}
                       onChange={(e) => setValue(item.id, e.target.checked)}
+                    />
+                  )}
+                  {item.type === "number" && (
+                    <input
+                      type="number"
+                      className="settings-item-input"
+                      value={item.value}
+                      step={0.05}
+                      min={0}
+                      max={10}
+                      onChange={(e) => handleNumberChange(item, e.target.value)}
+                    />
+                  )}
+                  {item.type === "string" && (
+                    <input
+                      type="text"
+                      className="settings-item-input"
+                      value={item.value}
+                      onChange={(e) => handleStringChange(item, e.target.value)}
                     />
                   )}
                 </label>
