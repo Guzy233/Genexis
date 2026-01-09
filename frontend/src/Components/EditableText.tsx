@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 interface EditableTextProps {
   text: string;
   size: { x: number; y: number };
-  onTextChange: (
+  onTextChange?: (
     newText: string,
     newSize: { width: number; height: number }
   ) => void;
@@ -13,17 +13,77 @@ interface EditableTextProps {
   containerClassName?: string;
   inputClassName?: string;
   displayClassName?: string;
-  clickToEdit?: boolean;
 }
 
-let wasUndoIntercepted = false;
+const measureText = (val: string, fontSize: string) => {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) return { width: 100, height: 50 };
+  context.font = `${fontSize} '"PingFang SC", "Microsoft YaHei", sans-serif'`;
+  const metrics = context.measureText(val);
+  return {
+    width: Math.max(100, metrics.width + 30),
+    height: Math.max(50, 24 + 20),
+  };
+};
 
-const beforeInput=(e: React.FormEvent<HTMLInputElement>) => {
-    const inputEvent = e as unknown as InputEvent;
-    if (inputEvent.inputType === "historyUndo") {
+const startEditing = (
+  ref: HTMLInputElement,
+  onEndEditing?: (finalText: string) => void,
+  setIsEditing?: (isEditing: boolean) => void,
+  onTextChange?: (
+    newText: string,
+    newSize: { width: number; height: number }
+  ) => void,
+  fontSize?: string
+) => {
+  const onMouseDown = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (!ref.contains(target)) {
+      stopEditing();
+    }
+  };
+  let wasUndoIntercepted = false;
+
+  const beforeInput = (e: InputEvent) => {
+    if (e.inputType === "historyUndo") {
       wasUndoIntercepted = true;
     }
-  }
+  };
+
+  const stopEditing = () => {
+    ref.removeEventListener("input", onChange, true);
+    ref.removeEventListener("beforeinput", beforeInput, true);
+    ref.removeEventListener("keydown", onKeyDown, true);
+    window.removeEventListener("mousedown", onMouseDown, true);
+    if (setIsEditing) setIsEditing(false);
+    if (onEndEditing) onEndEditing(ref.value);
+  };
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "z" && e.ctrlKey) {
+      wasUndoIntercepted = false;
+      setTimeout(() => {
+        if (!wasUndoIntercepted) {
+          stopEditing();
+        }
+      }, 0);
+    }
+    if (!e.shiftKey && e.key === "Enter") stopEditing();
+  };
+
+  const onChange = () => {
+    if (onTextChange) {
+      const newText = ref.value;
+      const newSize = measureText(newText, fontSize || "14px");
+      onTextChange(newText, newSize);
+    }
+  };
+  ref.addEventListener("input", onChange, true);
+  ref.addEventListener("beforeinput", beforeInput, true);
+  ref.addEventListener("keydown", onKeyDown, true);
+  window.addEventListener("mousedown", onMouseDown, true);
+};
 
 export const EditableText: React.FC<EditableTextProps> = ({
   text,
@@ -35,83 +95,30 @@ export const EditableText: React.FC<EditableTextProps> = ({
   containerClassName,
   inputClassName,
   displayClassName,
-  clickToEdit = false,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editingText, setEditingText] = useState(text);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // 1. 启动编辑
-  const startEditing = useCallback(() => {
-    setIsEditing(true);
-    setEditingText(text);
-    onStartEditing?.();
-  }, [onStartEditing, text]);
-
-  const stopEditing = useCallback(() => {
-    setIsEditing(false);
-    onEndEditing?.(editingText);
-    window.removeEventListener("mousedown", onMouseDown, true);
-  }, [onEndEditing, editingText]);
-
-  const measureText = useCallback(
-    (val: string) => {
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      if (!context) return { width: 100, height: 50 };
-      context.font = `${fontSize} '"PingFang SC", "Microsoft YaHei", sans-serif'`;
-      const metrics = context.measureText(val);
-      return {
-        width: Math.max(100, metrics.width + 30),
-        height: Math.max(50, 24 + 20),
-      };
-    },
-    [fontSize]
-  );
-
-  const onMouseDown = useCallback((e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!inputRef.current?.contains(target)) {
-      stopEditing();
-    }
-  }, [stopEditing]);
 
   useEffect(() => {
     if (isEditing) {
       inputRef.current?.focus();
       inputRef.current?.select();
+      startEditing(
+        inputRef.current!,
+        onEndEditing,
+        setIsEditing,
+        onTextChange,
+        fontSize
+      );
     }
   }, [isEditing]);
 
-  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "z" && e.ctrlKey) {
-      wasUndoIntercepted = false;
-      setTimeout(() => {
-        if (!wasUndoIntercepted) {
-          stopEditing();
-        }
-      }, 0);
-    }
-    if (!e.shiftKey && e.key === "Enter") stopEditing();
-  }, [stopEditing]);
-
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    if (!isEditing && clickToEdit) {
-      e.stopPropagation();
-      window.addEventListener("mousedown", onMouseDown, true);
-      startEditing();
-    }
-  }, [isEditing, clickToEdit, onMouseDown, startEditing]);
-
   return (
     <g
-      onClick={clickToEdit ? handleClick : undefined}
       onDoubleClick={(e) => {
-        if (!clickToEdit) {
-          e.stopPropagation();
-          window.addEventListener("mousedown", onMouseDown, true);
-          startEditing();
-        }
+        e.stopPropagation();
+        onStartEditing?.();
+        setIsEditing(true);
       }}
     >
       <foreignObject width={size.x} height={size.y}>
@@ -120,22 +127,17 @@ export const EditableText: React.FC<EditableTextProps> = ({
             <input
               ref={inputRef}
               className={inputClassName || "edit-input"}
-              value={editingText}
+              defaultValue={text}
               onMouseDown={(e) => e.stopPropagation()}
-              onBeforeInput={beforeInput}
-              onKeyDown={onKeyDown}
-              onChange={(e) => {
-                const newVal = e.target.value;
-                setEditingText(newVal);
-                onTextChange(newVal, measureText(newVal));
-              }}
               style={{
                 fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
               }}
-              onMouseDownCapture={(e)=>e.stopPropagation() }
+              onMouseDownCapture={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className={displayClassName || "text-display no-select"}>{text}</span>
+            <span className={displayClassName || "text-display no-select"}>
+              {text}
+            </span>
           )}
         </div>
       </foreignObject>

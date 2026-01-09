@@ -22,15 +22,15 @@ export interface ImageNode extends Node {
 }
 
 const getFillColor = (node: ImageNode) => {
-  if (node.id === activedId) return "rgba(139, 92, 246, 0.25)";  // 紫色激活
-  if (node.selected) return "rgba(99, 102, 241, 0.2)";          // 靛蓝选中
-  return "rgba(255, 255, 255, 0.05)";                           // 默认半透明白
+  if (node.id === activedId) return "rgba(139, 92, 246, 0.25)"; // 紫色激活
+  if (node.selected) return "rgba(99, 102, 241, 0.2)"; // 靛蓝选中
+  return "rgba(255, 255, 255, 0.05)"; // 默认半透明白
 };
 
 const getStrokeColor = (node: ImageNode) => {
-  if (node.id === activedId) return "#8b5cf6";  // 紫色激活边框
-  if (node.selected) return "#6366f1";          // 靛蓝选中边框
-  return "rgba(255, 255, 255, 0.15)";          // 默认边框
+  if (node.id === activedId) return "#8b5cf6"; // 紫色激活边框
+  if (node.selected) return "#6366f1"; // 靛蓝选中边框
+  return "rgba(255, 255, 255, 0.15)"; // 默认边框
 };
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
@@ -54,42 +54,44 @@ export const createImageNode = (): ImageNode => {
 // 注册对象工厂
 ObjectFactories["node/image"] = createImageNode;
 
+const icon = (
+  <svg viewBox="0 0 60 60" style={{ width: "100%", height: "100%" }}>
+    <rect
+      x="4"
+      y="8"
+      width="52"
+      height="44"
+      rx="8"
+      fill="rgba(255, 255, 255, 0.05)"
+      stroke="rgba(255, 255, 255, 0.15)"
+      strokeWidth="2"
+    />
+    {/* 山峰 */}
+    <path
+      d="M 13 42 L 23 28 L 33 38 L 40 30 L 46 36 L 46 42 Z"
+      fill="none"
+      stroke="#6366f1"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+    {/* 太阳 */}
+    <circle
+      cx="40"
+      cy="20"
+      r="6"
+      fill="none"
+      stroke="#f472b6"
+      strokeWidth="2"
+    />
+  </svg>
+);
+
 // 注册工具项
 ToolItems.push({
   id: "node/image",
   type: "node",
   category: CATEGORY_NODES,
-  icon: (
-    <svg viewBox="0 0 60 60" style={{ width: "100%", height: "100%" }}>
-      <rect
-        x="4"
-        y="8"
-        width="52"
-        height="44"
-        rx="8"
-        fill="rgba(255, 255, 255, 0.05)"
-        stroke="rgba(255, 255, 255, 0.15)"
-        strokeWidth="2"
-      />
-      {/* 山峰 */}
-      <path
-        d="M 13 42 L 23 28 L 33 38 L 40 30 L 46 36 L 46 42 Z"
-        fill="none"
-        stroke="#6366f1"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      {/* 太阳 */}
-      <circle
-        cx="40"
-        cy="20"
-        r="6"
-        fill="none"
-        stroke="#f472b6"
-        strokeWidth="2"
-      />
-    </svg>
-  ),
+  icon: icon,
 });
 
 // 注册序列化函数
@@ -153,11 +155,9 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
 export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   useAtom(obj.updater);
   const node = obj as ImageNode;
-  const [imageNaturalSize, setImageNaturalSize] = useState({
-    width: 0,
-    height: 0,
-  });
   const imgRef = useRef<SVGImageElement>(null);
+
+  const [isError, setIsError] = useState(false);
 
   // 图片加载完成后的尺寸回调
   const onImageLoad = () => {
@@ -182,13 +182,14 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
         }
 
         node.imageSize = { width: newWidth, height: newHeight };
-        Manager.update(node);
+        // Manager.update(node);
       }
     }
   };
 
   // 处理 URL 变化
-  const handleUrlChange = (newSrc: string, newSize: { width: number; height: number }) => {
+  const handleUrlChange = (newSrc: string) => {
+    setIsError(false);
     node.src = newSrc;
     Manager.update(node);
     Manager.saveHistory();
@@ -218,7 +219,8 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
         <EditableText
           text={node.src}
           size={{ x: node.size.x - 8, y: 26 }}
-          onTextChange={handleUrlChange}
+          onTextChange={() => Manager.update(node)}
+          onEndEditing={handleUrlChange}
           containerClassName="url-input-container"
           inputClassName="node-url-input"
           displayClassName="url-display"
@@ -232,7 +234,7 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
           (node.size.x - (node.imageSize.width || 100)) / 2
         }, 28)`}
       >
-        {node.src ? (
+        {node.src && !isError ? (
           <image
             ref={imgRef}
             href={node.src}
@@ -241,6 +243,7 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
             preserveAspectRatio="xMidYMid meet"
             onLoad={onImageLoad}
             style={{ opacity: 0.8 }}
+            onError={() => setIsError(true)}
           />
         ) : (
           <text
@@ -251,7 +254,7 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
             fill="#a1a1aa"
             fontSize="12"
           >
-            预览区
+            {isError ? "加载失败" : "预览区"}
           </text>
         )}
       </g>

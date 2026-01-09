@@ -55,7 +55,7 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => 
   }
 
   const [modId] = itemId.split(":");
-  const spriteUrl = `/reciper/${modId}`;
+  const spriteUrl = `/reciper/atlas/${modId}`;
   const x = itemData.X;
   const y = itemData.Y;
 
