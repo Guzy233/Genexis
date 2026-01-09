@@ -297,7 +297,7 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
         className="visual-line"
         d={pathData}
         fill="none"
-        stroke={edge.isSelected ? "#f56c6c" : "#409eff"}
+        stroke={edge.isSelected ? "#f472b6" : "#6366f1"}
         strokeWidth="2"
         mask={`url(#${maskId})`}
         markerEnd={
@@ -322,15 +322,15 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
         cx={resolvedPoints.source.x}
         cy={resolvedPoints.source.y}
         r="4"
-        fill="white"
-        stroke="#409eff"
+        fill="#1e1e2e"
+        stroke="#6366f1"
       />
       <circle
         cx={resolvedPoints.target.x}
         cy={resolvedPoints.target.y}
         r="4"
-        fill="white"
-        stroke="#409eff"
+        fill="#1e1e2e"
+        stroke="#6366f1"
       />
 
       {/* 标签文字：放在挖空的位置 */}
@@ -341,7 +341,7 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
           <text
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="#666"
+            fill="#a1a1aa"
             fontSize="16"
             fontWeight="500"
             style={{ pointerEvents: "none" }}
@@ -398,28 +398,44 @@ ToolItems.push({
   id: "edge/curve",
   type: "edge",
   category: CATEGORY_EDGES,
-  icon: <span style={{ fontSize: 16 }}>〰️</span>,
-  preview: (
-    <svg viewBox="0 0 60 30" style={{ width: "100%", height: "100%" }}>
-      <path
-        d="M 5 15 Q 30 5, 55 15"
-        fill="none"
-        stroke="#409eff"
-        strokeWidth="2"
-        markerEnd="url(#arrowhead)"
+  icon: (
+    <svg viewBox="0 0 60 60" style={{ width: "100%", height: "100%" }}>
+      <rect
+        x="4"
+        y="4"
+        width="52"
+        height="52"
+        rx="12"
+        fill="rgba(255, 255, 255, 0.03)"
+        stroke="rgba(255, 255, 255, 0.1)"
+        strokeWidth="1"
       />
-      <defs>
-        <marker
-          id="arrowhead"
-          markerWidth="10"
-          markerHeight="7"
-          refX="9"
-          refY="3.5"
-          orient="auto"
-        >
-          <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
-        </marker>
-      </defs>
+      {/* 曲线预览：从左下水平开始到右上水平 */}
+      <path
+        d="M 15 42 Q 30 42, 30 30 Q 30 18, 45 18"
+        fill="none"
+        stroke="#6366f1"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      {/* 左端小圆点 */}
+      <circle
+        cx="15"
+        cy="42"
+        r="3"
+        fill="#1e1e2e"
+        stroke="#6366f1"
+        strokeWidth="2"
+      />
+      {/* 右端小圆点 */}
+      <circle
+        cx="45"
+        cy="18"
+        r="3"
+        fill="#1e1e2e"
+        stroke="#6366f1"
+        strokeWidth="2"
+      />
     </svg>
   ),
 });

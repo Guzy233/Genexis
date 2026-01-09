@@ -21,15 +21,15 @@ export interface ImageNode extends Node {
 }
 
 const getFillColor = (node: ImageNode) => {
-  if (node.id === activedId) return "#8ce7ab33";
-  if (node.selected) return "#e3f2fd33";
-  return "rgba(59, 59, 59, 0.15)";
+  if (node.id === activedId) return "rgba(139, 92, 246, 0.25)";  // 紫色激活
+  if (node.selected) return "rgba(99, 102, 241, 0.2)";          // 靛蓝选中
+  return "rgba(255, 255, 255, 0.05)";                           // 默认半透明白
 };
 
 const getStrokeColor = (node: ImageNode) => {
-  if (node.id === activedId) return "#7d6bb4ff";
-  if (node.selected) return "#765a80ff";
-  return "#805a5a78";
+  if (node.id === activedId) return "#8b5cf6";  // 紫色激活边框
+  if (node.selected) return "#6366f1";          // 靛蓝选中边框
+  return "rgba(255, 255, 255, 0.15)";          // 默认边框
 };
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
@@ -58,7 +58,37 @@ ToolItems.push({
   id: "node/image",
   type: "node",
   category: CATEGORY_NODES,
-  icon: <span style={{ fontSize: 16 }}>🖼️</span>,
+  icon: (
+    <svg viewBox="0 0 60 60" style={{ width: "100%", height: "100%" }}>
+      <rect
+        x="4"
+        y="8"
+        width="52"
+        height="44"
+        rx="8"
+        fill="rgba(255, 255, 255, 0.05)"
+        stroke="rgba(255, 255, 255, 0.15)"
+        strokeWidth="2"
+      />
+      {/* 山峰 */}
+      <path
+        d="M 13 42 L 23 28 L 33 38 L 40 30 L 46 36 L 46 42 Z"
+        fill="none"
+        stroke="#6366f1"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      {/* 太阳 */}
+      <circle
+        cx="40"
+        cy="20"
+        r="6"
+        fill="none"
+        stroke="#f472b6"
+        strokeWidth="2"
+      />
+    </svg>
+  ),
 });
 
 // 注册序列化函数
@@ -218,13 +248,14 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
             width: "100%",
             height: "22px",
             border: "none",
-            background: isEditing ? "white" : "transparent",
+            background: isEditing ? "rgba(255, 255, 255, 0.1)" : "transparent",
             fontSize: "12px",
-            color: "#666",
+            color: "#e4e4e7",
             textAlign: "center",
             outline: "none",
             cursor: isEditing ? "text" : "pointer",
             pointerEvents: "auto",
+            borderRadius: "4px",
           }}
           value={isEditing ? tempSrc : node.src}
           onChange={handleInputChange}
@@ -257,7 +288,7 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
             y={(node.imageSize.height || 100) / 2}
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="#999"
+            fill="#a1a1aa"
             fontSize="12"
           >
             预览区

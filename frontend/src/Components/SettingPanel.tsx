@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { getSettingsByCategory, setValue } from "../Option";
 
-const SettingsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const SettingsPanel: React.FC<{ onClose: () => void; visible?: boolean }> = ({ onClose, visible = true }) => {
   const categories = getSettingsByCategory();
 
   return (
-    <div className="settings-panel">
+    <div className={`settings-panel ${visible ? "visible" : ""}`}>
       <div className="settings-header">
         <span>设置</span>
         <button className="settings-close" onClick={onClose}>×</button>

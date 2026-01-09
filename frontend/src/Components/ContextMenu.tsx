@@ -46,44 +46,15 @@ export const ContextMenuComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
         height={size.height}
         style={{ pointerEvents: "auto" }}
       >
-        <div
-          ref={menuRef}
-          className="context-menu-content"
-          style={{
-            background: "white",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            overflow: "hidden",
-          }}
-        >
+        <div ref={menuRef} className="context-menu-content">
           {menu.items.map((item) => (
             <div
               key={item.id}
               className="context-menu-item"
               onMouseDown={() => handleItemClick(item)}
-              style={{
-                padding: "8px 12px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                fontSize: "13px",
-                color: "#333",
-                borderBottom: "1px solid #f0f0f0",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#f5f5f5";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-              }}
             >
               {item.icon && (
-                <span style={{ fontSize: "14px", width: "16px", textAlign: "center", flexShrink: 0 }}>
-                  {item.icon}
-                </span>
+                <span className="context-menu-icon">{item.icon}</span>
               )}
               <span>{item.label}</span>
             </div>

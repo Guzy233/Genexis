@@ -1,0 +1,100 @@
+/**
+ * MindGraph3 CSS Variables - Dark Theme
+ * 深色模式配色系统
+ */
+
+:root {
+  /* ==================== 主色调 ==================== */
+  --color-primary: #6366f1;      /* Indigo 500 - 靛蓝色主色 */
+  --color-secondary: #8b5cf6;    /* Violet 500 - 紫色辅助色 */
+  --color-accent: #f472b6;       /* Pink 400 - 粉色强调色 */
+
+  /* ==================== 背景色系 ==================== */
+  --bg-primary: #1e1e2e;         /* 主背景 - 深灰蓝 */
+  --bg-secondary: #252538;       /* 次级背景 */
+  --bg-tertiary: #2d2d42;        /* 面板/工具栏背景 */
+  --bg-elevated: #35354a;        /* 悬浮元素背景 */
+  --bg-hover: #3e3e56;           /* 悬停状态背景 */
+  --bg-active: #4a4a64;          /* 激活状态背景 */
+
+  /* ==================== 文本色系 ==================== */
+  --text-primary: #e4e4e7;       /* 主文本 */
+  --text-secondary: #a1a1aa;     /* 次级文本 */
+  --text-tertiary: #71717a;      /* 三级文本 */
+  --text-muted: #52525b;         /* 弱化文本 */
+
+  /* ==================== 边框与分割线 ==================== */
+  --border-primary: #3f3f50;     /* 主边框 */
+  --border-secondary: #45475a;   /* 次级边框 */
+  --border-focus: #6366f1;       /* 焦点边框 */
+  --divider: rgba(255, 255, 255, 0.06);  /* 分割线 */
+
+  /* ==================== 阴影系统 ==================== */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+
+  /* ==================== 状态颜色 ==================== */
+  --color-selected: rgba(99, 102, 241, 0.2);    /* 选中背景 */
+  --color-selected-border: #6366f1;            /* 选中边框 */
+  --color-actived: rgba(139, 92, 246, 0.25);    /* 激活背景 */
+  --color-actived-border: #8b5cf6;             /* 激活边框 */
+  --color-hover: rgba(255, 255, 255, 0.05);     /* 悬停背景 */
+
+  /* ==================== 节点颜色 ==================== */
+  --node-fill: rgba(255, 255, 255, 0.05);       /* 节点默认填充 */
+  --node-stroke: rgba(255, 255, 255, 0.15);     /* 节点默认边框 */
+  --node-shadow: rgba(0, 0, 0, 0.3);            /* 节点阴影 */
+
+  /* ==================== 边颜色 ==================== */
+  --edge-default: #6366f1;      /* 默认边颜色 */
+  --edge-selected: #f472b6;     /* 选中边颜色 */
+  --edge-width: 2;              /* 边宽度 */
+
+  /* ==================== 网格背景 ==================== */
+  --grid-color: rgba(255, 255, 255, 0.03);      /* 网格线颜色 */
+  --grid-size: 25;              /* 网格大小 */
+
+  /* ==================== 间距系统 ==================== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+
+  /* ==================== 圆角系统 ==================== */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-full: 9999px;
+
+  /* ==================== 字体大小 ==================== */
+  --font-xs: 10px;
+  --font-sm: 11px;
+  --font-base: 12px;
+  --font-md: 13px;
+  --font-lg: 14px;
+  --font-xl: 16px;
+
+  /* ==================== 过渡动画 ==================== */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ==================== 布局尺寸 ==================== */
+  --top-menu-height: 40px;
+  --bottom-dock-height: 80px;
+  --dock-item-size: 64px;
+
+  /* ==================== Z-index 层级 ==================== */
+  --z-base: 1;
+  --z-dropdown: 1000;
+  --z-modal: 1001;
+  --z-toast: 1002;
+}

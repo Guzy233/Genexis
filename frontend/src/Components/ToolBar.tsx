@@ -1,7 +1,4 @@
 import React, { useState } from "react";
-import { Node, Coms, Obj } from "../Globals";
-import { atom } from "jotai";
-import { ObjectFactories } from "../Controllers/Creator";
 
 // ==================== 工具项相关 ====================
 
@@ -16,7 +13,6 @@ export interface ToolItem {
   type: ToolItemType;
   category: string;
   icon: React.ReactNode;
-  preview?: React.ReactNode;
 }
 
 export const ToolItems: ToolItem[] = [];
@@ -51,35 +47,13 @@ export const onToolChange = (
   };
 };
 
-// 虚拟预览节点
-const createPreviewNode = (factory: () => Node): Node => {
-  const node = factory();
-  node.id = "preview";
-  if (!node.updater) {
-    node.updater = atom(0);
-  }
-  return node;
+// 获取工具标签
+const getToolLabel = (item: ToolItem): string => {
+  const parts = item.id.split("/");
+  return parts[parts.length - 1] || item.id;
 };
 
-// 创建节点预览
-const createNodePreview = (factory: () => Node): React.ReactNode => {
-  const node = createPreviewNode(factory);
-  const Component = Coms[node.type];
-  if (!Component) return null;
-
-  return (
-    <svg
-      viewBox={`0 0 ${node.size.x} ${node.size.y}`}
-      style={{
-        overflow: "visible",
-      }}
-    >
-      <Component obj={node as Obj} />
-    </svg>
-  );
-};
-
-// 工具栏组件
+// 底部 Dock 工具栏组件
 export const ToolBar: React.FC = () => {
   // 为每个 category 维护选中状态
   const [selectedTools, setSelectedTools] = useState<Record<string, string>>(() => ({ ...categoryTools }));
@@ -105,38 +79,38 @@ export const ToolBar: React.FC = () => {
     setToolForCategory(category, toolId);
   };
 
-  // 创建预览
-  const createPreview = (item: ToolItem): React.ReactNode => {
-    if (item.type === "node" && ObjectFactories[item.id]) {
-      return createNodePreview(() => ObjectFactories[item.id]() as Node);
+  // 将所有分类的工具项扁平化并按顺序排列
+  const allItems: Array<{ item: ToolItem; category: string }> = [];
+  Object.entries(groupedItems).forEach(([category, items]) => {
+    items.forEach((item) => allItems.push({ item, category }));
+    // 在分类之间添加分隔符
+    if (Object.keys(groupedItems).indexOf(category) < Object.keys(groupedItems).length - 1) {
+      allItems.push({ item: { id: `divider-${category}`, type: "node", category, icon: null } as any, category });
     }
-    if (item.type === "edge" && item.preview) {
-      return item.preview;
-    }
-    return item.icon;
-  };
+  });
 
   return (
-    <div className="toolbar">
-      {Object.entries(groupedItems).map(([category, items]) => (
-        <div key={category} className="toolbar-category">
-          <div className="toolbar-category-title">{category}</div>
-          <div className="toolbar-items">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className={`toolbar-item ${selectedTools[category] === item.id ? "selected" : ""}`}
-                onClick={() => selectTool(category, item.id)}
-                title={item.id}
-              >
-                <div className="toolbar-item-preview">
-                  {createPreview(item)}
-                </div>
-              </div>
-            ))}
+    <div className="bottom-dock-bar">
+      {allItems.map(({ item, category }, index) => {
+        // 分隔符
+        if (item.id.startsWith("divider-")) {
+          return <div key={`divider-${index}`} className="dock-divider" />;
+        }
+
+        const isSelected = selectedTools[category] === item.id;
+        const label = getToolLabel(item);
+
+        return (
+          <div
+            key={item.id}
+            className={`dock-item ${isSelected ? "selected" : ""}`}
+            onClick={() => selectTool(category, item.id)}
+            title={label}
+          >
+            <div className="dock-icon">{item.icon}</div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

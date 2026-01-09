@@ -58,15 +58,15 @@ ContextMenuFactories["node"] = (): ContextMenuItem[] => {
 
 
 const getFillColor = (node: TextNode) => {
-  if (node.id===activedId) return "#8ce7ab33";
-  if (node.selected) return "#e3f2fd33";
-  return "rgba(59, 59, 59, 0.15)";
+  if (node.id === activedId) return "rgba(139, 92, 246, 0.25)";  // 紫色激活
+  if (node.selected) return "rgba(99, 102, 241, 0.2)";          // 靛蓝选中
+  return "rgba(255, 255, 255, 0.05)";                           // 默认半透明白
 };
 
 const getStrokeColor = (node: TextNode) => {
-  if (node.id===activedId) return "#7d6bb4ff";
-  if (node.selected) return "#765a80ff";
-  return "#805a5a78";
+  if (node.id === activedId) return "#8b5cf6";  // 紫色激活边框
+  if (node.selected) return "#6366f1";          // 靛蓝选中边框
+  return "rgba(255, 255, 255, 0.15)";          // 默认边框
 };
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
@@ -94,7 +94,32 @@ ToolItems.push({
   id: "node/text",
   type: "node",
   category: CATEGORY_NODES,
-  icon: <span style={{ fontSize: 16 }}>📄</span>,
+  icon: (
+    <svg viewBox="0 0 60 60" style={{ width: "100%", height: "100%" }}>
+      <rect
+        x="4"
+        y="8"
+        width="52"
+        height="44"
+        rx="8"
+        fill="rgba(255, 255, 255, 0.05)"
+        stroke="rgba(255, 255, 255, 0.15)"
+        strokeWidth="2"
+      />
+      <text
+        x="30"
+        y="35"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="#e4e4e7"
+        fontSize="28"
+        fontWeight="bold"
+        fontFamily="Arial, sans-serif"
+      >
+        T
+      </text>
+    </svg>
+  ),
 });
 
 setDefaultTool(CATEGORY_NODES, "node/text");

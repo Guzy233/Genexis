@@ -1,0 +1,452 @@
+/**
+ * MindGraph3 Dark Theme Styles
+ * 深色主题组件样式
+ */
+
+/* ==================== 全局过渡 ==================== */
+* {
+  transition-property: background, border-color, color, opacity, transform, box-shadow, filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: var(--transition-fast);
+}
+
+/* ==================== 顶部菜单栏样式 ==================== */
+.top-menu-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--top-menu-height);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-md);
+  z-index: var(--z-dropdown);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+}
+
+.menu-item {
+  position: relative;
+  padding: 6px var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: var(--font-md);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.menu-item:hover {
+  background: var(--color-hover);
+  color: var(--text-primary);
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-sm);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: all var(--transition-base);
+}
+
+.menu-item:hover .menu-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.menu-dropdown-item {
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: var(--font-md);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.menu-dropdown-item:hover {
+  background: var(--color-hover);
+  color: var(--text-primary);
+}
+
+.menu-dropdown-divider {
+  height: 1px;
+  background: var(--divider);
+  margin: var(--spacing-sm) 0;
+}
+
+.menu-shortcut {
+  margin-left: auto;
+  font-size: var(--font-sm);
+  color: var(--text-tertiary);
+}
+
+/* ==================== 底部 Dock 工具栏样式 ==================== */
+.bottom-dock-bar {
+  position: fixed;
+  bottom: var(--spacing-md);
+  left: 50%;
+  transform: translateX(-50%);
+  height: var(--bottom-dock-height);
+  background: rgba(37, 37, 56, 0.85);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-3xl);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-lg);
+  gap: var(--spacing-sm);
+  z-index: calc(var(--z-dropdown) - 1);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  transition: all var(--transition-slow);
+}
+
+.bottom-dock-bar:hover {
+  box-shadow: var(--shadow-xl), var(--shadow-glow);
+}
+
+.dock-item {
+  width: var(--dock-item-size);
+  height: var(--dock-item-size);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+  background: transparent;
+  border: 2px solid transparent;
+}
+
+.dock-item:hover {
+  transform: translateY(-12px) scale(1.15);
+  background: var(--color-hover);
+}
+
+.dock-item.selected {
+  background: var(--color-selected);
+  border-color: var(--color-selected-border);
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+}
+
+.dock-item.selected::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  width: 4px;
+  height: 4px;
+  background: var(--color-selected-border);
+  border-radius: 50%;
+}
+
+.dock-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dock-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dock-label {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all var(--transition-fast);
+}
+
+.dock-item:hover .dock-label {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dock-divider {
+  width: 1px;
+  height: 48px;
+  background: var(--divider);
+  margin: 0 4px;
+}
+
+/* Dock 邻近元素联动效果 */
+.dock-item:hover + .dock-item,
+.dock-item:has(+ .dock-item:hover) {
+  transform: translateY(-4px) scale(1.05);
+}
+
+/* ==================== 设置面板深色样式 ==================== */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal);
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-slow);
+}
+
+.settings-backdrop.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.settings-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 420px;
+  max-height: 70vh;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  z-index: calc(var(--z-modal) + 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-slow);
+}
+
+.settings-panel.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-bottom: 1px solid var(--divider);
+  background: var(--bg-tertiary);
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: var(--font-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-close {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.settings-close:hover {
+  background: var(--color-hover);
+  color: var(--text-primary);
+}
+
+.settings-content {
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}
+
+.settings-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+  background: var(--border-primary);
+}
+
+.settings-category {
+  margin-bottom: var(--spacing-xl);
+}
+
+.settings-category:last-child {
+  margin-bottom: 0;
+}
+
+.settings-category-title {
+  margin: 0 0 12px 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.settings-item {
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  margin-bottom: var(--spacing-sm);
+  transition: all var(--transition-fast);
+}
+
+.settings-item:hover {
+  border-color: var(--border-secondary);
+  background: var(--bg-hover);
+}
+
+.settings-item-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.settings-item-title {
+  font-size: var(--font-lg);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.settings-item-input[type="text"] {
+  padding: 6px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-base);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  min-width: 100px;
+  text-align: center;
+  transition: all var(--transition-fast);
+}
+
+.settings-item-input[type="text"]:hover {
+  border-color: var(--border-secondary);
+}
+
+.settings-item-input[type="text"]:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.settings-item-input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-selected-border);
+  cursor: pointer;
+}
+
+.settings-item-desc {
+  display: block;
+  font-size: var(--font-base);
+  color: var(--text-tertiary);
+  margin-top: var(--spacing-sm);
+  line-height: 1.5;
+}
+
+/* ==================== 右键菜单深色样式 ==================== */
+.context-menu-content {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  min-width: 160px;
+  padding: 6px;
+}
+
+.context-menu-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--font-md);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.context-menu-item:hover {
+  background: var(--color-hover);
+  color: var(--text-primary);
+}
+
+.context-menu-item:last-child {
+  border-bottom: none;
+}
+
+/* ==================== 响应式适配 ==================== */
+@media (max-width: 768px) {
+  .bottom-dock-bar {
+    height: 64px;
+    padding: 0 var(--spacing-md);
+  }
+
+  .dock-item {
+    width: 48px;
+    height: 48px;
+  }
+
+  .dock-icon {
+    font-size: 22px;
+  }
+
+  .settings-panel {
+    width: 90vw;
+    max-height: 80vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-menu-bar {
+    height: 36px;
+    padding: 0 var(--spacing-sm);
+  }
+
+  .menu-item {
+    padding: 4px var(--spacing-sm);
+    font-size: var(--font-base);
+  }
+
+  .settings-panel {
+    width: 90vw;
+    max-height: 80vh;
+  }
+}

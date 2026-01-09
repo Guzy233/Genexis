@@ -1,4 +1,6 @@
 import "./css/App.css";
+import "./css/variables.css";
+import "./css/dark-theme.css";
 import { Coms, Controllers } from "./Globals";
 import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
@@ -7,6 +9,7 @@ import { viewport } from "./Controllers/Camera";
 
 import SettingsPanel from "./Components/SettingPanel";
 import ToolBar from "./Components/ToolBar";
+import TopMenuBar from "./Components/TopMenuBar";
 
 import "./Components/TextNode";
 import "./Components/ImageNode";
@@ -15,7 +18,8 @@ import "./Components/CurveEdge";
 import "./Components/LineEdge";
 import "./Components/SelectionBox";
 import "./Components/ContextMenu";
-import "./Components/DeletionTrail"
+import "./Components/DeletionTrail";
+import CoordinateSystem from "./Components/CoordinateSystem";
 
 import "./Controllers/Keyboard";
 import "./Controllers/Creator";
@@ -51,20 +55,32 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // 监听设置面板打开事件
+  useEffect(() => {
+    const handleOpenSettings = () => setShowSettings(true);
+    window.addEventListener("open-settings", handleOpenSettings);
+    return () => {
+      window.removeEventListener("open-settings", handleOpenSettings);
+    };
+  }, []);
+
   return (
     <div className="canvas-container" tabIndex={0}>
-      {/* 设置按钮 */}
-      <button
-        className="settings-toggle"
-        onClick={() => setShowSettings(!showSettings)}
-      >
-        ⚙
-      </button>
+      {/* 顶部菜单栏 */}
+      <TopMenuBar />
+
+      {/* 设置面板背景遮罩 */}
+      {showSettings && <div className="settings-backdrop visible" onClick={() => setShowSettings(false)} />}
 
       {/* 设置面板 */}
-      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <SettingsPanel
+          onClose={() => setShowSettings(false)}
+          visible={showSettings}
+        />
+      )}
 
-      {/* 工具栏 */}
+      {/* 底部 Dock 工具栏 */}
       <ToolBar />
 
       <svg width="100%" height="100%" className="mindmap-svg">
@@ -77,7 +93,7 @@ const App: React.FC = () => {
             refY="3.5"
             orient="auto"
           >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#b0bec5" />
+            <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1" />
           </marker>
           <marker
             id="arrowhead1"
@@ -87,7 +103,7 @@ const App: React.FC = () => {
             refY="3.5"
             orient="auto"
           >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
+            <polygon points="0 0, 10 3.5, 0 7" fill="#f472b6" />
           </marker>
           <pattern
             id="grid"
@@ -98,7 +114,7 @@ const App: React.FC = () => {
             <path
               d="M 25 0 L 0 0 0 25"
               fill="none"
-              stroke="#ce8080d5"
+              stroke="rgba(255,255,255,0.03)"
               strokeWidth="0.5"
             />
           </pattern>
@@ -116,6 +132,9 @@ const App: React.FC = () => {
             height="100000"
             fill="url(#grid)"
           />
+
+          {/* 坐标系 */}
+          <CoordinateSystem />
 
           {sortedObjects.map((obj) => {
             const Com = Coms[obj.type];

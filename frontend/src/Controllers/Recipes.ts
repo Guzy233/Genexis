@@ -1,10 +1,9 @@
-import { GetCoords } from "../../wailsjs/go/main/App";
 import { Controllers } from "../Globals";
 
 export var coords: Record<string, any> = {}
 
 async function getCoords() {
-  coords = await GetCoords()
+  coords = await fetch("/reciper/rects").then(res => res.json())
 }
 
 Controllers.push({
