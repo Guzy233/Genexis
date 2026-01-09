@@ -3,10 +3,67 @@ import { Controllers, Vec2, Node, Obj } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { getToolForCategory, CATEGORY_NODES } from "../Components/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
+import { addEdgeRelation } from "../NodeRelations";
 
 // 通用对象工厂
 export type ObjectFactory = (...args: any[]) => Obj;
 export const ObjectFactories: Record<string, ObjectFactory> = {};
+
+// ==================== 随机节点生成（用于性能测试） ====================
+
+export function generateRandomNodes(count: number = 100): void {
+  const createTextFactory = ObjectFactories["node/text"];
+  const createEdgeFactory = ObjectFactories["edge/curve"];
+
+  if (!createTextFactory) {
+    console.error("Text node factory not found");
+    return;
+  }
+
+  const nodes: any[] = [];
+
+  // 生成随机节点
+  for (let i = 0; i < count; i++) {
+    const node = createTextFactory() as any;
+    // 随机位置（分布在较大的区域）
+    node.pos = {
+      x: Math.random() * 4000 - 2000,
+      y: Math.random() * 4000 - 2000,
+    };
+    // 随机大小
+    node.size = {
+      x: 80 + Math.random() * 120,
+      y: 40 + Math.random() * 60,
+    };
+    // 随机文本
+    node.text = `Node ${i + 1}`;
+
+    Manager.add(node);
+    nodes.push(node);
+  }
+
+  // 生成随机连接（每个节点随机连接 0-1 个其他节点，减少边数量）
+  nodes.forEach((node, index) => {
+    const connectionCount = Math.floor(Math.random() * 2); // 0-1 个连接，减少性能负担
+
+    for (let i = 0; i < connectionCount; i++) {
+      const targetIndex = Math.floor(Math.random() * count);
+      if (targetIndex !== index && targetIndex > index) { // 避免重复连接
+        const target = nodes[targetIndex];
+
+        if (createEdgeFactory) {
+          const edge = createEdgeFactory(node, target, "");
+          Manager.add(edge);
+
+          // 记录节点关系
+          addEdgeRelation(node.id, target.id);
+        }
+      }
+    }
+  });
+
+  console.log(`Generated ${count} random nodes with reduced connections for performance`);
+}
 
 // ==================== 节点创建 ====================
 

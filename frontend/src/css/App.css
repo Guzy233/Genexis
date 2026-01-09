@@ -38,17 +38,19 @@ body {
 
 .mindmap-svg {
   background: transparent;
-  /* 添加GPU加速 */
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  /* 优化SVG渲染 */
-  shape-rendering: geometricPrecision;
-  text-rendering: optimizeLegibility;
-  image-rendering: optimizeQuality;
+  /* 优化SVG渲染性能 */
+  shape-rendering: crispEdges; /* 改为 crispEdges 提高性能 */
+  text-rendering: optimizeSpeed; /* 优先性能而非质量 */
+  image-rendering: pixelated; /* 简化图像渲染 */
   /* 阻止文本选择 */
   user-select: none;
   -webkit-user-select: none;
   display: block;
+  /* 启用 GPU 层 */
+  transform: translateZ(0);
+  will-change: transform;
+  /* 限制渲染区域 */
+  contain: layout style paint;
 }
 
 .linking-mode {
@@ -83,23 +85,6 @@ body {
 /* ==================== Node styles ==================== */
 .node-group {
   cursor: move;
-}
-
-.node-group rect {
-  transition: fill 0.2s ease, stroke 0.2s ease, filter 0.2s ease;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-
-.node-group:hover rect {
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-}
-
-.node-group.selected rect {
-  filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.3));
-}
-
-.node-group.actived rect {
-  filter: drop-shadow(0 0 16px rgba(139, 92, 246, 0.4));
 }
 
 .node-group .content-container {
@@ -154,18 +139,8 @@ body {
   cursor: pointer;
 }
 
-.edge-group .visual-line {
-  transition: stroke 0.2s ease, filter 0.2s ease;
-  filter: drop-shadow(0 0 2px rgba(99, 102, 241, 0.3));
-}
+/* 移除 filter 以提高性能 - visual-line 不再使用 drop-shadow */
 
-.edge-group:hover .visual-line {
-  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.5));
-}
-
-.edge-group.selected .visual-line {
-  filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.5));
-}
 
 .edge-group .hit-area {
   cursor: pointer;

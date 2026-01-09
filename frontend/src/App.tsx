@@ -5,7 +5,6 @@ import { Coms, Controllers } from "./Globals";
 import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { objects, canvasUpdater } from "./Manager";
-import { viewport } from "./Controllers/Camera";
 
 import SettingsPanel from "./Components/SettingPanel";
 import ToolBar from "./Components/ToolBar";
@@ -31,6 +30,7 @@ import "./Controllers/Camera";
 import "./Controllers/Deleter";
 import "./Controllers/Grower";
 import "./Controllers/Recipes";
+import { generateRandomNodes } from "./Controllers/Creator";
 
 const App: React.FC = () => {
   useAtom(canvasUpdater);
@@ -46,6 +46,7 @@ const App: React.FC = () => {
   // sortedObjects.forEach((o)=>console.log(o.id))
 
   useEffect(() => {
+    generateRandomNodes(500)
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -122,7 +123,6 @@ const App: React.FC = () => {
 
         <g
           ref={canvasRef}
-          transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}
           id="canvas"
         >
           <rect

@@ -167,10 +167,11 @@ let canvas: SVGGElement | null = null;
 
 function updateViewport() {
   if (canvas) {
-    canvas.setAttribute(
-      "transform",
-      `translate(${viewport.x},${viewport.y}) scale(${viewport.zoom})`
-    );
+    // 使用 CSS transform 代替 SVG transform 属性，提高性能
+    // CSS transform 由 GPU 加速，而 SVG transform 属性需要重新渲染整个子树
+    const transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
+    canvas.style.transform = transform;
+    canvas.style.transformOrigin = "0 0";
   } else {
     canvas = document.querySelector("#canvas");
     updateViewport();
