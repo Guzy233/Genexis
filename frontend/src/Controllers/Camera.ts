@@ -72,6 +72,20 @@ const onMouseDown = (e: MouseEvent) => {
   // 点击到节点时不移动视角
   if (idFromEvent(e, ".node-group")) return;
 
+  // 停止平滑缩放动画，避免与拖动冲突
+  if (smoothZoom.isAnimating) {
+    smoothZoom.isAnimating = false;
+    if (smoothZoom.animationId !== null) {
+      cancelAnimationFrame(smoothZoom.animationId);
+      smoothZoom.animationId = null;
+    }
+    // 直接应用最终值，避免抖动
+    viewport.zoom = smoothZoom.target;
+    viewport.x = smoothZoom.targetX;
+    viewport.y = smoothZoom.targetY;
+    smoothZoom.current = smoothZoom.target;
+  }
+
   // 捕获当前偏移量
   const startX = e.clientX;
   const startY = e.clientY;
@@ -165,8 +179,6 @@ let canvas: SVGGElement | null = null;
 
 function updateViewport() {
   if (canvas) {
-    // 使用 CSS transform 代替 SVG transform 属性，提高性能
-    // CSS transform 由 GPU 加速，而 SVG transform 属性需要重新渲染整个子树
     const transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
     canvas.style.transform = transform;
     canvas.style.transformOrigin = "0 0";
