@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { atom, useAtom } from "jotai";
+import { atom, getDefaultStore, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { setDefaultTool, ToolItems, CATEGORY_NODES } from "./ToolBar";
@@ -128,11 +128,14 @@ export const TextNodeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) =>
   useAtom(obj.updater);
   const node = obj as TextNode;
 
+  const isEditingAtom = useMemo(() => atom(false), [node.id]);
+
   return (
     <g
       transform={`translate(${node.pos.x}, ${node.pos.y})`}
       className="node-group"
       data-id={node.id}
+      onDoubleClick={()=>getDefaultStore().set(isEditingAtom,true)}
     >
       <rect
         width={node.size.x}
@@ -151,12 +154,10 @@ export const TextNodeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) =>
           node.size = { x: newSize.width, y: newSize.height };
           Manager.update(node);
         }}
-        onStartEditing={() => {
-          Manager.update(node);
-        }}
         onEndEditing={() => {
           Manager.saveHistory();
         }}
+        isEditingAtom={isEditingAtom}
       />
     </g>
   );

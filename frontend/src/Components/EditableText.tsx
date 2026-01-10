@@ -1,18 +1,20 @@
+import { getDefaultStore, PrimitiveAtom, useAtom } from "jotai";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 
 interface EditableTextProps {
   text: string;
   size: { x: number; y: number };
+  isEditingAtom: PrimitiveAtom<boolean>;
   onTextChange?: (
     newText: string,
     newSize: { width: number; height: number }
   ) => void;
-  onStartEditing?: () => void;
   onEndEditing?: (finalText: string) => void;
   fontSize?: string;
-  containerClassName?: string;
   inputClassName?: string;
   displayClassName?: string;
+  textAlign?: "left" | "center" | "right";
+  placeholder?: string;
 }
 
 const measureText = (val: string, fontSize: string) => {
@@ -30,7 +32,7 @@ const measureText = (val: string, fontSize: string) => {
 const startEditing = (
   ref: HTMLInputElement,
   onEndEditing?: (finalText: string) => void,
-  setIsEditing?: (isEditing: boolean) => void,
+  setIsEditing?: PrimitiveAtom<boolean>,
   onTextChange?: (
     newText: string,
     newSize: { width: number; height: number }
@@ -53,10 +55,10 @@ const startEditing = (
 
   const stopEditing = () => {
     ref.removeEventListener("input", onChange, true);
-    ref.removeEventListener("beforeinput", beforeInput, true);
     ref.removeEventListener("keydown", onKeyDown, true);
+    ref.removeEventListener("beforeinput", beforeInput, true);
     window.removeEventListener("mousedown", onMouseDown, true);
-    if (setIsEditing) setIsEditing(false);
+    if (setIsEditing) getDefaultStore().set(setIsEditing, false);
     if (onEndEditing) onEndEditing(ref.value);
   };
 
@@ -80,29 +82,29 @@ const startEditing = (
     }
   };
   ref.addEventListener("input", onChange, true);
-  ref.addEventListener("beforeinput", beforeInput, true);
   ref.addEventListener("keydown", onKeyDown, true);
+  ref.addEventListener("beforeinput", beforeInput, true);
   window.addEventListener("mousedown", onMouseDown, true);
 };
 
 export const EditableText: React.FC<EditableTextProps> = ({
   text,
   size,
+  isEditingAtom,
   onTextChange,
-  onStartEditing,
   onEndEditing,
   fontSize = "14px",
-  containerClassName,
   inputClassName,
   displayClassName,
+  textAlign = "center",
+  placeholder,
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
+  // const [isEditing, setIsEditing] = useState(false);
+  const [isEditing] = useAtom(isEditingAtom);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [editPosition, setEditPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     if (isEditing) {
-      // 延迟聚焦，确保 DOM 已更新
       setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -111,64 +113,92 @@ export const EditableText: React.FC<EditableTextProps> = ({
       startEditing(
         inputRef.current!,
         onEndEditing,
-        setIsEditing,
+        isEditingAtom,
         onTextChange,
         fontSize
       );
     }
   }, [isEditing]);
 
-  // 处理双击，计算输入框在屏幕上的位置
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-    setEditPosition({ x: rect.left, y: rect.top });
-    onStartEditing?.();
-    setIsEditing(true);
+  // 根据 textAlign 计算 textAnchor 和 x 位置
+  const getTextAnchor = () => {
+    switch (textAlign) {
+      case "left":
+        return "start";
+      case "right":
+        return "end";
+      default:
+        return "middle";
+    }
   };
 
+  const getTextX = () => {
+    switch (textAlign) {
+      case "left":
+        return 4;
+      case "right":
+        return size.x - 4;
+      default:
+        return size.x / 2;
+    }
+  };
+
+  // 显示的文本（空时显示占位符）
+  const displayText = text || placeholder;
+  // 是否是占位符
+  const isPlaceholder = !text;
+
   return (
-    <g onDoubleClick={handleDoubleClick}>
-      {/* 显示模式：使用纯 SVG text，性能最优 */}
+    <>
       {!isEditing && (
         <text
-          x={size.x / 2}
-          y={size.y / 2}
-          textAnchor="middle"
+          x={getTextX()}
+          y={size.y / 2 + 2}
+          textAnchor={getTextAnchor()}
           dominantBaseline="middle"
           className={displayClassName || "text-display no-select"}
           style={{
             fontSize,
             fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
-            pointerEvents: 'none',
+            pointerEvents: "none",
+            fill: isPlaceholder
+              ? "var(--text-tertiary)"
+              : "var(--text-primary)",
           }}
         >
-          {text}
+          {displayText}
         </text>
       )}
-
-      {/* 编辑模式：使用 fixed 定位的 HTML input，渲染在 SVG 之外 */}
       {isEditing && (
-        <foreignObject x={0} y={0} width={size.x} height={size.y} style={{ pointerEvents: 'none' }}>
+        <foreignObject x={0} y={0} width={size.x} height={size.y}>
           <input
             ref={inputRef}
             className={inputClassName || "edit-input"}
             defaultValue={text}
+            placeholder={placeholder}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseDownCapture={(e) => e.stopPropagation()}
             style={{
               fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
-              position: 'fixed',
-              left: `${editPosition.x}px`,
-              top: `${editPosition.y}px`,
-              width: `${size.x}px`,
-              height: `${size.y}px`,
-              pointerEvents: 'auto',
-              zIndex: 10000,
+              width: "100%",
+              height: "100%",
+              boxSizing: "border-box",
+              fontSize,
+              textAlign,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              paddingLeft:
+                textAlign === "left"
+                  ? "4px"
+                  : textAlign === "right"
+                  ? "0"
+                  : "0",
+              paddingRight: textAlign === "right" ? "4px" : "0",
             }}
           />
         </foreignObject>
       )}
-    </g>
+    </>
   );
 };

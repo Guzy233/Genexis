@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { atom, useAtom } from "jotai";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { atom, getDefaultStore, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { ToolItems, CATEGORY_NODES } from "./ToolBar";
@@ -159,6 +159,8 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
 
   const [isError, setIsError] = useState(false);
 
+  const isEditingAtom = useMemo(() => atom(false), [node.id]);
+
   // 图片加载完成后的尺寸回调
   const onImageLoad = () => {
     if (imgRef.current) {
@@ -215,17 +217,54 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
       />
 
       {/* URL 输入框区域 */}
-      <g transform="translate(4, 2)">
-        <EditableText
-          text={node.src}
-          size={{ x: node.size.x - 8, y: 26 }}
-          onTextChange={() => Manager.update(node)}
-          onEndEditing={handleUrlChange}
-          containerClassName="url-input-container"
-          inputClassName="node-url-input"
-          displayClassName="url-display"
-          fontSize="12px"
+      <g
+        transform="translate(8, 4)"
+        onDoubleClick={() => getDefaultStore().set(isEditingAtom, true)}
+      >
+        {/* 输入框背景 */}
+        <rect
+          width={node.size.x - 16}
+          height={28}
+          rx="6"
+          fill="rgba(0, 0, 0, 0.3)"
+          stroke="rgba(255, 255, 255, 0.1)"
+          strokeWidth="1.5"
+          style={{ cursor: 'text' }}
         />
+        {/* 编辑状态高亮边框 */}
+        <rect
+          width={node.size.x - 16}
+          height={28}
+          rx="6"
+          fill="none"
+          stroke={node.id === activedId ? "rgba(139, 92, 246, 0.6)" : "rgba(255, 255, 255, 0.05)"}
+          strokeWidth="2"
+          style={{ pointerEvents: 'none' }}
+        />
+        {/* URL 图标 */}
+        <text
+          x="10"
+          y="18"
+          fill="rgba(255, 255, 255, 0.4)"
+          fontSize="12"
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
+          🔗
+        </text>
+        <g transform="translate(28, 0)">
+          <EditableText
+            text={node.src}
+            size={{ x: node.size.x - 50, y: 28 }}
+            onTextChange={() => Manager.update(node)}
+            onEndEditing={handleUrlChange}
+            isEditingAtom={isEditingAtom}
+            inputClassName="node-url-input"
+            displayClassName="url-display"
+            fontSize="12px"
+            textAlign="left"
+            placeholder="输入图片URL..."
+          />
+        </g>
       </g>
 
       {/* 图片区域 */}
