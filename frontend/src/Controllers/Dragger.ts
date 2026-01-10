@@ -2,6 +2,7 @@ import Manager, { objects } from "../Manager";
 import { idFromEvent, Node, Controllers } from "../Globals";
 import { viewport } from "./Camera";
 import { registerSetting } from "../Option";
+import { saveHistory } from "../Manager";
 
 let draggingKey: number = 0;
 
@@ -48,7 +49,7 @@ export const onClickNode = (e: MouseEvent) => {
     window.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("blur", onBlur);
     // 拖动结束，保存历史
-    if (originPos !== node.pos) Manager.saveHistory();
+    if (originPos !== node.pos) saveHistory();
   };
 
   window.addEventListener("mousemove", onMouseMove);

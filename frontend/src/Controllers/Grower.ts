@@ -5,6 +5,7 @@ import { atom } from "jotai";
 import { viewport } from "./Camera";
 import { ObjectFactories } from "./Creator";
 import { activedId, active } from "./Selector";
+import { saveHistory } from "../Manager";
 import {
   calculateChildPosition,
   updateRelationsFromEdge,
@@ -101,7 +102,7 @@ const startGrowMode = (e: KeyboardEvent) => {
     }
 
     // 保存历史
-    Manager.saveHistory();
+    saveHistory();
 
     // 进入编辑模式（通过触发双击事件）
     // EditableText 组件在 node-group 下的 g 元素中接收双击事件

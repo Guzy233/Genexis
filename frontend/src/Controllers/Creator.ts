@@ -4,6 +4,7 @@ import { screen2Viewport } from "./Camera";
 import { getToolForCategory, CATEGORY_NODES } from "../Components/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
 import { addEdgeRelation } from "../NodeRelations";
+import { saveHistory } from "../Manager";
 
 // 通用对象工厂
 export type ObjectFactory = (...args: any[]) => Obj;
@@ -90,7 +91,7 @@ const onDblClick = (e: MouseEvent) => {
   );
   if (node) {
     Manager.add(node);
-    Manager.saveHistory();
+    saveHistory();
   }
 };
 
@@ -121,7 +122,7 @@ ContextMenuFactories["canvas"] = (_target: Obj, event: MouseEvent): ContextMenuI
           node.pos = { x: pos.x - node.size.x / 2, y: pos.y - node.size.y / 2 };
           node.selected = true;
           Manager.add(node);
-          Manager.saveHistory();
+          saveHistory();
         }
       },
     });

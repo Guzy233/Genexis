@@ -2,6 +2,7 @@ import Manager, { objects } from "../Manager";
 import { Obj, Controllers, Vec2 } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { atom } from "jotai";
+import { saveHistory } from "../Manager";
 
 // 删除轨迹接口
 interface DeletionTrail extends Obj {
@@ -66,7 +67,7 @@ export const onMouseDown = (e: MouseEvent) => {
   };
 
   const onMouseUp = () => {
-    Manager.saveHistory();
+    saveHistory();
     Manager.deleteId(deletionTrail.id);
     window.removeEventListener("mousemove", onMouseMove, true);
     window.removeEventListener("mouseover", onMouseOver, true);

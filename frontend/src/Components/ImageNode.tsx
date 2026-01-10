@@ -15,6 +15,7 @@ import {
   deserializeAnchors,
 } from "../Serialization";
 import { EditableText } from "./EditableText";
+import { saveHistory } from "../Manager";
 
 export interface ImageNode extends Node {
   src: string;
@@ -145,7 +146,7 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
         const n = t as ImageNode;
         n.src = "";
         Manager.update(n);
-        Manager.saveHistory();
+        saveHistory();
       },
     });
   }
@@ -196,7 +197,7 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
     setIsError(false);
     node.src = newSrc;
     Manager.update(node);
-    Manager.saveHistory();
+    saveHistory();
   };
 
   // 自动调整节点高度

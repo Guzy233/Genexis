@@ -7,6 +7,7 @@ import { ObjectFactories } from "../Controllers/Creator";
 import { ContextMenuFactories, ContextMenuItem } from "../Controllers/ContextMenu";
 import { activedId } from "../Controllers/Selector";
 import { EditableText } from "./EditableText";
+import { saveHistory } from "../Manager";
 import {
   registerSerializer,
   serializeAnchors,
@@ -157,7 +158,7 @@ export const TextNodeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) =>
           Manager.update(node);
         }}
         onEndEditing={() => {
-          Manager.saveHistory();
+          saveHistory();
         }}
         isEditingAtom={isEditingAtom}
       />

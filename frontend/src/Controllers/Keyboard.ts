@@ -1,7 +1,7 @@
 import { Controllers } from "../Globals";
 import { registerSetting, setValue, getSetting } from "../Option";
 import Manager from "../Manager";
-import { objects } from "../Manager";
+import { objects, saveHistory, undo, redo } from "../Manager";
 
 // 键盘操作枚举
 export const KeyAction = {
@@ -95,14 +95,14 @@ const executeAction = (action: KeyAction): void => {
       // 使用 deleteIdWithEdges 删除（会自动处理连接的边）
       selectedIds.forEach((id) => Manager.deleteIdWithEdges(id));
       // 删除完成，保存历史
-      Manager.saveHistory();
+      saveHistory();
       break;
     }
     case KeyAction.UNDO:
-      Manager.undo();
+      undo();
       break;
     case KeyAction.REDO:
-      Manager.redo();
+      redo();
       break;
     case KeyAction.SELECT_ALL: {
       // 选中所有节点
@@ -144,23 +144,22 @@ const executeAction = (action: KeyAction): void => {
       console.log("Exit");
       break;
     case KeyAction.SAVE:
-      // 动态导入以避免循环依赖
-      import("./File").then(({ saveFile }) => {
+      import("../Manager").then(({ saveFile }) => {
         saveFile();
       });
       break;
     case KeyAction.SAVE_AS:
-      import("./File").then(({ saveFileAs }) => {
+      import("../Manager").then(({ saveFileAs }) => {
         saveFileAs();
       });
       break;
     case KeyAction.LOAD:
-      import("./File").then(({ loadFile }) => {
+      import("../Manager").then(({ loadFile }) => {
         loadFile();
       });
       break;
     case KeyAction.NEW_FILE:
-      import("./File").then(({ newFile }) => {
+      import("../Manager").then(({ newFile }) => {
         newFile();
       });
       break;

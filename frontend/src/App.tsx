@@ -4,7 +4,7 @@ import "./css/dark-theme.css";
 import { Coms, Controllers } from "./Globals";
 import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
-import { objects, canvasUpdater } from "./Manager";
+import Manager, { objects, canvasUpdater,createNewTab, clearTabs } from "./Manager";
 
 import SettingsPanel from "./Components/SettingPanel";
 import ToolBar from "./Components/ToolBar";
@@ -31,8 +31,6 @@ import "./Controllers/Camera";
 import "./Controllers/Deleter";
 import "./Controllers/Grower";
 import "./Controllers/Recipes";
-import "./Controllers/File";
-import { generateRandomNodes } from "./Controllers/Creator";
 import { viewport } from "./Controllers/Camera";
 
 const App: React.FC = () => {
@@ -52,10 +50,11 @@ const App: React.FC = () => {
     // generateRandomNodes(500)
     const canvas = canvasRef.current;
     if (!canvas) return;
-
+    createNewTab()
     Controllers.map((controller) => controller.Begin(canvas));
     return () => {
       Controllers.map((controller) => controller.End(canvas));
+      clearTabs()
     };
   }, []);
 
@@ -128,7 +127,7 @@ const App: React.FC = () => {
         </defs>
 
         <g
-          transform={`translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`}
+          // transform={`translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`}
           ref={canvasRef}
           id="canvas"
         >

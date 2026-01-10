@@ -15,6 +15,7 @@ import {
   deserializeAnchors,
 } from "../Serialization";
 import { coords } from "../Controllers/Recipes";
+import { saveHistory } from "../Manager";
 
 // ============ 纯展示组件：MC物品图标 ============
 export interface MCItemIconProps {
@@ -227,7 +228,7 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
         const n = t as MCItemNode;
         n.itemId = "";
         Manager.update(n);
-        Manager.saveHistory();
+        saveHistory();
       },
     });
   }
@@ -248,7 +249,7 @@ export const MCItemNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
     setIsEditing(false);
     node.itemId = tempItemId.trim();
     Manager.update(node);
-    Manager.saveHistory();
+    saveHistory();
   };
 
   // 输入框变化

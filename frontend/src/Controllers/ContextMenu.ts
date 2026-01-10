@@ -3,6 +3,7 @@ import { Obj, Controllers, idFromEvent } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import React from "react";
 import { atom } from "jotai";
+import { saveHistory } from "../Manager";
 
 // 右键菜单项
 export interface ContextMenuItem {
@@ -112,7 +113,7 @@ generalItems.push({
   icon: "🗑️",
   onClick: (target: Obj) => {
     Manager.deleteIdWithEdges(target.id);
-    Manager.saveHistory();
+    saveHistory();
   },
 });
 

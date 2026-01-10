@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import Manager from "../Manager";
 import { Quit, Minimize, Maximize, IsMaximized } from "../../wailsjs/go/main/App";
-import { newFile, loadFile, saveFile, saveFileAs } from "../Controllers/File";
+import { newFile, loadFile, saveFile, saveFileAs, undo, redo } from "../Manager";
 
 // 菜单项接口
 interface MenuItem {
@@ -40,8 +39,8 @@ const menuStructure: MenuCategory[] = [
     id: "edit",
     label: "编辑",
     items: [
-      { id: "undo", label: "撤销", shortcut: "Ctrl+Z", action: () => Manager.undo() },
-      { id: "redo", label: "重做", shortcut: "Ctrl+Y", action: () => Manager.redo() },
+      { id: "undo", label: "撤销", shortcut: "Ctrl+Z", action: () => undo() },
+      { id: "redo", label: "重做", shortcut: "Ctrl+Y", action: () => redo() },
       { id: "divider1", label: "", divider: true, action: () => {} },
       { id: "delete", label: "删除", shortcut: "Del", action: () => console.log("删除选中") },
     ],

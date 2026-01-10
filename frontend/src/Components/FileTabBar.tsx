@@ -1,6 +1,6 @@
 import React from "react";
 import { useAtom } from "jotai";
-import { tabsUpdater, getAllTabs, getActiveTab, switchTab, closeTab } from "../Controllers/File";
+import { tabsUpdater, getAllTabs, getActiveTab, switchTab, closeTab } from "../Manager";
 
 interface FileTab {
   id: string;
@@ -27,9 +27,9 @@ const FileTabBar: React.FC = () => {
   };
 
   // 处理关闭按钮点击
-  const handleCloseClick = (e: React.MouseEvent, tabId: string) => {
+  const handleCloseClick = async (e: React.MouseEvent, tabId: string) => {
     e.stopPropagation();
-    closeTab(tabId);
+    await closeTab(tabId);
     forceUpdate(Math.random());
   };
 
@@ -59,7 +59,7 @@ const FileTabBar: React.FC = () => {
           >
             <span className="file-tab-name">
               {tab.fileName}
-              {tab.isModified && <span className="modified-indicator"> ●</span>}
+              {tab.isModified && <span className="modified-indicator">*</span>}
             </span>
             <button
               className={`file-tab-close ${hoveredTab === tab.id || tab.id === activeTab?.id ? "visible" : ""}`}

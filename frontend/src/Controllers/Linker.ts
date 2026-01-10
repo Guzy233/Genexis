@@ -7,6 +7,7 @@ import { createNodeCentered, ObjectFactories } from "./Creator";
 import { getToolForCategory, CATEGORY_EDGES } from "../Components/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
 import { updateRelationsFromEdge } from "../NodeRelations";
+import { saveHistory } from "../Manager";
 
 // 连接器状态
 let linkingKey = "Space";
@@ -89,7 +90,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
         Manager.updateId(vEdge.id);
         // 更新节点关系
         updateRelationsFromEdge(vEdge.id);
-        Manager.saveHistory();
+        saveHistory();
       }
     } else {
       const node = createNodeCentered(
@@ -102,7 +103,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
         Manager.update(vEdge);
         // 更新节点关系
         updateRelationsFromEdge(vEdge.id);
-        Manager.saveHistory();
+        saveHistory();
       } else {
         Manager.deleteId(vEdge.id);
       }

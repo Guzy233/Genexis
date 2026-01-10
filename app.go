@@ -41,7 +41,7 @@ func (a *App) IsMaximized() bool {
 	return runtime.WindowIsMaximised(a.ctx)
 }
 
-// SaveFile 保存文件
+// SaveFile 保存文件（另存为，显示对话框）
 func (a *App) SaveFile(data string, defaultFilename string) (string, error) {
 	// 如果没有提供默认文件名，使用 mindgraph.json
 	if defaultFilename == "" {
@@ -50,7 +50,7 @@ func (a *App) SaveFile(data string, defaultFilename string) (string, error) {
 
 	// 打开保存文件对话框
 	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		Title:           "保存思维导图",
+		Title:           "另存为",
 		DefaultFilename: defaultFilename,
 		Filters: []runtime.FileFilter{
 			{
@@ -80,6 +80,21 @@ func (a *App) SaveFile(data string, defaultFilename string) (string, error) {
 	}
 
 	return filePath, nil
+}
+
+// SaveFileDirect 直接保存到指定路径（不显示对话框）
+func (a *App) SaveFileDirect(data string, filePath string) error {
+	if filePath == "" {
+		return os.ErrInvalid
+	}
+
+	// 写入文件
+	err := os.WriteFile(filePath, []byte(data), 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // LoadFile 加载文件
