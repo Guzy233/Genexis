@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Anchor, Vec2, Obj, Node, Edge, Coms } from "../Globals";
 import { atom, useAtom } from "jotai";
 import { registerSerializer } from "../Serialization";
@@ -290,62 +290,82 @@ const calculateMidPoint = (
 
 // ==================== 组件渲染 ====================
 
-const LineEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
+const LineEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
   const edge = obj as LineEdge;
   useAtom(obj.updater);
   useAtom(edge.source.updater);
   useAtom(edge.target.updater);
 
-  const resolvedPoints = resolvePoints(
-    edge.source,
-    edge.target,
+  // 使用 useMemo 缓存边的路径计算，避免每帧重新计算
+  const { resolvedPoints, start, end, midPoint, hasLabel, maskId } = useMemo(() => {
+    const resolvedPoints = resolvePoints(
+      edge.source,
+      edge.target,
+      edge.anchorSource,
+      edge.anchorTarget
+    );
+
+    const { start, end, targetDir } = calculateLineEndpoints(
+      resolvedPoints.source,
+      resolvedPoints.target,
+      edge.source,
+      edge.target,
+      edge.anchorSource.type,
+      edge.anchorTarget.type
+    );
+
+    const midPoint = calculateMidPoint(start, end, edge.label);
+
+    return {
+      resolvedPoints,
+      start,
+      end,
+      midPoint,
+      hasLabel: !!midPoint,
+      maskId: `mask-${edge.id}`,
+    };
+  }, [
+    edge.source.pos.x,
+    edge.source.pos.y,
+    edge.target.pos.x,
+    edge.target.pos.y,
     edge.anchorSource,
-    edge.anchorTarget
-  );
+    edge.anchorTarget,
+    edge.label,
+    edge.isSelected,
+  ]);
 
-  const { start, end, targetDir } = calculateLineEndpoints(
-    resolvedPoints.source,
-    resolvedPoints.target,
-    edge.source,
-    edge.target,
-    edge.anchorSource.type,
-    edge.anchorTarget.type
-  );
-
-  const midPoint = calculateMidPoint(start, end, edge.label);
-
-  // 为每个 edge 创建唯一的 Mask ID
-  const maskId = `mask-${edge.id}`;
   return (
     <g className="edge-group" data-id={edge.id}>
-      <defs>
-        <mask id={maskId} maskUnits="userSpaceOnUse">
-          {/* 全白背景表示全部可见 */}
-          <rect
-            x="-10000"
-            y="-10000"
-            width="20000"
-            height="20000"
-            fill="white"
-          />
-          {/* 在标签位置放置黑色矩形，表示该处不可见（即挖空） */}
-          {midPoint && (
+      {/* 只在有标签时才创建 mask */}
+      {hasLabel && (
+        <defs>
+          <mask id={maskId} maskUnits="userSpaceOnUse">
+            {/* 全白背景表示全部可见 */}
+            <rect
+              x="-10000"
+              y="-10000"
+              width="20000"
+              height="20000"
+              fill="white"
+            />
+            {/* 在标签位置放置黑色矩形，表示该处不可见（即挖空） */}
             <g
-              transform={`translate(${midPoint.x}, ${midPoint.y}) rotate(${midPoint.angle})`}
+              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${midPoint!.angle})`}
             >
               <rect
-                x={-midPoint.labelWidth / 2}
+                x={-midPoint!.labelWidth / 2}
                 y="-12"
-                width={midPoint.labelWidth}
+                width={midPoint!.labelWidth}
                 height="24"
                 fill="black"
               />
             </g>
-          )}
-        </mask>
-      </defs>
+          </mask>
+        </defs>
+      )}
 
-      {/* 视觉线：应用 Mask */}
+      {/* 视觉线：只在有标签时应用 Mask */}
       <line
         className="visual-line"
         x1={start.x}
@@ -354,7 +374,7 @@ const LineEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
         y2={end.y}
         stroke={edge.isSelected ? "#f472b6" : "#6366f1"}
         strokeWidth="2"
-        mask={`url(#${maskId})`}
+        mask={hasLabel ? `url(#${maskId})` : undefined}
         markerEnd={"url(#arrowhead1)"}
       />
 
@@ -405,7 +425,7 @@ const LineEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
       )}
     </g>
   );
-};
+});
 
 Coms["edge/line"] = LineEdgeComponent;
 

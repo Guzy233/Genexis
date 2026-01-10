@@ -236,70 +236,87 @@ const calculateMidPoint = (
 
 // ==================== 组件渲染 ====================
 
-const CurveEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
+const CurveEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
   const edge = obj as CurveEdge;
   useAtom(obj.updater);
   useAtom(edge.source.updater);
   useAtom(edge.target.updater);
 
-  const resolvedPoints = resolvePoints(
-    edge.source,
-    edge.target,
+  // 使用 useMemo 缓存边的路径计算，避免每帧重新计算
+  const { resolvedPoints, pathData, midPoint, hasLabel, maskId } = useMemo(() => {
+    const resolvedPoints = resolvePoints(
+      edge.source,
+      edge.target,
+      edge.anchorSource,
+      edge.anchorTarget
+    );
+    const pathData = calculatePath(
+      resolvedPoints.source,
+      resolvedPoints.target,
+      edge.anchorSource.type,
+      edge.anchorTarget.type
+    );
+    const midPoint = calculateMidPoint(
+      edge,
+      resolvedPoints.source,
+      resolvedPoints.target
+    );
+    return {
+      resolvedPoints,
+      pathData,
+      midPoint,
+      hasLabel: !!midPoint,
+      maskId: `mask-${edge.id}`,
+    };
+  }, [
+    edge.source.pos.x,
+    edge.source.pos.y,
+    edge.target.pos.x,
+    edge.target.pos.y,
     edge.anchorSource,
-    edge.anchorTarget
-  );
-  const pathData = calculatePath(
-    resolvedPoints.source,
-    resolvedPoints.target,
-    edge.anchorSource.type,
-    edge.anchorTarget.type
-  );
-  const midPoint = calculateMidPoint(
-    edge,
-    resolvedPoints.source,
-    resolvedPoints.target
-  );
-
-  // 为每个 edge 创建唯一的 Mask ID
-  const maskId = `mask-${edge.id}`;
+    edge.anchorTarget,
+    edge.label,
+    edge.isSelected,
+  ]);
 
   return (
     <g className="edge-group" data-id={edge.id}>
-      <defs>
-        <mask id={maskId} maskUnits="userSpaceOnUse">
-          {/* 全白背景表示全部可见 */}
-          <rect
-            x="-10000"
-            y="-10000"
-            width="20000"
-            height="20000"
-            fill="white"
-          />
-          {/* 在标签位置放置黑色矩形，表示该处不可见（即挖空） */}
-          {midPoint && (
+      {/* 只在有标签时才创建 mask */}
+      {hasLabel && (
+        <defs>
+          <mask id={maskId} maskUnits="userSpaceOnUse">
+            {/* 全白背景表示全部可见 */}
+            <rect
+              x="-10000"
+              y="-10000"
+              width="20000"
+              height="20000"
+              fill="white"
+            />
+            {/* 在标签位置放置黑色矩形，表示该处不可见（即挖空） */}
             <g
-              transform={`translate(${midPoint.x}, ${midPoint.y}) rotate(${midPoint.angle})`}
+              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${midPoint!.angle})`}
             >
               <rect
-                x={-midPoint.labelWidth / 2}
+                x={-midPoint!.labelWidth / 2}
                 y="-12"
-                width={midPoint.labelWidth}
+                width={midPoint!.labelWidth}
                 height="24"
                 fill="black"
               />
             </g>
-          )}
-        </mask>
-      </defs>
+          </mask>
+        </defs>
+      )}
 
-      {/* 视觉线：应用 Mask */}
+      {/* 视觉线：只在有标签时应用 Mask */}
       <path
         className="visual-line"
         d={pathData}
         fill="none"
         stroke={edge.isSelected ? "#f472b6" : "#6366f1"}
         strokeWidth="2"
-        mask={`url(#${maskId})`}
+        mask={hasLabel ? `url(#${maskId})` : undefined}
         markerEnd={
           edge.anchorTarget.type === "absPos"
             ? "url(#arrowhead)"
@@ -352,7 +369,7 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
       )}
     </g>
   );
-};
+});
 
 Coms["edge/curve"] = CurveEdgeComponent;
 

@@ -46,7 +46,7 @@ const App: React.FC = () => {
   // sortedObjects.forEach((o)=>console.log(o.id))
 
   useEffect(() => {
-    generateRandomNodes(500)
+    // generateRandomNodes(500)
     const canvas = canvasRef.current;
     if (!canvas) return;
 

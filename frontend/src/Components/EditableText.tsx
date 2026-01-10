@@ -98,11 +98,16 @@ export const EditableText: React.FC<EditableTextProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [editPosition, setEditPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     if (isEditing) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
+      // 延迟聚焦，确保 DOM 已更新
+      setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 0);
+
       startEditing(
         inputRef.current!,
         onEndEditing,
@@ -113,34 +118,57 @@ export const EditableText: React.FC<EditableTextProps> = ({
     }
   }, [isEditing]);
 
+  // 处理双击，计算输入框在屏幕上的位置
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+    setEditPosition({ x: rect.left, y: rect.top });
+    onStartEditing?.();
+    setIsEditing(true);
+  };
+
   return (
-    <g
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        onStartEditing?.();
-        setIsEditing(true);
-      }}
-    >
-      <foreignObject width={size.x} height={size.y}>
-        <div className={containerClassName || "content-container"}>
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              className={inputClassName || "edit-input"}
-              defaultValue={text}
-              onMouseDown={(e) => e.stopPropagation()}
-              style={{
-                fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
-              }}
-              onMouseDownCapture={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <span className={displayClassName || "text-display no-select"}>
-              {text}
-            </span>
-          )}
-        </div>
-      </foreignObject>
+    <g onDoubleClick={handleDoubleClick}>
+      {/* 显示模式：使用纯 SVG text，性能最优 */}
+      {!isEditing && (
+        <text
+          x={size.x / 2}
+          y={size.y / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className={displayClassName || "text-display no-select"}
+          style={{
+            fontSize,
+            fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
+            pointerEvents: 'none',
+          }}
+        >
+          {text}
+        </text>
+      )}
+
+      {/* 编辑模式：使用 fixed 定位的 HTML input，渲染在 SVG 之外 */}
+      {isEditing && (
+        <foreignObject x={0} y={0} width={size.x} height={size.y} style={{ pointerEvents: 'none' }}>
+          <input
+            ref={inputRef}
+            className={inputClassName || "edit-input"}
+            defaultValue={text}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseDownCapture={(e) => e.stopPropagation()}
+            style={{
+              fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
+              position: 'fixed',
+              left: `${editPosition.x}px`,
+              top: `${editPosition.y}px`,
+              width: `${size.x}px`,
+              height: `${size.y}px`,
+              pointerEvents: 'auto',
+              zIndex: 10000,
+            }}
+          />
+        </foreignObject>
+      )}
     </g>
   );
 };

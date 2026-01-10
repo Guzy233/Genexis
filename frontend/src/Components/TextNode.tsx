@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
@@ -124,7 +124,7 @@ ToolItems.push({
 
 setDefaultTool(CATEGORY_NODES, "node/text");
 
-export const TextNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
+export const TextNodeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
   useAtom(obj.updater);
   const node = obj as TextNode;
 
@@ -160,5 +160,5 @@ export const TextNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
       />
     </g>
   );
-};
+});
 Coms["node/text"] = TextNodeComponent;

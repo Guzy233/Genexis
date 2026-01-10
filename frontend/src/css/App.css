@@ -39,18 +39,17 @@ body {
 .mindmap-svg {
   background: transparent;
   /* 优化SVG渲染性能 */
-  shape-rendering: crispEdges; /* 改为 crispEdges 提高性能 */
+  shape-rendering: optimizeSpeed; /* 优先速度 */
   text-rendering: optimizeSpeed; /* 优先性能而非质量 */
   image-rendering: pixelated; /* 简化图像渲染 */
   /* 阻止文本选择 */
   user-select: none;
   -webkit-user-select: none;
   display: block;
-  /* 启用 GPU 层 */
-  transform: translateZ(0);
-  will-change: transform;
   /* 限制渲染区域 */
   contain: layout style paint;
+  /* 创建独立的合成层，减少重绘 */
+  transform: translateZ(0);
 }
 
 .linking-mode {
@@ -85,6 +84,10 @@ body {
 /* ==================== Node styles ==================== */
 .node-group {
   cursor: move;
+  /* 隔离节点的绘制层，减少重绘范围 */
+  contain: layout style paint;
+  /* 优先性能而非质量 */
+  shape-rendering: crispEdges;
 }
 
 .node-group .content-container {
@@ -127,6 +130,10 @@ body {
   word-break: break-word;
   text-align: center;
   line-height: 1.4;
+  /* 优化文本渲染 */
+  text-rendering: optimizeSpeed;
+  /* 避免文本阴影等效果 */
+  text-shadow: none;
 }
 
 .node-group .no-select {
@@ -137,6 +144,10 @@ body {
 /* ==================== Edge styles ==================== */
 .edge-group {
   cursor: pointer;
+  /* 隔离边的绘制层 */
+  contain: layout style paint;
+  /* 优先性能 */
+  shape-rendering: crispEdges;
 }
 
 /* 移除 filter 以提高性能 - visual-line 不再使用 drop-shadow */

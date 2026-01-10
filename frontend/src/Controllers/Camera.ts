@@ -80,15 +80,28 @@ const onMouseDown = (e: MouseEvent) => {
   const startViewportX = viewport.x;
   const startViewportY = viewport.y;
 
+  let rafId: number | null = null;
+
   const onMouseMove = (e: MouseEvent) => {
     viewport.x = startViewportX + (e.clientX - startX);
     viewport.y = startViewportY + (e.clientY - startY);
-    updateViewport();
+
+    // 使用 rAF 节流，避免每帧多次更新导致丢帧
+    if (rafId === null) {
+      rafId = requestAnimationFrame(() => {
+        updateViewport();
+        rafId = null;
+      });
+    }
   };
 
   const onMouseUp = () => {
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
   };
 
   document.addEventListener("mousemove", onMouseMove);
