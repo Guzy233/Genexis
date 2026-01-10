@@ -20,6 +20,7 @@ export const KeyAction = {
   SAVE_AS: "SAVE_AS",
   LOAD: "LOAD",
   NEW_FILE: "NEW_FILE",
+  OPEN_ITEM_LIST: "OPEN_ITEM_LIST",
 } as const;
 
 export type KeyAction = typeof KeyAction[keyof typeof KeyAction];
@@ -318,6 +319,9 @@ const executeAction = (action: KeyAction): void => {
         newFile();
       });
       break;
+    case KeyAction.OPEN_ITEM_LIST:
+      window.dispatchEvent(new CustomEvent("open-item-list"));
+      break;
   }
 };
 
@@ -473,6 +477,17 @@ registerSetting({
   onChange: (v) => updateBinding(KeyAction.NEW_FILE, v),
 });
 
+registerSetting({
+  id: "keyboard.openItemList",
+  category: "Keyboard",
+  title: "物品列表",
+  type: "key",
+  defaultValue: "Ce",
+  value: "Ce",
+  description: "打开物品列表面板",
+  onChange: (v) => updateBinding(KeyAction.OPEN_ITEM_LIST, v),
+});
+
 // 初始化默认绑定
 const initDefaultBindings = () => {
   const categories = [
@@ -489,6 +504,7 @@ const initDefaultBindings = () => {
     { id: "keyboard.saveAs", action: KeyAction.SAVE_AS },
     { id: "keyboard.load", action: KeyAction.LOAD },
     { id: "keyboard.newFile", action: KeyAction.NEW_FILE },
+    { id: "keyboard.openItemList", action: KeyAction.OPEN_ITEM_LIST },
   ];
 
   categories.forEach(({ id, action }) => {

@@ -542,7 +542,10 @@ const getCurrentRelationGraph = (): NodeRelationGraph | null => {
 /**
  * 添加边的关系记录
  */
-export const mgrAddEdgeRelation = (sourceId: string, targetId: string): void => {
+export const mgrAddEdgeRelation = (
+  sourceId: string,
+  targetId: string
+): void => {
   const graph = getCurrentRelationGraph();
   if (graph) {
     addEdgeRelation(graph, sourceId, targetId);
@@ -552,7 +555,10 @@ export const mgrAddEdgeRelation = (sourceId: string, targetId: string): void => 
 /**
  * 移除边的关系记录
  */
-export const mgrRemoveEdgeRelation = (sourceId: string, targetId: string): void => {
+export const mgrRemoveEdgeRelation = (
+  sourceId: string,
+  targetId: string
+): void => {
   const graph = getCurrentRelationGraph();
   if (graph) {
     removeEdgeRelation(graph, sourceId, targetId);
@@ -649,6 +655,6 @@ export default {
 };
 
 export function clearTabs() {
-      openTabs.length = 0;
-    activeTabId = null;
+  openTabs.length = 0;
+  activeTabId = null;
 }
