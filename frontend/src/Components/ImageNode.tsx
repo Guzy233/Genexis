@@ -255,7 +255,6 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
           <EditableText
             text={node.src}
             size={{ x: node.size.x - 50, y: 28 }}
-            onTextChange={() => Manager.update(node)}
             onEndEditing={handleUrlChange}
             isEditingAtom={isEditingAtom}
             inputClassName="node-url-input"

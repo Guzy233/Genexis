@@ -31,6 +31,7 @@ import "./Controllers/Deleter";
 import "./Controllers/Grower";
 import "./Controllers/Recipes";
 import { generateRandomNodes } from "./Controllers/Creator";
+import { viewport } from "./Controllers/Camera";
 
 const App: React.FC = () => {
   useAtom(canvasUpdater);
@@ -122,6 +123,7 @@ const App: React.FC = () => {
         </defs>
 
         <g
+          transform={`translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`}
           ref={canvasRef}
           id="canvas"
         >

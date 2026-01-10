@@ -31,7 +31,7 @@ registerSetting({
   onChange: (v) => { smoothFactor = Math.max(0.05, Math.min(1, v)); },
 });
 
-let wheelSensitivity = 1.0; // 滚轮灵敏度
+let wheelSensitivity = 2.5; // 滚轮灵敏度
 
 registerSetting({
   id: "camera.wheelSensitivity",
@@ -64,8 +64,6 @@ export const viewport2Screen = (point: {
   };
 };
 
-let canvasEl: SVGGElement | null = null;
-
 // 开始拖动视角
 const onMouseDown = (e: MouseEvent) => {
   // 只响应左键
@@ -80,28 +78,15 @@ const onMouseDown = (e: MouseEvent) => {
   const startViewportX = viewport.x;
   const startViewportY = viewport.y;
 
-  let rafId: number | null = null;
-
   const onMouseMove = (e: MouseEvent) => {
     viewport.x = startViewportX + (e.clientX - startX);
     viewport.y = startViewportY + (e.clientY - startY);
-
-    // 使用 rAF 节流，避免每帧多次更新导致丢帧
-    if (rafId === null) {
-      rafId = requestAnimationFrame(() => {
-        updateViewport();
-        rafId = null;
-      });
-    }
+    updateViewport();
   };
 
   const onMouseUp = () => {
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
   };
 
   document.addEventListener("mousemove", onMouseMove);
@@ -192,10 +177,10 @@ function updateViewport() {
 }
 
 Controllers.push({
-  Begin: (canvas: SVGGElement) => {
-    canvasEl = canvas;
-    canvas.addEventListener("mousedown", onMouseDown);
-    canvas.addEventListener("wheel", onWheel, { passive: false });
+  Begin: (_canvas: SVGGElement) => {
+    canvas=_canvas;
+    _canvas.addEventListener("mousedown", onMouseDown);
+    _canvas.addEventListener("wheel", onWheel, { passive: false });
   },
   End: (canvas: SVGGElement) => {
     canvas.removeEventListener("mousedown", onMouseDown);

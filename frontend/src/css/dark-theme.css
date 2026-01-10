@@ -440,6 +440,7 @@
 
 .settings-item-input[type="number"] {
   -moz-appearance: textfield;
+  appearance: inherit;
 }
 
 .settings-item-desc {

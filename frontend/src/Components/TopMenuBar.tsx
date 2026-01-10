@@ -73,14 +73,32 @@ const menuStructure: MenuCategory[] = [
 // 菜单按钮组件（图标形式）
 const MenuButton: React.FC<{ category: MenuCategory; icon: string }> = ({ category, icon }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  // 点击外部关闭菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
 
   return (
-    <div
-      className="menu-button-wrapper"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <button className="menu-button" title={category.label}>
+    <div className="menu-button-wrapper" ref={wrapperRef}>
+      <button
+        className="menu-button"
+        title={category.label}
+        onClick={() => setIsOpen(!isOpen)}
+      >
         {icon}
       </button>
       <div className={`menu-dropdown ${isOpen ? "open" : ""}`}>

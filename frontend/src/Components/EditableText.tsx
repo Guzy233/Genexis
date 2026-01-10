@@ -153,7 +153,7 @@ export const EditableText: React.FC<EditableTextProps> = ({
       {!isEditing && (
         <text
           x={getTextX()}
-          y={size.y / 2 + 2}
+          y={size.y / 2+1}
           textAnchor={getTextAnchor()}
           dominantBaseline="middle"
           className={displayClassName || "text-display no-select"}
@@ -170,7 +170,7 @@ export const EditableText: React.FC<EditableTextProps> = ({
         </text>
       )}
       {isEditing && (
-        <foreignObject x={0} y={0} width={size.x} height={size.y}>
+        <foreignObject x={0} y={-1} width={size.x} height={size.y}>
           <input
             ref={inputRef}
             className={inputClassName || "edit-input"}
