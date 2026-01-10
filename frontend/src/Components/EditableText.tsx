@@ -99,7 +99,6 @@ export const EditableText: React.FC<EditableTextProps> = ({
   textAlign = "center",
   placeholder,
 }) => {
-  // const [isEditing, setIsEditing] = useState(false);
   const [isEditing] = useAtom(isEditingAtom);
   const inputRef = useRef<HTMLInputElement>(null);
 

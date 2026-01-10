@@ -36,8 +36,8 @@ const getStrokeColor = (node: ImageNode) => {
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
 
-// 工厂函数：创建新的图片节点
-export const createImageNode = (): ImageNode => {
+// 注册对象工厂
+ObjectFactories["node/image"] = (): ImageNode => {
   return {
     id: crypto.randomUUID(),
     type: "node/image",
@@ -50,10 +50,7 @@ export const createImageNode = (): ImageNode => {
     eAncs: anchors_default,
     aAncs: anchors_rect,
   };
-};
-
-// 注册对象工厂
-ObjectFactories["node/image"] = createImageNode;
+};;
 
 const icon = (
   <svg viewBox="0 0 60 60" style={{ width: "100%", height: "100%" }}>
@@ -155,7 +152,7 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
 };
 
 // 图片节点组件
-export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
+Coms["node/image"] = ({ obj }) => {
   useAtom(obj.updater);
   const node = obj as ImageNode;
   const imgRef = useRef<SVGImageElement>(null);
@@ -232,7 +229,7 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
           fill="rgba(0, 0, 0, 0.3)"
           stroke="rgba(255, 255, 255, 0.1)"
           strokeWidth="1.5"
-          style={{ cursor: 'text' }}
+          style={{ cursor: "text" }}
         />
         {/* 编辑状态高亮边框 */}
         <rect
@@ -240,9 +237,13 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
           height={28}
           rx="6"
           fill="none"
-          stroke={node.id === activedId ? "rgba(139, 92, 246, 0.6)" : "rgba(255, 255, 255, 0.05)"}
+          stroke={
+            node.id === activedId
+              ? "rgba(139, 92, 246, 0.6)"
+              : "rgba(255, 255, 255, 0.05)"
+          }
           strokeWidth="2"
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: "none" }}
         />
         {/* URL 图标 */}
         <text
@@ -250,7 +251,7 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
           y="18"
           fill="rgba(255, 255, 255, 0.4)"
           fontSize="12"
-          style={{ pointerEvents: 'none', userSelect: 'none' }}
+          style={{ pointerEvents: "none", userSelect: "none" }}
         >
           🔗
         </text>
@@ -302,4 +303,3 @@ export const ImageNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
     </g>
   );
 };
-Coms["node/image"] = ImageNodeComponent;

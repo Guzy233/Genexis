@@ -237,7 +237,7 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
 };
 
 // MC物品节点组件
-export const MCItemNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
+Coms["node/mcitem"] = ({ obj }) => {
   useAtom(obj.updater);
   const node = obj as MCItemNode;
   const [isEditing, setIsEditing] = useState(false);
@@ -325,12 +325,7 @@ export const MCItemNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
       </foreignObject>
 
       {/* 物品图标区域 */}
-      <foreignObject
-        x={(node.size.x - 64) / 2}
-        y={30}
-        width={64}
-        height={64}
-      >
+      <foreignObject x={(node.size.x - 64) / 2} y={30} width={64} height={64}>
         <MCItemIcon itemId={node.itemId} size={64} />
       </foreignObject>
 
@@ -360,4 +355,4 @@ export const MCItemNodeComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
     </g>
   );
 };
-Coms["node/mcitem"] = MCItemNodeComponent;
+//  = MCItemNodeComponent;

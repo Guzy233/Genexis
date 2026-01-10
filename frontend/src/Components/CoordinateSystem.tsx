@@ -1,7 +1,6 @@
 import React from "react";
 
 export const CoordinateSystem: React.FC = () => {
-  // 坐标轴颜色
   const axisColor = "rgba(255, 255, 255, 0.2)";
 
   return (

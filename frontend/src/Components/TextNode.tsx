@@ -1,13 +1,14 @@
-import React, { useMemo } from "react";
 import { atom, getDefaultStore, useAtom } from "jotai";
-import Manager from "../Manager";
-import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
-import { setDefaultTool, ToolItems, CATEGORY_NODES } from "./ToolBar";
-import { ObjectFactories } from "../Controllers/Creator";
+import { useMemo } from "react";
+
 import { ContextMenuFactories, ContextMenuItem } from "../Controllers/ContextMenu";
+import { setDefaultTool, ToolItems, CATEGORY_NODES } from "./ToolBar";
+import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
+import { ObjectFactories } from "../Controllers/Creator";
 import { activedId } from "../Controllers/Selector";
 import { EditableText } from "./EditableText";
 import { saveHistory } from "../Manager";
+import Manager from "../Manager";
 import {
   registerSerializer,
   serializeAnchors,
@@ -28,9 +29,7 @@ registerSerializer(
       type: node.type,
       pos: { ...node.pos },
       size: { ...node.size },
-      // 可用锚点使用预设 "rect"（四方向锚点）
       aAncs: serializeAnchors(node.aAncs, "rect"),
-      // 启用锚点使用编码字符串
       eAncs: serializeAnchors(node.eAncs, null),
       text: node.text,
       selected: node.selected,
@@ -74,8 +73,8 @@ const getStrokeColor = (node: TextNode) => {
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
 
-// 工厂函数：创建新的文本节点
-export const createTextNode = (): TextNode => {
+// 注册对象工厂
+ObjectFactories["node/text"] = (): TextNode => {
   return {
     id: crypto.randomUUID(),
     type: "node/text",
@@ -88,9 +87,6 @@ export const createTextNode = (): TextNode => {
     aAncs: anchors_rect,
   };
 };
-
-// 注册对象工厂
-ObjectFactories["node/text"] = createTextNode;
 
 // 注册工具项
 ToolItems.push({
@@ -127,7 +123,7 @@ ToolItems.push({
 
 setDefaultTool(CATEGORY_NODES, "node/text");
 
-export const TextNodeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
+Coms["node/text"] = ({ obj }) => {
   useAtom(obj.updater);
   const node = obj as TextNode;
 
@@ -138,7 +134,7 @@ export const TextNodeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) =>
       transform={`translate(${node.pos.x}, ${node.pos.y})`}
       className="node-group"
       data-id={node.id}
-      onDoubleClick={()=>getDefaultStore().set(isEditingAtom,true)}
+      onDoubleClick={() => getDefaultStore().set(isEditingAtom, true)}
     >
       <rect
         width={node.size.x}
@@ -164,5 +160,4 @@ export const TextNodeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) =>
       />
     </g>
   );
-});
-Coms["node/text"] = TextNodeComponent;
+};

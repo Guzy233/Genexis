@@ -12,7 +12,7 @@ interface DeletionTrail extends Obj {
   points: TrailPoint[];
 }
 
-const DeletionTrailComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
+Coms["ui/deletionTrail"] = ({ obj }) => {
   useAtom(obj.updater);
   const trail = obj as DeletionTrail;
 
@@ -57,5 +57,3 @@ const DeletionTrailComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
     </g>
   );
 };
-
-Coms["ui/deletionTrail"] = DeletionTrailComponent;

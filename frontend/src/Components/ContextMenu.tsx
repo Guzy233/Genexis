@@ -5,10 +5,8 @@ import { viewport } from "../Controllers/Camera";
 import { ContextMenu, ContextMenuItem } from "../Controllers/ContextMenu";
 import Manager from "../Manager";
 
-// 右键菜单组件使用 ContextMenuController 中定义的 ContextMenu 类型
-
 // 右键菜单组件
-export const ContextMenuComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
+Coms["ui/contextMenu"] = ({ obj }) => {
   const menu = obj as ContextMenu;
   useAtom(obj.updater);
 
@@ -37,7 +35,9 @@ export const ContextMenuComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
   return (
     <g
       className="context-menu"
-      transform={`translate(${menu.pos?.x ?? 0}, ${menu.pos?.y ?? 0}) scale(${scale})`}
+      transform={`translate(${menu.pos?.x ?? 0}, ${
+        menu.pos?.y ?? 0
+      }) scale(${scale})`}
     >
       <foreignObject
         x={0}
@@ -64,5 +64,3 @@ export const ContextMenuComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
     </g>
   );
 };
-
-Coms["ui/contextMenu"] = ContextMenuComponent;

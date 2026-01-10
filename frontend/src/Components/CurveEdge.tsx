@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Anchor, Vec2, Obj, Node, Edge, Coms } from "../Globals";
 import { atom, useAtom } from "jotai";
 import { registerSerializer } from "../Serialization";
@@ -20,25 +20,6 @@ interface ResolvedPoint {
 export interface CurveEdge extends Edge {
   // CurveEdge 特有的属性可以在这里添加
 }
-
-export const newCurveEdge = (
-  source: Node,
-  target: Node,
-  label: string = ""
-): CurveEdge => {
-  const id = crypto.randomUUID();
-  return {
-    id,
-    type: "edge/curve",
-    updater: atom<number>(0),
-    source,
-    target,
-    anchorSource: { type: "auto" },
-    anchorTarget: { type: "auto" },
-    isSelected: false,
-    label,
-  };
-};
 
 // ==================== 几何计算逻辑 ====================
 
@@ -236,56 +217,37 @@ const calculateMidPoint = (
 
 // ==================== 组件渲染 ====================
 
-const CurveEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
+Coms["edge/curve"] = ({ obj }) => {
   const edge = obj as CurveEdge;
   useAtom(obj.updater);
   useAtom(edge.source.updater);
   useAtom(edge.target.updater);
 
-  // 使用 useMemo 缓存边的路径计算，避免每帧重新计算
-  const { resolvedPoints, pathData, midPoint, hasLabel, maskId } = useMemo(() => {
-    const resolvedPoints = resolvePoints(
-      edge.source,
-      edge.target,
-      edge.anchorSource,
-      edge.anchorTarget
-    );
-    const pathData = calculatePath(
-      resolvedPoints.source,
-      resolvedPoints.target,
-      edge.anchorSource.type,
-      edge.anchorTarget.type
-    );
-    const midPoint = calculateMidPoint(
-      edge,
-      resolvedPoints.source,
-      resolvedPoints.target
-    );
-    return {
-      resolvedPoints,
-      pathData,
-      midPoint,
-      hasLabel: !!midPoint,
-      maskId: `mask-${edge.id}`,
-    };
-  }, [
-    edge.source.pos.x,
-    edge.source.pos.y,
-    edge.target.pos.x,
-    edge.target.pos.y,
+  // 计算边的路径
+  const resolvedPoints = resolvePoints(
+    edge.source,
+    edge.target,
     edge.anchorSource,
-    edge.anchorTarget,
-    edge.label,
-    edge.isSelected,
-  ]);
+    edge.anchorTarget
+  );
+  const pathData = calculatePath(
+    resolvedPoints.source,
+    resolvedPoints.target,
+    edge.anchorSource.type,
+    edge.anchorTarget.type
+  );
+  const midPoint = calculateMidPoint(
+    edge,
+    resolvedPoints.source,
+    resolvedPoints.target
+  );
+  const maskId = `mask-${edge.id}`;
 
   return (
     <g className="edge-group" data-id={edge.id}>
-      {/* 只在有标签时才创建 mask */}
-      {hasLabel && (
+      {edge.label && (
         <defs>
           <mask id={maskId} maskUnits="userSpaceOnUse">
-            {/* 全白背景表示全部可见 */}
             <rect
               x="-10000"
               y="-10000"
@@ -293,9 +255,10 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
               height="20000"
               fill="white"
             />
-            {/* 在标签位置放置黑色矩形，表示该处不可见（即挖空） */}
             <g
-              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${midPoint!.angle})`}
+              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${
+                midPoint!.angle
+              })`}
             >
               <rect
                 x={-midPoint!.labelWidth / 2}
@@ -309,14 +272,13 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
         </defs>
       )}
 
-      {/* 视觉线：只在有标签时应用 Mask */}
       <path
         className="visual-line"
         d={pathData}
         fill="none"
         stroke={edge.isSelected ? "#f472b6" : "#6366f1"}
         strokeWidth="2"
-        mask={hasLabel ? `url(#${maskId})` : undefined}
+        mask={edge.label ? `url(#${maskId})` : undefined}
         markerEnd={
           edge.anchorTarget.type === "absPos"
             ? "url(#arrowhead)"
@@ -324,7 +286,6 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
         }
       />
 
-      {/* 点击区域：不加 Mask，确保整条线都能响应点击 */}
       <path
         d={pathData}
         className="hit-area"
@@ -334,7 +295,6 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
         onMouseDown={() => {}}
       />
 
-      {/* 起点/终点小圆点 */}
       <circle
         cx={resolvedPoints.source.x}
         cy={resolvedPoints.source.y}
@@ -350,7 +310,6 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
         stroke="#6366f1"
       />
 
-      {/* 标签文字：放在挖空的位置 */}
       {midPoint && (
         <g
           transform={`translate(${midPoint.x}, ${midPoint.y}) rotate(${midPoint.angle})`}
@@ -369,9 +328,7 @@ const CurveEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
       )}
     </g>
   );
-});
-
-Coms["edge/curve"] = CurveEdgeComponent;
+};
 
 // ==================== 序列化与右键菜单 ====================
 
@@ -405,9 +362,32 @@ registerSerializer(
 
 ContextMenuFactories["edge"] = () => [];
 
+export const newCurveEdge = (
+  source: Node,
+  target: Node,
+  label: string = ""
+): CurveEdge => {
+  const id = crypto.randomUUID();
+  return {
+    id,
+    type: "edge/curve",
+    updater: atom<number>(0),
+    source,
+    target,
+    anchorSource: { type: "auto" },
+    anchorTarget: { type: "auto" },
+    isSelected: false,
+    label,
+  };
+};
+
 // 注册对象工厂（边工厂需要参数，暂时设为 null）
-ObjectFactories["edge/curve"] = (source?: Node, target?: Node, label: string = "") => {
-  return newCurveEdge(source || null as any, target || null as any, label);
+ObjectFactories["edge/curve"] = (
+  source?: Node,
+  target?: Node,
+  label: string = ""
+) => {
+  return newCurveEdge(source || (null as any), target || (null as any), label);
 };
 
 // 注册工具项

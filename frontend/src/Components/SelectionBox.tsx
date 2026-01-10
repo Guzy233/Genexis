@@ -6,7 +6,7 @@ interface SelectionBox extends Obj {
   end: { x: number; y: number };
 }
 
-const SelectionBoxComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
+Coms["ui/selectionBox"] = ({ obj }) => {
   useAtom(obj.updater);
   const box = obj as SelectionBox;
 
@@ -31,5 +31,3 @@ const SelectionBoxComponent: React.FC<{ obj: Obj }> = ({ obj }) => {
     </g>
   );
 };
-
-Coms["ui/selectionBox"] = SelectionBoxComponent;

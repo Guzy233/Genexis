@@ -1,15 +1,16 @@
 import "./css/App.css";
 import "./css/variables.css";
 import "./css/dark-theme.css";
+import { useAtom } from "jotai";
 import { Coms, Controllers } from "./Globals";
 import React, { useEffect, useState } from "react";
-import { useAtom } from "jotai";
-import Manager, { objects, canvasUpdater,createNewTab, clearTabs } from "./Manager";
+import { objects, canvasUpdater, createNewTab, clearTabs } from "./Manager";
 
 import SettingsPanel from "./Components/SettingPanel";
 import ToolBar from "./Components/ToolBar";
 import TopMenuBar from "./Components/TopMenuBar";
 import FileTabBar from "./Components/FileTabBar";
+import CoordinateSystem from "./Components/CoordinateSystem";
 
 import "./Components/TextNode";
 import "./Components/ImageNode";
@@ -19,7 +20,6 @@ import "./Components/LineEdge";
 import "./Components/SelectionBox";
 import "./Components/ContextMenu";
 import "./Components/DeletionTrail";
-import CoordinateSystem from "./Components/CoordinateSystem";
 
 import "./Controllers/Keyboard";
 import "./Controllers/Creator";
@@ -31,7 +31,6 @@ import "./Controllers/Camera";
 import "./Controllers/Deleter";
 import "./Controllers/Grower";
 import "./Controllers/Recipes";
-import { viewport } from "./Controllers/Camera";
 
 const App: React.FC = () => {
   useAtom(canvasUpdater);
@@ -50,11 +49,11 @@ const App: React.FC = () => {
     // generateRandomNodes(500)
     const canvas = canvasRef.current;
     if (!canvas) return;
-    createNewTab()
+    createNewTab();
     Controllers.map((controller) => controller.Begin(canvas));
     return () => {
       Controllers.map((controller) => controller.End(canvas));
-      clearTabs()
+      clearTabs();
     };
   }, []);
 
@@ -73,7 +72,12 @@ const App: React.FC = () => {
       <TopMenuBar />
 
       {/* 设置面板背景遮罩 */}
-      {showSettings && <div className="settings-backdrop visible" onClick={() => setShowSettings(false)} />}
+      {showSettings && (
+        <div
+          className="settings-backdrop visible"
+          onClick={() => setShowSettings(false)}
+        />
+      )}
 
       {/* 设置面板 */}
       {showSettings && (
@@ -149,7 +153,7 @@ const App: React.FC = () => {
         </g>
       </svg>
 
-      <div className="debug-info"></div>
+      {/* <div className="debug-info"></div> */}
     </div>
   );
 };

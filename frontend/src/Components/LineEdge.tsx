@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Anchor, Vec2, Obj, Node, Edge, Coms } from "../Globals";
 import { atom, useAtom } from "jotai";
 import { registerSerializer } from "../Serialization";
@@ -17,27 +17,8 @@ interface ResolvedPoint {
 }
 
 export interface LineEdge extends Edge {
-  // LineEdge 特有的属性可以在这里添加
-}
 
-export const newLineEdge = (
-  source: Node,
-  target: Node,
-  label: string = ""
-): LineEdge => {
-  const id = crypto.randomUUID();
-  return {
-    id,
-    type: "edge/line",
-    updater: atom<number>(0),
-    source,
-    target,
-    anchorSource: { type: "auto" },
-    anchorTarget: { type: "auto" },
-    isSelected: false,
-    label,
-  };
-};
+}
 
 // ==================== 几何计算逻辑 ====================
 
@@ -290,58 +271,39 @@ const calculateMidPoint = (
 
 // ==================== 组件渲染 ====================
 
-const LineEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
+Coms["edge/line"] = ({ obj }) => {
   const edge = obj as LineEdge;
   useAtom(obj.updater);
   useAtom(edge.source.updater);
   useAtom(edge.target.updater);
 
-  // 使用 useMemo 缓存边的路径计算，避免每帧重新计算
-  const { resolvedPoints, start, end, midPoint, hasLabel, maskId } = useMemo(() => {
-    const resolvedPoints = resolvePoints(
-      edge.source,
-      edge.target,
-      edge.anchorSource,
-      edge.anchorTarget
-    );
-
-    const { start, end, targetDir } = calculateLineEndpoints(
-      resolvedPoints.source,
-      resolvedPoints.target,
-      edge.source,
-      edge.target,
-      edge.anchorSource.type,
-      edge.anchorTarget.type
-    );
-
-    const midPoint = calculateMidPoint(start, end, edge.label);
-
-    return {
-      resolvedPoints,
-      start,
-      end,
-      midPoint,
-      hasLabel: !!midPoint,
-      maskId: `mask-${edge.id}`,
-    };
-  }, [
-    edge.source.pos.x,
-    edge.source.pos.y,
-    edge.target.pos.x,
-    edge.target.pos.y,
+  // 计算边的路径
+  const resolvedPoints = resolvePoints(
+    edge.source,
+    edge.target,
     edge.anchorSource,
-    edge.anchorTarget,
-    edge.label,
-    edge.isSelected,
-  ]);
+    edge.anchorTarget
+  );
+
+  const { start, end } = calculateLineEndpoints(
+    resolvedPoints.source,
+    resolvedPoints.target,
+    edge.source,
+    edge.target,
+    edge.anchorSource.type,
+    edge.anchorTarget.type
+  );
+
+  const midPoint = calculateMidPoint(start, end, edge.label);
+  const maskId = `mask-${edge.id}`;
 
   return (
     <g className="edge-group" data-id={edge.id}>
-      {/* 只在有标签时才创建 mask */}
-      {hasLabel && (
+
+      {edge.label && (
         <defs>
           <mask id={maskId} maskUnits="userSpaceOnUse">
-            {/* 全白背景表示全部可见 */}
+
             <rect
               x="-10000"
               y="-10000"
@@ -349,9 +311,11 @@ const LineEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
               height="20000"
               fill="white"
             />
-            {/* 在标签位置放置黑色矩形，表示该处不可见（即挖空） */}
+
             <g
-              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${midPoint!.angle})`}
+              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${
+                midPoint!.angle
+              })`}
             >
               <rect
                 x={-midPoint!.labelWidth / 2}
@@ -365,7 +329,6 @@ const LineEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
         </defs>
       )}
 
-      {/* 视觉线：只在有标签时应用 Mask */}
       <line
         className="visual-line"
         x1={start.x}
@@ -374,11 +337,10 @@ const LineEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
         y2={end.y}
         stroke={edge.isSelected ? "#f472b6" : "#6366f1"}
         strokeWidth="2"
-        mask={hasLabel ? `url(#${maskId})` : undefined}
+        mask={edge.label ? `url(#${maskId})` : undefined}
         markerEnd={"url(#arrowhead1)"}
       />
 
-      {/* 点击区域：不加 Mask，确保整条线都能响应点击 */}
       <line
         x1={start.x}
         y1={start.y}
@@ -390,7 +352,6 @@ const LineEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
         onMouseDown={() => {}}
       />
 
-      {/* 起点/终点小圆点 */}
       <circle
         cx={resolvedPoints.source.x}
         cy={resolvedPoints.source.y}
@@ -398,6 +359,7 @@ const LineEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
         fill="#1e1e2e"
         stroke="#6366f1"
       />
+
       <circle
         cx={resolvedPoints.target.x}
         cy={resolvedPoints.target.y}
@@ -406,7 +368,6 @@ const LineEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
         stroke="#6366f1"
       />
 
-      {/* 标签文字：放在挖空的位置 */}
       {midPoint && (
         <g
           transform={`translate(${midPoint.x}, ${midPoint.y}) rotate(${midPoint.angle})`}
@@ -425,11 +386,8 @@ const LineEdgeComponent: React.FC<{ obj: Obj }> = React.memo(({ obj }) => {
       )}
     </g>
   );
-});
+};
 
-Coms["edge/line"] = LineEdgeComponent;
-
-// ==================== 序列化与右键菜单 ====================
 
 registerSerializer(
   "edge/line",
@@ -438,7 +396,6 @@ registerSerializer(
     return {
       id: edge.id,
       type: edge.type,
-      // 使用 ID 保存，避免重复存储节点数据
       sourceId: edge.source.id,
       targetId: edge.target.id,
       anchorSource: { ...edge.anchorSource },
@@ -450,9 +407,6 @@ registerSerializer(
   (data) => ({
     id: data.id,
     type: data.type,
-    // 反序列化时使用 sourceId 和 targetId，source 和 target 会在 deserializeCanvas 中设置
-    // sourceId: data.sourceId,
-    // targetId: data.targetId,
     anchorSource: data.anchorSource ?? { type: "auto" },
     anchorTarget: data.anchorTarget ?? { type: "auto" },
     isSelected: data.isSelected ?? false,
@@ -465,7 +419,25 @@ registerSerializer(
 
 ContextMenuFactories["edge"] = () => [];
 
-// 注册对象工厂（边工厂需要参数，暂时设为 null）
+export const newLineEdge = (
+  source: Node,
+  target: Node,
+  label: string = ""
+): LineEdge => {
+  const id = crypto.randomUUID();
+  return {
+    id,
+    type: "edge/line",
+    updater: atom<number>(0),
+    source,
+    target,
+    anchorSource: { type: "auto" },
+    anchorTarget: { type: "auto" },
+    isSelected: false,
+    label,
+  };
+};
+
 ObjectFactories["edge/line"] = (source?: Node, target?: Node, label: string = "") => {
   return newLineEdge(source || null as any, target || null as any, label);
 };
