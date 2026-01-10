@@ -1,4 +1,4 @@
-import Manager, { objects } from "../Manager";
+import Manager, { objects, mgrUpdateRelationsFromEdge } from "../Manager";
 import { Edge, idFromEvent, Node, Controllers, Obj } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
@@ -6,7 +6,6 @@ import { screen2Viewport, viewport } from "./Camera";
 import { createNodeCentered, ObjectFactories } from "./Creator";
 import { getToolForCategory, CATEGORY_EDGES } from "../Components/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
-import { updateRelationsFromEdge } from "../NodeRelations";
 import { saveHistory } from "../Manager";
 
 // 连接器状态
@@ -89,7 +88,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
         vEdge.anchorTarget = { type: "auto" };
         Manager.updateId(vEdge.id);
         // 更新节点关系
-        updateRelationsFromEdge(vEdge.id);
+        mgrUpdateRelationsFromEdge(vEdge.id);
         saveHistory();
       }
     } else {
@@ -102,7 +101,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
         Manager.add(node);
         Manager.update(vEdge);
         // 更新节点关系
-        updateRelationsFromEdge(vEdge.id);
+        mgrUpdateRelationsFromEdge(vEdge.id);
         saveHistory();
       } else {
         Manager.deleteId(vEdge.id);

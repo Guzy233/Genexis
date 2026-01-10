@@ -3,7 +3,7 @@ import { Controllers, Vec2, Node, Obj } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { getToolForCategory, CATEGORY_NODES } from "../Components/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
-import { addEdgeRelation } from "../NodeRelations";
+import { addEdgeRelation } from "../Algorithm";
 import { saveHistory } from "../Manager";
 
 // 通用对象工厂

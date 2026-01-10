@@ -1,10 +1,9 @@
 import { Controllers } from "../Globals";
 import { registerSetting, getSetting } from "../Option";
 import Manager, { updateCanvas } from "../Manager";
-import { objects, saveHistory, undo, redo } from "../Manager";
+import { objects, saveHistory, undo, redo, mgrAddEdgeRelation } from "../Manager";
 import { serializeCanvas, deserializeCanvas, SerializedCanvas } from "../Serialization";
 import { screen2Viewport } from "./Camera";
-import { addEdgeRelation } from "../NodeRelations";
 
 // 键盘操作枚举
 export const KeyAction = {
@@ -210,7 +209,7 @@ const pasteFromClipboard = async (mousePos?: { x: number; y: number }): Promise<
     clipboardData.objects
       .filter((obj) => obj.type.startsWith("edge/"))
       .forEach((edgeData: any) => {
-        addEdgeRelation(edgeData.sourceId, edgeData.targetId);
+        mgrAddEdgeRelation(edgeData.sourceId, edgeData.targetId);
       });
 
     saveHistory();

@@ -6,6 +6,18 @@ import {
   SerializedCanvas,
 } from "./Serialization";
 import { SaveFile, SaveFileDirect, LoadFile } from "../wailsjs/go/main/App";
+import {
+  NodeRelationGraph,
+  createRelationGraph,
+  addEdgeRelation,
+  removeEdgeRelation,
+  clearNodeRelations,
+  updateRelationsFromEdge,
+  calculateChildPosition,
+  serializeRelationGraph,
+  deserializeRelationGraph,
+  rebuildRelationGraph,
+} from "./Algorithm";
 
 export const objects: Record<string, Obj> = {};
 export const store = getDefaultStore();
@@ -37,6 +49,7 @@ export interface FileTab {
   filePath: string | null; // 文件路径，null 表示未保存的新文件
   fileName: string; // 显示名称
   objects: Record<string, any>; // 该文件的画布数据
+  nodeRelations: NodeRelationGraph; // 该文件的节点关系图
   isModified: boolean; // 是否有未保存的修改
   history: FileHistory; // 该文件的撤销/重做历史
 }
@@ -177,10 +190,11 @@ export const switchTab = (tabId: string) => {
   const targetTab = openTabs.find((tab) => tab.id === tabId);
   if (!targetTab) return false;
 
-  // 保存当前标签的 objects 状态
+  // 保存当前标签的 objects 和 nodeRelations 状态
   const currentTab = getActiveTab();
   if (currentTab) {
     currentTab.objects = { ...objects };
+    // nodeRelations 已经是引用，不需要额外保存
   }
 
   // 切换到目标标签
@@ -257,13 +271,14 @@ export const closeTab = async (tabId: string) => {
       // 切换到相邻标签
       const newIndex = Math.min(tabIndex, openTabs.length - 1);
       switchTab(openTabs[newIndex].id);
+      updateCanvas();
     } else {
-      // 没有标签了，创建新标签
       activeTabId = null;
       Object.keys(objects).forEach((key) => {
         delete objects[key];
       });
       createNewTab();
+      updateCanvas();
     }
   }
 
@@ -278,6 +293,7 @@ export const createNewTab = () => {
     filePath: null,
     fileName: "未命名",
     objects: {},
+    nodeRelations: createRelationGraph(),
     isModified: false,
     history: createNewHistory(),
   };
@@ -435,6 +451,9 @@ export const loadFile = async (): Promise<boolean> => {
   // 反序列化画布数据
   deserializeCanvas(data, objects);
 
+  // 重建节点关系图
+  const nodeRelations = rebuildRelationGraph(objects);
+
   // 创建新标签或更新当前标签
   const fileName = getFilenameFromPath(filePath);
 
@@ -449,6 +468,7 @@ export const loadFile = async (): Promise<boolean> => {
     activeTab.filePath = filePath;
     activeTab.fileName = fileName;
     activeTab.objects = { ...objects };
+    activeTab.nodeRelations = nodeRelations;
     setTabModified(false);
     // 重置历史
     activeTab.history.history = [];
@@ -460,6 +480,7 @@ export const loadFile = async (): Promise<boolean> => {
     newTab.filePath = filePath;
     newTab.fileName = fileName;
     newTab.objects = { ...objects };
+    newTab.nodeRelations = nodeRelations;
     setTabModified(false);
     // 重置历史
     newTab.history.history = [];
@@ -481,13 +502,10 @@ export const hasUnsavedChanges = (): boolean => {
 
 // 新建文件
 export const newFile = async (): Promise<boolean> => {
-  // 检查当前标签是否有未保存的更改
+  // 保存当前标签的 objects 快照到标签中
   const activeTab = getActiveTab();
-  if (activeTab && activeTab.isModified) {
-    const confirmed = confirm(
-      `文件 "${activeTab.fileName}" 有未保存的更改，确定要新建吗？`
-    );
-    if (!confirmed) return false;
+  if (activeTab) {
+    activeTab.objects = { ...objects };
   }
 
   // 清空当前对象
@@ -509,6 +527,70 @@ export const newFile = async (): Promise<boolean> => {
 export const getCurrentFilePath = () => {
   const activeTab = getActiveTab();
   return activeTab?.filePath || null;
+};
+
+// ==================== 节点关系管理（转发函数） ====================
+
+/**
+ * 获取当前标签的关系图
+ */
+const getCurrentRelationGraph = (): NodeRelationGraph | null => {
+  const activeTab = getActiveTab();
+  return activeTab?.nodeRelations || null;
+};
+
+/**
+ * 添加边的关系记录
+ */
+export const mgrAddEdgeRelation = (sourceId: string, targetId: string): void => {
+  const graph = getCurrentRelationGraph();
+  if (graph) {
+    addEdgeRelation(graph, sourceId, targetId);
+  }
+};
+
+/**
+ * 移除边的关系记录
+ */
+export const mgrRemoveEdgeRelation = (sourceId: string, targetId: string): void => {
+  const graph = getCurrentRelationGraph();
+  if (graph) {
+    removeEdgeRelation(graph, sourceId, targetId);
+  }
+};
+
+/**
+ * 清除节点的关系记录
+ */
+export const mgrClearNodeRelations = (nodeId: string): void => {
+  const graph = getCurrentRelationGraph();
+  if (graph) {
+    clearNodeRelations(graph, nodeId);
+  }
+};
+
+/**
+ * 根据边更新节点关系
+ */
+export const mgrUpdateRelationsFromEdge = (edgeId: string): void => {
+  const graph = getCurrentRelationGraph();
+  if (graph) {
+    updateRelationsFromEdge(graph, objects, edgeId);
+  }
+};
+
+/**
+ * 计算子节点位置
+ */
+export const mgrCalculateChildPosition = (
+  parentId: string | null,
+  defaultPos: { x: number; y: number }
+): { x: number; y: number } => {
+  const graph = getCurrentRelationGraph();
+  if (graph) {
+    return calculateChildPosition(graph, objects, parentId, defaultPos);
+  }
+  return defaultPos;
 };
 
 // Manager 默认导出
@@ -537,14 +619,7 @@ export default {
 
     // 如果是节点，清理关系记录
     if (obj.type.startsWith("node/")) {
-      // 动态导入清理函数，避免循环依赖
-      import("./NodeRelations")
-        .then(({ clearNodeRelations }) => {
-          clearNodeRelations(id);
-        })
-        .catch(() => {
-          // 忽略模块未加载错误
-        });
+      mgrClearNodeRelations(id);
     }
 
     // 如果是节点，找出并删除连接到它的所有边

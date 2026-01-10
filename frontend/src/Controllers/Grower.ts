@@ -1,4 +1,4 @@
-import Manager, { objects } from "../Manager";
+import Manager, { objects, mgrUpdateRelationsFromEdge, mgrCalculateChildPosition } from "../Manager";
 import { Controllers, Node, Edge } from "../Globals";
 import { registerSetting } from "../Option";
 import { atom } from "jotai";
@@ -6,10 +6,6 @@ import { viewport } from "./Camera";
 import { ObjectFactories } from "./Creator";
 import { activedId, active } from "./Selector";
 import { saveHistory } from "../Manager";
-import {
-  calculateChildPosition,
-  updateRelationsFromEdge,
-} from "../NodeRelations";
 
 // ==================== 生长逻辑 ====================
 
@@ -27,7 +23,7 @@ const startGrowMode = (e: KeyboardEvent) => {
   e.stopPropagation();
 
   // 计算新节点位置
-  const newNodePos = calculateChildPosition(activedId, {
+  const newNodePos = mgrCalculateChildPosition(activedId, {
     x: sourceNode.pos.x + 300,
     y: sourceNode.pos.y,
   });
@@ -98,7 +94,7 @@ const startGrowMode = (e: KeyboardEvent) => {
 
     // 更新节点关系
     if (vEdge.id in objects) {
-      updateRelationsFromEdge(vEdge.id);
+      mgrUpdateRelationsFromEdge(vEdge.id);
     }
 
     // 保存历史
