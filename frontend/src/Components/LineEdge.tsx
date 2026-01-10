@@ -438,8 +438,9 @@ registerSerializer(
     return {
       id: edge.id,
       type: edge.type,
-      source: {...edge.source},
-      target: {...edge.target},
+      // 使用 ID 保存，避免重复存储节点数据
+      sourceId: edge.source.id,
+      targetId: edge.target.id,
       anchorSource: { ...edge.anchorSource },
       anchorTarget: { ...edge.anchorTarget },
       isSelected: edge.isSelected,
@@ -449,8 +450,11 @@ registerSerializer(
   (data) => ({
     id: data.id,
     type: data.type,
-    anchorSource: { ...data.anchorSource },
-    anchorTarget: { ...data.anchorTarget },
+    // 反序列化时使用 sourceId 和 targetId，source 和 target 会在 deserializeCanvas 中设置
+    // sourceId: data.sourceId,
+    // targetId: data.targetId,
+    anchorSource: data.anchorSource ?? { type: "auto" },
+    anchorTarget: data.anchorTarget ?? { type: "auto" },
     isSelected: data.isSelected ?? false,
     label: data.label,
     updater: atom(0),

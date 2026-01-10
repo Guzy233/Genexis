@@ -186,8 +186,10 @@ registerSerializer(
       type: node.type,
       pos: { ...node.pos },
       size: { ...node.size },
-      aAncs: serializeAnchors(node.aAncs),
-      eAncs: serializeAnchors(node.eAncs),
+      // 可用锚点使用预设 "rect"（四方向锚点）
+      aAncs: serializeAnchors(node.aAncs, "rect"),
+      // 启用锚点使用编码字符串
+      eAncs: serializeAnchors(node.eAncs, null),
       itemId: node.itemId,
       spriteSize: { ...node.spriteSize },
       selected: node.selected,

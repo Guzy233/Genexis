@@ -14,6 +14,10 @@ export const KeyAction = {
   SHOW_ACTIONS: "SHOW_ACTIONS",
   EDIT_NODE: "EDIT_NODE",
   EXIT: "EXIT",
+  SAVE: "SAVE",
+  SAVE_AS: "SAVE_AS",
+  LOAD: "LOAD",
+  NEW_FILE: "NEW_FILE",
 } as const;
 
 export type KeyAction = typeof KeyAction[keyof typeof KeyAction];
@@ -139,6 +143,27 @@ const executeAction = (action: KeyAction): void => {
     case KeyAction.EXIT:
       console.log("Exit");
       break;
+    case KeyAction.SAVE:
+      // 动态导入以避免循环依赖
+      import("./File").then(({ saveFile }) => {
+        saveFile();
+      });
+      break;
+    case KeyAction.SAVE_AS:
+      import("./File").then(({ saveFileAs }) => {
+        saveFileAs();
+      });
+      break;
+    case KeyAction.LOAD:
+      import("./File").then(({ loadFile }) => {
+        loadFile();
+      });
+      break;
+    case KeyAction.NEW_FILE:
+      import("./File").then(({ newFile }) => {
+        newFile();
+      });
+      break;
   }
 };
 
@@ -250,6 +275,50 @@ registerSetting({
   onChange: (v) => updateBinding(KeyAction.EXIT, v),
 });
 
+registerSetting({
+  id: "keyboard.save",
+  category: "Keyboard",
+  title: "保存",
+  type: "key",
+  defaultValue: "Cs",
+  value: "Cs",
+  description: "保存当前文件",
+  onChange: (v) => updateBinding(KeyAction.SAVE, v),
+});
+
+registerSetting({
+  id: "keyboard.saveAs",
+  category: "Keyboard",
+  title: "另存为",
+  type: "key",
+  defaultValue: "CSs",
+  value: "CSs",
+  description: "另存为新文件",
+  onChange: (v) => updateBinding(KeyAction.SAVE_AS, v),
+});
+
+registerSetting({
+  id: "keyboard.load",
+  category: "Keyboard",
+  title: "打开",
+  type: "key",
+  defaultValue: "Co",
+  value: "Co",
+  description: "打开文件",
+  onChange: (v) => updateBinding(KeyAction.LOAD, v),
+});
+
+registerSetting({
+  id: "keyboard.newFile",
+  category: "Keyboard",
+  title: "新建",
+  type: "key",
+  defaultValue: "Cn",
+  value: "Cn",
+  description: "新建文件",
+  onChange: (v) => updateBinding(KeyAction.NEW_FILE, v),
+});
+
 // 初始化默认绑定
 const initDefaultBindings = () => {
   const categories = [
@@ -262,6 +331,10 @@ const initDefaultBindings = () => {
     { id: "keyboard.showActions", action: KeyAction.SHOW_ACTIONS },
     { id: "keyboard.editNode", action: KeyAction.EDIT_NODE },
     { id: "keyboard.exit", action: KeyAction.EXIT },
+    { id: "keyboard.save", action: KeyAction.SAVE },
+    { id: "keyboard.saveAs", action: KeyAction.SAVE_AS },
+    { id: "keyboard.load", action: KeyAction.LOAD },
+    { id: "keyboard.newFile", action: KeyAction.NEW_FILE },
   ];
 
   categories.forEach(({ id, action }) => {

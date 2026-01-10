@@ -30,6 +30,7 @@ import "./Controllers/Camera";
 import "./Controllers/Deleter";
 import "./Controllers/Grower";
 import "./Controllers/Recipes";
+import "./Controllers/File";
 import { generateRandomNodes } from "./Controllers/Creator";
 import { viewport } from "./Controllers/Camera";
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import Manager, { objects } from "../Manager";
-import { serializeCanvas } from "../Serialization";
+import Manager from "../Manager";
 import { Quit, Minimize, Maximize, IsMaximized } from "../../wailsjs/go/main/App";
+import { newFile, loadFile, saveFile, saveFileAs } from "../Controllers/File";
 
 // 菜单项接口
 interface MenuItem {
@@ -25,15 +25,10 @@ const menuStructure: MenuCategory[] = [
     id: "file",
     label: "文件",
     items: [
-      { id: "new", label: "新建", shortcut: "Ctrl+N", action: () => console.log("新建") },
-      { id: "open", label: "打开", shortcut: "Ctrl+O", action: () => console.log("打开") },
-      { id: "save", label: "保存", shortcut: "Ctrl+S", action: () => {
-        // 保存到 localStorage
-        const data = serializeCanvas(objects);
-        localStorage.setItem("mindgraph", JSON.stringify(data));
-        console.log("已保存");
-      }},
-      { id: "export", label: "导出", action: () => console.log("导出") },
+      { id: "new", label: "新建", shortcut: "Ctrl+N", action: () => newFile() },
+      { id: "open", label: "打开", shortcut: "Ctrl+O", action: () => loadFile() },
+      { id: "save", label: "保存", shortcut: "Ctrl+S", action: () => saveFile() },
+      { id: "saveAs", label: "另存为", shortcut: "Ctrl+Shift+S", action: () => saveFileAs() },
       { id: "divider1", label: "", divider: true, action: () => {} },
       { id: "settings", label: "设置", shortcut: "Ctrl+,", action: () => {
         // 触发设置面板打开事件
