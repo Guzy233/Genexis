@@ -99,6 +99,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
       if (node) {
         vEdge.target = node;
         Manager.add(node);
+        Manager.update(vEdge);
         // 更新节点关系
         updateRelationsFromEdge(vEdge.id);
         Manager.saveHistory();
