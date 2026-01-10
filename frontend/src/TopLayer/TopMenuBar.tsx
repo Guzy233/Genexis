@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Quit, Minimize, Maximize, IsMaximized } from "../../wailsjs/go/main/App";
-import { newFile, loadFile, saveFile, saveFileAs, undo, redo } from "../Manager";
+import {
+  Quit,
+  Minimize,
+  Maximize,
+  IsMaximized,
+} from "../../wailsjs/go/main/App";
+import {
+  newFile,
+  loadFile,
+  saveFile,
+  saveFileAs,
+  undo,
+  redo,
+} from "../Manager";
+import { topLayer } from "../Globals";
 
 // 菜单项接口
 interface MenuItem {
@@ -25,14 +38,34 @@ const menuStructure: MenuCategory[] = [
     label: "文件",
     items: [
       { id: "new", label: "新建", shortcut: "Ctrl+N", action: () => newFile() },
-      { id: "open", label: "打开", shortcut: "Ctrl+O", action: () => loadFile() },
-      { id: "save", label: "保存", shortcut: "Ctrl+S", action: () => saveFile() },
-      { id: "saveAs", label: "另存为", shortcut: "Ctrl+Shift+S", action: () => saveFileAs() },
+      {
+        id: "open",
+        label: "打开",
+        shortcut: "Ctrl+O",
+        action: () => loadFile(),
+      },
+      {
+        id: "save",
+        label: "保存",
+        shortcut: "Ctrl+S",
+        action: () => saveFile(),
+      },
+      {
+        id: "saveAs",
+        label: "另存为",
+        shortcut: "Ctrl+Shift+S",
+        action: () => saveFileAs(),
+      },
       { id: "divider1", label: "", divider: true, action: () => {} },
-      { id: "settings", label: "设置", shortcut: "Ctrl+,", action: () => {
-        // 触发设置面板打开事件
-        window.dispatchEvent(new CustomEvent("open-settings"));
-      }},
+      {
+        id: "settings",
+        label: "设置",
+        shortcut: "Ctrl+,",
+        action: () => {
+          // 触发设置面板打开事件
+          window.dispatchEvent(new CustomEvent("open-settings"));
+        },
+      },
     ],
   },
   {
@@ -42,37 +75,71 @@ const menuStructure: MenuCategory[] = [
       { id: "undo", label: "撤销", shortcut: "Ctrl+Z", action: () => undo() },
       { id: "redo", label: "重做", shortcut: "Ctrl+Y", action: () => redo() },
       { id: "divider1", label: "", divider: true, action: () => {} },
-      { id: "delete", label: "删除", shortcut: "Del", action: () => console.log("删除选中") },
+      {
+        id: "delete",
+        label: "删除",
+        shortcut: "Del",
+        action: () => console.log("删除选中"),
+      },
     ],
   },
   {
     id: "view",
     label: "视图",
     items: [
-      { id: "zoom-in", label: "放大", shortcut: "Ctrl++", action: () => console.log("放大") },
-      { id: "zoom-out", label: "缩小", shortcut: "Ctrl+-", action: () => console.log("缩小") },
-      { id: "reset-view", label: "重置视图", shortcut: "Ctrl+0", action: () => console.log("重置视图") },
+      {
+        id: "zoom-in",
+        label: "放大",
+        shortcut: "Ctrl++",
+        action: () => console.log("放大"),
+      },
+      {
+        id: "zoom-out",
+        label: "缩小",
+        shortcut: "Ctrl+-",
+        action: () => console.log("缩小"),
+      },
+      {
+        id: "reset-view",
+        label: "重置视图",
+        shortcut: "Ctrl+0",
+        action: () => console.log("重置视图"),
+      },
     ],
   },
   {
     id: "help",
     label: "帮助",
     items: [
-      { id: "shortcuts", label: "快捷键", action: () => console.log("快捷键帮助") },
-      { id: "about", label: "关于", action: () => console.log("关于 MindGraph3") },
+      {
+        id: "shortcuts",
+        label: "快捷键",
+        action: () => console.log("快捷键帮助"),
+      },
+      {
+        id: "about",
+        label: "关于",
+        action: () => console.log("关于 MindGraph3"),
+      },
     ],
   },
 ];
 
 // 菜单按钮组件（图标形式）
-const MenuButton: React.FC<{ category: MenuCategory; icon: string }> = ({ category, icon }) => {
+const MenuButton: React.FC<{ category: MenuCategory; icon: string }> = ({
+  category,
+  icon,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = React.useRef<HTMLDivElement>(null);
 
   // 点击外部关闭菜单
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -109,7 +176,9 @@ const MenuButton: React.FC<{ category: MenuCategory; icon: string }> = ({ catego
               }}
             >
               <span>{item.label}</span>
-              {item.shortcut && <span className="menu-shortcut">{item.shortcut}</span>}
+              {item.shortcut && (
+                <span className="menu-shortcut">{item.shortcut}</span>
+              )}
             </div>
           )
         )}
@@ -164,8 +233,7 @@ const WindowControls: React.FC = () => {
   );
 };
 
-// 顶部菜单栏组件（浮动按钮组）
-const TopMenuBar: React.FC = () => {
+topLayer.push(() => {
   // 为每个菜单定义图标
   const menuIcons: Record<string, string> = {
     file: "📁",
@@ -199,6 +267,4 @@ const TopMenuBar: React.FC = () => {
       </div>
     </>
   );
-};
-
-export default TopMenuBar;
+});

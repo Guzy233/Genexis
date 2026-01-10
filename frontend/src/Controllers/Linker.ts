@@ -4,7 +4,7 @@ import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
 import { createNodeCentered, ObjectFactories } from "./Creator";
-import { getToolForCategory, CATEGORY_EDGES } from "../Components/ToolBar";
+import { getToolForCategory, CATEGORY_EDGES } from "../TopLayer/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
 import { saveHistory } from "../Manager";
 

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { topLayer } from "../Globals";
 
 // ==================== 工具项相关 ====================
 
@@ -54,7 +55,7 @@ const getToolLabel = (item: ToolItem): string => {
 };
 
 // 底部 Dock 工具栏组件
-export const ToolBar: React.FC = () => {
+topLayer.push(() => {
   // 为每个 category 维护选中状态
   const [selectedTools, setSelectedTools] = useState<Record<string, string>>(() => ({ ...categoryTools }));
 
@@ -113,6 +114,4 @@ export const ToolBar: React.FC = () => {
       })}
     </div>
   );
-};
-
-export default ToolBar;
+});

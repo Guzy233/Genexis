@@ -1,6 +1,13 @@
 import React from "react";
 import { useAtom } from "jotai";
-import { tabsUpdater, getAllTabs, getActiveTab, switchTab, closeTab } from "../Manager";
+import { topLayer } from "../Globals";
+import {
+  tabsUpdater,
+  getAllTabs,
+  getActiveTab,
+  switchTab,
+  closeTab,
+} from "../Manager";
 
 interface FileTab {
   id: string;
@@ -10,7 +17,7 @@ interface FileTab {
   isModified: boolean;
 }
 
-const FileTabBar: React.FC = () => {
+topLayer.push(() => {
   const [, forceUpdate] = useAtom(tabsUpdater);
   const [hoveredTab, setHoveredTab] = React.useState<string | null>(null);
 
@@ -42,10 +49,7 @@ const FileTabBar: React.FC = () => {
 
   return (
     <div className="file-tab-bar">
-      <div
-        className="file-tab-list"
-        onWheel={handleWheel}
-      >
+      <div className="file-tab-list" onWheel={handleWheel}>
         {tabs.map((tab, index) => (
           <div
             key={tab.id}
@@ -54,7 +58,7 @@ const FileTabBar: React.FC = () => {
             onMouseEnter={() => setHoveredTab(tab.id)}
             onMouseLeave={() => setHoveredTab(null)}
             style={{
-              animationDelay: `${index * 0.05}s`
+              animationDelay: `${index * 0.05}s`,
             }}
           >
             <span className="file-tab-name">
@@ -62,7 +66,11 @@ const FileTabBar: React.FC = () => {
               {tab.isModified && <span className="modified-indicator">*</span>}
             </span>
             <button
-              className={`file-tab-close ${hoveredTab === tab.id || tab.id === activeTab?.id ? "visible" : ""}`}
+              className={`file-tab-close ${
+                hoveredTab === tab.id || tab.id === activeTab?.id
+                  ? "visible"
+                  : ""
+              }`}
               onClick={(e) => handleCloseClick(e, tab.id)}
             >
               ×
@@ -72,6 +80,4 @@ const FileTabBar: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default FileTabBar;
+});

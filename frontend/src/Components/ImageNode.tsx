@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { atom, getDefaultStore, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
-import { ToolItems, CATEGORY_NODES } from "./ToolBar";
+import { ToolItems, CATEGORY_NODES } from "../TopLayer/ToolBar";
 import { ObjectFactories } from "../Controllers/Creator";
 import {
   ContextMenuFactories,

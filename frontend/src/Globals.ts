@@ -1,4 +1,5 @@
 import { PrimitiveAtom } from "jotai";
+import React from "react";
 
 export interface Vec2 {
   x: number;
@@ -68,4 +69,9 @@ export const Coms: Record<
   }>
 > = {};
 
-export const Controllers: { Begin: (canvas: SVGGElement) => any, End: (canvas: SVGGElement) => any }[] = [];
+export const topLayer: Array<React.FC> = [];
+
+export const Controllers: {
+  Begin: (canvas: SVGGElement) => any;
+  End: (canvas: SVGGElement) => any;
+}[] = [];

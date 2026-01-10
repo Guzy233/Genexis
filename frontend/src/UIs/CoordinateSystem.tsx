@@ -38,5 +38,3 @@ export const CoordinateSystem: React.FC = () => {
     </g>
   );
 };
-
-export default CoordinateSystem;

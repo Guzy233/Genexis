@@ -1,7 +1,7 @@
 import Manager from "../Manager";
 import { Controllers, Vec2, Node, Obj } from "../Globals";
 import { screen2Viewport } from "./Camera";
-import { getToolForCategory, CATEGORY_NODES } from "../Components/ToolBar";
+import { getToolForCategory, CATEGORY_NODES } from "../TopLayer/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
 import { addEdgeRelation } from "../Algorithm";
 import { saveHistory } from "../Manager";
