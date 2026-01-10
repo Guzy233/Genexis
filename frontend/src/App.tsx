@@ -9,6 +9,7 @@ import { objects, canvasUpdater } from "./Manager";
 import SettingsPanel from "./Components/SettingPanel";
 import ToolBar from "./Components/ToolBar";
 import TopMenuBar from "./Components/TopMenuBar";
+import FileTabBar from "./Components/FileTabBar";
 
 import "./Components/TextNode";
 import "./Components/ImageNode";
@@ -85,6 +86,9 @@ const App: React.FC = () => {
 
       {/* 底部 Dock 工具栏 */}
       <ToolBar />
+
+      {/* 左下角文件标签栏 */}
+      <FileTabBar />
 
       <svg width="100%" height="100%" className="mindmap-svg">
         <defs>

@@ -239,3 +239,126 @@ body {
   content: "输入图片URL...";
   color: #a1a1aa;
 }
+
+/* ==================== File Tab Bar ==================== */
+.file-tab-bar {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.file-tab-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  overflow-x: visible;
+  pointer-events: auto;
+  /* 自定义滚动条 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.file-tab-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.file-tab-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-tab-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.file-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 150px;
+  max-width: 200px;
+  height: 32px;
+  padding: 0 10px;
+  background: rgba(30, 30, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  /* 浮动动画 */
+  animation: tabSlideIn 0.3s ease forwards;
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+@keyframes tabSlideIn {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.file-tab:hover {
+  background: rgba(50, 50, 55, 0.95);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateX(4px);
+}
+
+.file-tab.active {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.file-tab-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+}
+
+.modified-indicator {
+  color: #fbbf24;
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+.file-tab-close {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.15s ease;
+  pointer-events: none;
+}
+
+.file-tab-close.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.file-tab-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.file-tab-close:active {
+  transform: scale(0.9);
+}

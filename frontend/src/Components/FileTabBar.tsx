@@ -1,0 +1,77 @@
+import React from "react";
+import { useAtom } from "jotai";
+import { tabsUpdater, getAllTabs, getActiveTab, switchTab, closeTab } from "../Controllers/File";
+
+interface FileTab {
+  id: string;
+  filePath: string | null;
+  fileName: string;
+  objects: Record<string, any>;
+  isModified: boolean;
+}
+
+const FileTabBar: React.FC = () => {
+  const [, forceUpdate] = useAtom(tabsUpdater);
+  const [hoveredTab, setHoveredTab] = React.useState<string | null>(null);
+
+  // 获取标签列表
+  const tabs = getAllTabs();
+  const activeTab = getActiveTab();
+
+  // 处理标签点击
+  const handleTabClick = (tabId: string) => {
+    if (tabId !== activeTab?.id) {
+      switchTab(tabId);
+      forceUpdate(Math.random());
+    }
+  };
+
+  // 处理关闭按钮点击
+  const handleCloseClick = (e: React.MouseEvent, tabId: string) => {
+    e.stopPropagation();
+    closeTab(tabId);
+    forceUpdate(Math.random());
+  };
+
+  // 处理鼠标滚轮，实现标签上下滚动
+  const handleWheel = (e: React.WheelEvent) => {
+    const container = e.currentTarget;
+    e.preventDefault();
+    container.scrollTop += e.deltaY;
+  };
+
+  return (
+    <div className="file-tab-bar">
+      <div
+        className="file-tab-list"
+        onWheel={handleWheel}
+      >
+        {tabs.map((tab, index) => (
+          <div
+            key={tab.id}
+            className={`file-tab ${tab.id === activeTab?.id ? "active" : ""}`}
+            onClick={() => handleTabClick(tab.id)}
+            onMouseEnter={() => setHoveredTab(tab.id)}
+            onMouseLeave={() => setHoveredTab(null)}
+            style={{
+              animationDelay: `${index * 0.05}s`
+            }}
+          >
+            <span className="file-tab-name">
+              {tab.fileName}
+              {tab.isModified && <span className="modified-indicator"> ●</span>}
+            </span>
+            <button
+              className={`file-tab-close ${hoveredTab === tab.id || tab.id === activeTab?.id ? "visible" : ""}`}
+              onClick={(e) => handleCloseClick(e, tab.id)}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default FileTabBar;
