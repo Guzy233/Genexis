@@ -5,7 +5,6 @@ import {
   deserializeCanvas,
   SerializedCanvas,
 } from "./Serialization";
-import { Controllers } from "./Globals";
 import { SaveFile, SaveFileDirect, LoadFile } from "../wailsjs/go/main/App";
 
 export const objects: Record<string, Obj> = {};
