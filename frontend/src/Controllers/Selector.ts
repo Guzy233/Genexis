@@ -6,7 +6,7 @@ import { atom } from "jotai";
 
 // ==================== 键盘导航配置 ====================
 
-type NavigationDirection = 'up' | 'down' | 'left' | 'right';
+type NavigationDirection = "up" | "down" | "left" | "right";
 
 interface KeyboardNavConfig {
   up: string;
@@ -16,10 +16,10 @@ interface KeyboardNavConfig {
 }
 
 const defaultNavKeys: KeyboardNavConfig = {
-  up: 'i',
-  down: 'k',
-  left: 'j',
-  right: 'l',
+  up: "i",
+  down: "k",
+  left: "j",
+  right: "l",
 };
 
 let navKeys: KeyboardNavConfig = { ...defaultNavKeys };
@@ -27,10 +27,10 @@ let navKeys: KeyboardNavConfig = { ...defaultNavKeys };
 // 从按键配置获取方向（忽略大小写）
 const getDirectionFromKey = (key: string): NavigationDirection | null => {
   const lowerKey = key.toLowerCase();
-  if (lowerKey === navKeys.up) return 'up';
-  if (lowerKey === navKeys.down) return 'down';
-  if (lowerKey === navKeys.left) return 'left';
-  if (lowerKey === navKeys.right) return 'right';
+  if (lowerKey === navKeys.up) return "up";
+  if (lowerKey === navKeys.down) return "down";
+  if (lowerKey === navKeys.left) return "left";
+  if (lowerKey === navKeys.right) return "right";
   return null;
 };
 
@@ -50,10 +50,10 @@ interface SelectionBox extends Obj {
 
 export let activedId = "";
 export function active(id: string) {
-  const last = activedId
+  const last = activedId;
   activedId = id;
-  if (last) Manager.updateId(last)
-  Manager.updateId(activedId)
+  if (last) Manager.updateId(last);
+  if (activedId) Manager.updateId(activedId);
 }
 
 // ==================== 键盘导航逻辑 ====================
@@ -84,25 +84,25 @@ const findNearestNodeInDirection = (
     // 空间搜索算法：基于方向过滤并计算加权距离
     // 权重系数 3.0 用于惩罚非主方向上的偏移，使跳跃更倾向于直线
     switch (direction) {
-      case 'up':
+      case "up":
         if (dy < 0) {
           isCandidate = true;
           score = Math.abs(dy) + Math.abs(dx) * 3.0;
         }
         break;
-      case 'down':
+      case "down":
         if (dy > 0) {
           isCandidate = true;
           score = Math.abs(dy) + Math.abs(dx) * 3.0;
         }
         break;
-      case 'left':
+      case "left":
         if (dx < 0) {
           isCandidate = true;
           score = Math.abs(dx) + Math.abs(dy) * 3.0;
         }
         break;
-      case 'right':
+      case "right":
         if (dx > 0) {
           isCandidate = true;
           score = Math.abs(dx) + Math.abs(dy) * 3.0;
@@ -126,9 +126,11 @@ const handleKeyboardNavigation = (e: KeyboardEvent) => {
 
   // 如果没有激活节点，尝试激活第一个节点
   if (!activedId) {
-    const firstNode = Object.values(objects).find(obj => obj.type.startsWith("node/")) as Node;
+    const firstNode = Object.values(objects).find((obj) =>
+      obj.type.startsWith("node/")
+    ) as Node;
     if (firstNode) {
-      active(firstNode.id)
+      active(firstNode.id);
     }
     return;
   }
@@ -136,7 +138,7 @@ const handleKeyboardNavigation = (e: KeyboardEvent) => {
   const nearestNode = findNearestNodeInDirection(activedId, direction);
   if (!nearestNode) return;
 
-  active(nearestNode.id)
+  active(nearestNode.id);
 
   // 根据修饰键处理选中状态
   if (e.shiftKey) {
@@ -160,7 +162,8 @@ const handleKeyboardNavigation = (e: KeyboardEvent) => {
 // 获取设置值的辅助函数
 const getSettings = () => ({
   extendKey: (getSetting("selector.extendKey")?.value as string) || "Shift",
-  boxSelectButton: (getSetting("selector.boxSelectButton")?.value as number) || 1,
+  boxSelectButton:
+    (getSetting("selector.boxSelectButton")?.value as number) || 1,
 });
 
 // 检查按键是否按下
@@ -288,7 +291,7 @@ const handleNodeSelection = (e: MouseEvent, nodeId: string) => {
   node.selected = !node.selected;
 
   // 设置为激活状态
-  active(node.id)
+  active(node.id);
 };
 
 // ==================== 空白区域点击逻辑 ====================
@@ -351,7 +354,9 @@ registerSetting({
   defaultValue: "i",
   value: "i",
   description: "向上移动激活节点",
-  onChange: (v) => { navKeys.up = v; },
+  onChange: (v) => {
+    navKeys.up = v;
+  },
 });
 
 registerSetting({
@@ -362,7 +367,9 @@ registerSetting({
   defaultValue: "k",
   value: "k",
   description: "向下移动激活节点",
-  onChange: (v) => { navKeys.down = v; },
+  onChange: (v) => {
+    navKeys.down = v;
+  },
 });
 
 registerSetting({
@@ -373,7 +380,9 @@ registerSetting({
   defaultValue: "j",
   value: "j",
   description: "向左移动激活节点",
-  onChange: (v) => { navKeys.left = v; },
+  onChange: (v) => {
+    navKeys.left = v;
+  },
 });
 
 registerSetting({
@@ -384,7 +393,9 @@ registerSetting({
   defaultValue: "l",
   value: "l",
   description: "向右移动激活节点",
-  onChange: (v) => { navKeys.right = v; },
+  onChange: (v) => {
+    navKeys.right = v;
+  },
 });
 
 // ==================== 注册控制器 ====================

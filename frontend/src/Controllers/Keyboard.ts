@@ -4,6 +4,7 @@ import Manager, { updateCanvas } from "../Manager";
 import { objects, saveHistory, undo, redo, mgrAddEdgeRelation } from "../Manager";
 import { serializeCanvas, deserializeCanvas, SerializedCanvas } from "../Serialization";
 import { screen2Viewport } from "./Camera";
+import { active, activedId } from "./Selector";
 
 // 键盘操作枚举
 export const KeyAction = {
@@ -239,11 +240,14 @@ const executeAction = (action: KeyAction): void => {
       });
       break;
     case KeyAction.DELETE: {
+      active("");
       // 删除选中的节点及其连接的边
       const objs = Object.values(objects);
       // 找出选中的对象ID
       const selectedIds = objs
-        .filter((obj) => "selected" in obj && (obj as { selected?: boolean }).selected)
+        .filter(
+          (obj) => "selected" in obj && (obj as { selected?: boolean }).selected
+        )
         .map((obj) => obj.id);
 
       if (selectedIds.length === 0) return;

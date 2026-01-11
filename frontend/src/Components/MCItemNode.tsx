@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
@@ -8,14 +8,14 @@ import {
   ContextMenuFactories,
   ContextMenuItem,
 } from "../Controllers/ContextMenu";
-import { activedId } from "../Controllers/Selector";
 import {
   registerSerializer,
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
-import { coords } from "../Controllers/Recipes";
+import { coords, translations } from "../Controllers/Recipes";
 import { saveHistory } from "../Manager";
+import { activedId } from "../Controllers/Selector";
 
 // ============ 纯展示组件：MC物品图标 ============
 export interface MCItemIconProps {
@@ -56,7 +56,7 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => 
   }
 
   const [modId] = itemId.split(":");
-  const spriteUrl = `/reciper/atlas/${modId}`;
+  const spriteUrl = `/reciper/atlas`;
   const x = itemData.X;
   const y = itemData.Y;
 
@@ -81,36 +81,8 @@ export interface MCItemNode extends Node {
   spriteSize: { width: number; height: number };
 }
 
-const getFillColor = (node: MCItemNode) => {
-  if (node.id === activedId) return "rgba(139, 92, 246, 0.25)";  // 紫色激活
-  if (node.selected) return "rgba(99, 102, 241, 0.2)";          // 靛蓝选中
-  return "rgba(255, 255, 255, 0.05)";                           // 默认半透明白
-};
-
-const getStrokeColor = (node: MCItemNode) => {
-  if (node.id === activedId) return "#8b5cf6";  // 紫色激活边框
-  if (node.selected) return "#6366f1";          // 靛蓝选中边框
-  return "rgba(255, 255, 255, 0.15)";          // 默认边框
-};
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
-
-// 解析物品ID并获取坐标信息
-// coords的键是完整的物品ID（如 "minecraft:stone"）
-// 每个物品图标为32x32像素
-const getItemCoords = (itemId: string) => {
-  const itemData = coords[itemId];
-  if (!itemData) return null;
-
-  const [modId, itemName] = itemId.split(":");
-
-  return {
-    modId,
-    itemName,
-    x: itemData.X,
-    y: itemData.Y,
-  };
-};
 
 // 工厂函数：创建新的MC物品节点
 export const createMCItemNode = (): MCItemNode => {
@@ -236,44 +208,31 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
   return items;
 };
 
-// MC物品节点组件
+// MC物品节点组件 - 简化版：只显示图标和中文名称，无边框和ID输入
 Coms["node/mcitem"] = ({ obj }) => {
   useAtom(obj.updater);
   const node = obj as MCItemNode;
-  const [isEditing, setIsEditing] = useState(false);
-  const [tempItemId, setTempItemId] = useState(node.itemId);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  // 离开编辑模式
-  const finishEditing = () => {
-    setIsEditing(false);
-    node.itemId = tempItemId.trim();
-    Manager.update(node);
-    saveHistory();
-  };
+  // 获取中文翻译
+  const chineseName = translations[node.itemId] || node.itemId;
 
-  // 输入框变化
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTempItemId(e.target.value);
-  };
+  // 节点尺寸
+  const nodeWidth = 72;
+  const iconSize = 64;
+  const lineHeight = 14;
+  const maxLines = 2;
+  const padding = 4;
 
-  // 输入框失焦
-  const handleBlur = () => {
-    finishEditing();
-  };
+  // 判断是否选中或激活
+  const isActived = node.id === activedId;
+  const isSelected = node.selected;
 
-  // 按 Enter 完成
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      finishEditing();
-    }
-  };
+  // 边框颜色
+  const strokeColor = isActived ? "#8b5cf6" : isSelected ? "#6366f1" : "#6366f1";
+  const strokeWidth = (isSelected || isActived) ? 2 : 0;
 
-  // 获取物品坐标信息（用于显示名称）
-  const coordsData = node.itemId ? getItemCoords(node.itemId) : null;
-
-  // 节点高度根据内容调整
-  const nodeHeight = 100;
+  // 计算节点总高度
+  const nodeHeight = iconSize + padding * 2 + lineHeight * maxLines + 4;
 
   return (
     <g
@@ -281,78 +240,51 @@ Coms["node/mcitem"] = ({ obj }) => {
       className="node-group"
       data-id={node.id}
     >
-      {/* 背景框 */}
-      <rect
-        width={node.size.x}
-        height={nodeHeight}
-        rx="6"
-        fill={getFillColor(node)}
-        stroke={getStrokeColor(node)}
-        strokeWidth="2"
-      />
-
-      {/* 物品ID输入框区域 */}
-      <foreignObject
-        x="4"
-        y="2"
-        width={node.size.x - 8}
-        height="24"
-        style={{ overflow: "visible" }}
-      >
-        <input
-          ref={inputRef}
-          className="node-url-input"
-          style={{
-            width: "100%",
-            height: "20px",
-            border: "none",
-            background: isEditing ? "rgba(255, 255, 255, 0.1)" : "transparent",
-            fontSize: "12px",
-            color: "#e4e4e7",
-            textAlign: "center",
-            outline: "none",
-            cursor: isEditing ? "text" : "pointer",
-            pointerEvents: "auto",
-            borderRadius: "4px",
-          }}
-          value={isEditing ? tempItemId : node.itemId}
-          onChange={handleInputChange}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsEditing(true)}
-          placeholder="modid:itemid"
+      {/* 选中/激活时的边框 */}
+      {(isSelected || isActived) && (
+        <rect
+          x={0}
+          y={0}
+          width={nodeWidth}
+          height={nodeHeight}
+          rx="6"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          opacity={isActived ? 1 : 0.7}
         />
-      </foreignObject>
+      )}
 
       {/* 物品图标区域 */}
-      <foreignObject x={(node.size.x - 64) / 2} y={30} width={64} height={64}>
-        <MCItemIcon itemId={node.itemId} size={64} />
+      <foreignObject x={(nodeWidth - iconSize) / 2} y={padding} width={iconSize} height={iconSize}>
+        <MCItemIcon itemId={node.itemId} size={iconSize} />
       </foreignObject>
 
-      {/* 显示物品名称 */}
-      {coordsData && (
-        <foreignObject
-          x="4"
-          y={nodeHeight - 18}
-          width={node.size.x - 8}
-          height="16"
-          style={{ overflow: "hidden" }}
+      {/* 显示物品名称（中文名称，支持换行） */}
+      <foreignObject
+        x={-4} // 稍微扩展宽度以容纳更多文字
+        y={iconSize + padding + 2}
+        width={nodeWidth + 8}
+        height={lineHeight * maxLines}
+      >
+        <div
+          style={{
+            fontSize: "11px",
+            color: isActived ? "#c4b5fd" : isSelected ? "#a5b4fc" : "#e4e4e7",
+            textAlign: "center",
+            lineHeight: `${lineHeight}px`,
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+            fontWeight: isActived ? "600" : "normal",
+            display: "-webkit-box",
+            WebkitLineClamp: maxLines,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
         >
-          <div
-            style={{
-              fontSize: "10px",
-              color: "#a1a1aa",
-              textAlign: "center",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {coordsData.itemName}
-          </div>
-        </foreignObject>
-      )}
+          {chineseName}
+        </div>
+      </foreignObject>
     </g>
   );
 };
-//  = MCItemNodeComponent;
