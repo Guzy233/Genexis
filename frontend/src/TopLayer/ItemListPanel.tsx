@@ -1,10 +1,17 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { topLayer } from "../Globals";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
+import { Controllers, topLayer } from "../Globals";
 import { MCItemIcon } from "../Components/MCItemNode";
 import { coords, recipesLoaded, translations } from "../Controllers/Recipes";
 import { screen2Viewport } from "../Controllers/Camera";
 import { ObjectFactories } from "../Controllers/Creator";
 import Manager from "../Manager";
+import { openRecipeModal } from "./RecipeListModal";
 
 // 性能优化配置
 const PAGE_SIZE = 100; // 每次渲染的物品数量
@@ -94,8 +101,8 @@ const startDragItem = (e: React.MouseEvent, itemId: string) => {
 
   // 更新拖拽元素位置
   const updateDragPosition = (clientX: number, clientY: number) => {
-    dragElement.style.left = (clientX + 16) + "px";
-    dragElement.style.top = (clientY + 16) + "px";
+    dragElement.style.left = clientX + 16 + "px";
+    dragElement.style.top = clientY + 16 + "px";
   };
 
   updateDragPosition(startX, startY);
@@ -144,13 +151,26 @@ const startDragItem = (e: React.MouseEvent, itemId: string) => {
   window.addEventListener("blur", onBlur);
 };
 
-// 可拖拽的物品格子组件（保持原样式的item-slot，增加拖拽功能）
+// 可拖拽的物品格子组件（保持原样式的item-slot，增加拖拽功能和点击事件）
 const DraggableItemSlot: React.FC<{ itemId: string }> = ({ itemId }) => {
   return (
     <div
       className="item-slot"
       title={translations[itemId] || itemId}
-      onMouseDown={(e) => startDragItem(e, itemId)}
+      onMouseDown={(e) => {
+        // 左键点击显示合成配方，右键点击显示用途
+        if (e.button === 0) {
+          // 左键 - 合成配方
+          openRecipeModal(itemId, "result");
+        } else if (e.button === 2) {
+          // 右键 - 用途，阻止默认行为并打开弹窗
+          e.stopPropagation();
+          openRecipeModal(itemId, "usage");
+        } else {
+          // 中键或其他按钮 - 拖拽创建节点
+          startDragItem(e, itemId);
+        }
+      }}
       style={{
         userSelect: "none",
         WebkitUserSelect: "none",
@@ -163,12 +183,13 @@ const DraggableItemSlot: React.FC<{ itemId: string }> = ({ itemId }) => {
 
 // 注册物品列表面板到顶层
 topLayer.push(() => {
-  const [visible, setVisible] = useState(showItemListPanel);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [items, setItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<string[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visible, setVisible] = useState(showItemListPanel);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   const listRef = useRef<HTMLDivElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -184,7 +205,9 @@ topLayer.push(() => {
 
     setSearching(true);
     try {
-      const response = await fetch(`/reciper/search/${encodeURIComponent(query)}`);
+      const response = await fetch(
+        `/reciper/search/${encodeURIComponent(query)}`
+      );
       if (!response.ok) {
         throw new Error("搜索失败");
       }
@@ -257,15 +280,19 @@ topLayer.push(() => {
   }, [items, visibleCount]);
 
   // 滚动处理函数
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const target = e.currentTarget;
+      const scrollBottom =
+        target.scrollHeight - target.scrollTop - target.clientHeight;
 
-    // 当滚动到底部附近时加载更多
-    if (scrollBottom < BUFFER_SIZE && visibleCount < items.length) {
-      setVisibleCount(prev => Math.min(prev + PAGE_SIZE, items.length));
-    }
-  }, [visibleCount, items.length]);
+      // 当滚动到底部附近时加载更多
+      if (scrollBottom < BUFFER_SIZE && visibleCount < items.length) {
+        setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, items.length));
+      }
+    },
+    [visibleCount, items.length]
+  );
 
   if (!visible) return null;
 
@@ -287,7 +314,10 @@ topLayer.push(() => {
   const totalCount = items.length;
 
   return (
-    <div className="item-list-panel-container">
+    <div
+      className="item-list-panel-container"
+      onContextMenu={(e) => e.preventDefault()} // 禁用右键菜单
+    >
       {/* 物品列表面板 */}
       <div className="item-list-panel">
         {/* 物品列表 */}
@@ -295,23 +325,49 @@ topLayer.push(() => {
           ref={listRef}
           className="item-list item-list-5cols"
           onScroll={handleScroll}
-          style={{ overflowY: "auto", maxHeight: "60vh", userSelect: "none", WebkitUserSelect: "none" }}
+          style={{
+            overflowY: "auto",
+            maxHeight: "60vh",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+          }}
         >
           {visibleItems.map((itemId) => (
             <DraggableItemSlot key={itemId} itemId={itemId} />
           ))}
           {hasMore && !searching && (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "8px", color: "#888" }}>
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                textAlign: "center",
+                padding: "8px",
+                color: "#888",
+              }}
+            >
               已显示 {showCount} / {totalCount} 个物品,继续滚动加载更多...
             </div>
           )}
           {!hasMore && totalCount > 0 && (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "8px", color: "#666" }}>
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                textAlign: "center",
+                padding: "8px",
+                color: "#666",
+              }}
+            >
               已显示全部 {totalCount} 个物品
             </div>
           )}
           {totalCount === 0 && searchQuery && !searching && (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "16px", color: "#888" }}>
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                textAlign: "center",
+                padding: "16px",
+                color: "#888",
+              }}
+            >
               未找到匹配的物品
             </div>
           )}
@@ -328,4 +384,18 @@ topLayer.push(() => {
       </div>
     </div>
   );
+});
+
+// 监听打开物品列表面板事件
+const toggleItemList = () => {
+  showItemListPanel ? closeItemListPanel() : openItemListPanel();
+};
+
+Controllers.push({
+  Begin: () => {
+    window.addEventListener("toggle-item-list", toggleItemList);
+  },
+  End: () => {
+    window.removeEventListener("toggle-item-list", toggleItemList);
+  },
 });

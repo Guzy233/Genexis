@@ -324,7 +324,7 @@ const executeAction = (action: KeyAction): void => {
       });
       break;
     case KeyAction.OPEN_ITEM_LIST:
-      window.dispatchEvent(new CustomEvent("open-item-list"));
+      window.dispatchEvent(new CustomEvent("toggle-item-list"));
       break;
   }
 };

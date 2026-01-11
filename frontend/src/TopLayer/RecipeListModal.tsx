@@ -1,0 +1,526 @@
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { topLayer } from "../Globals";
+import { RecipePreview, Recipe } from "./RecipePreview";
+import { MCItemIcon } from "../Components/MCItemNode";
+
+// 配方列表弹窗配置
+let recipesPerPage = 3; // 每页显示的配方数量（可配置）
+
+export const setRecipesPerPage = (count: number) => {
+  recipesPerPage = Math.max(1, count);
+};
+
+// 配方列表弹窗状态管理
+let showRecipeModal = false;
+let currentItemId: string | null = null;
+let recipeType: "result" | "usage" = "result"; // result=合成配方, usage=用途配方
+const recipeModalSubscribers: Set<(show: boolean, itemId: string | null, type: "result" | "usage") => void> = new Set();
+
+// 打开配方弹窗
+export const openRecipeModal = (itemId: string, type: "result" | "usage" = "result") => {
+  currentItemId = itemId;
+  recipeType = type;
+  showRecipeModal = true;
+  recipeModalSubscribers.forEach((cb) => cb(true, itemId, type));
+};
+
+// 关闭配方弹窗
+export const closeRecipeModal = () => {
+  showRecipeModal = false;
+  const prevItemId = currentItemId;
+  const prevType = recipeType;
+  currentItemId = null;
+  recipeModalSubscribers.forEach((cb) => cb(false, prevItemId, prevType));
+};
+
+// 配方类型名称映射
+const RECIPE_TYPE_NAMES: Record<string, string> = {
+  "minecraft:crafting_shaped": "有序合成",
+  "crafting_shaped": "有序合成",
+  "minecraft:crafting_shapeless": "无序合成",
+  "crafting_shapeless": "无序合成",
+  "minecraft:smelting": "熔炼",
+  "smelting": "熔炼",
+  "minecraft:blasting": "高温熔炼",
+  "blasting": "高温熔炼",
+  "minecraft:smoking": "烟熏",
+  "smoking": "烟熏",
+  "minecraft:campfire_cooking": "营火烹饪",
+  "campfire_cooking": "营火烹饪",
+  "stonecutting": "切石",
+  "minecraft:stonecutting": "切石",
+  "smithing": "锻造",
+  "minecraft:smithing": "锻造",
+  "smithing_trim": "锻造模具",
+  "minecraft:smithing_trim": "锻造模具",
+};
+
+// 获取配方类型显示名称
+const getRecipeTypeName = (type: string): string => {
+  return RECIPE_TYPE_NAMES[type] || type.replace("minecraft:", "");
+};
+
+// 标签栏每页最多显示的标签数量
+const TABS_PER_PAGE = 8;
+
+// 注册配方列表弹窗到顶层
+topLayer.push(() => {
+  const [visible, setVisible] = useState(showRecipeModal);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [currentItemId, setCurrentItemId] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<string | null>(null); // 当前选中的配方类型
+  const [tabPage, setTabPage] = useState(0); // 标签栏当前页码
+
+  // 从后端获取配方数据
+  const fetchRecipes = useCallback(async (itemId: string, type: "result" | "usage") => {
+    setLoading(true);
+    setError(null);
+    try {
+      const endpoint = type === "result" ? `/reciper/result/${itemId}` : `/reciper/usage/${itemId}`;
+      const response = await fetch(endpoint);
+      if (!response.ok) {
+        throw new Error("获取配方失败");
+      }
+      const data: Recipe[] = await response.json();
+      setRecipes(data);
+      // 默认选中第一个类型（如果有的话）
+      if (data.length > 0) {
+        setSelectedType(data[0]?.type || null);
+        setTabPage(0); // 重置标签页到第一页
+      }
+    } catch (err) {
+      console.error("获取配方失败:", err);
+      setError("获取配方失败，请稍后重试");
+      setRecipes([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 订阅状态变化
+  useEffect(() => {
+    const handler = (show: boolean, itemId: string | null, type: "result" | "usage") => {
+      setVisible(show);
+      if (show && itemId) {
+        setCurrentItemId(itemId);
+        // 打开时获取配方数据
+        fetchRecipes(itemId, type);
+      } else {
+        // 关闭时清空数据
+        setRecipes([]);
+        setError(null);
+        setCurrentPage(0);
+        setCurrentItemId(null);
+        setSelectedType(null);
+        setTabPage(0);
+      }
+    };
+
+    recipeModalSubscribers.add(handler);
+    return () => {
+      recipeModalSubscribers.delete(handler);
+    };
+  }, [fetchRecipes]);
+
+  // ESC 键关闭弹窗
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showRecipeModal) {
+        closeRecipeModal();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, []);
+
+  // 按类型分组配方
+  const recipesByType = useMemo(() => {
+    const groups: Record<string, Recipe[]> = {};
+    recipes.forEach((recipe) => {
+      const type = recipe?.type || "unknown";
+      if (!groups[type]) {
+        groups[type] = [];
+      }
+      groups[type].push(recipe);
+    });
+    return groups;
+  }, [recipes]);
+
+  // 获取所有配方类型（按出现顺序）
+  const recipeTypes = useMemo(() => {
+    const types = new Set(recipes.map((r) => r?.type).filter(Boolean));
+    return Array.from(types);
+  }, [recipes]);
+
+  // 标签栏总页数
+  const totalTabPages = Math.ceil(recipeTypes.length / TABS_PER_PAGE);
+
+  // 当前页的标签
+  const visibleTabTypes = useMemo(() => {
+    const startIndex = tabPage * TABS_PER_PAGE;
+    const endIndex = Math.min(startIndex + TABS_PER_PAGE, recipeTypes.length);
+    return recipeTypes.slice(startIndex, endIndex);
+  }, [recipeTypes, tabPage]);
+
+  // 当前选中类型的配方列表
+  const currentTypeRecipes = selectedType ? (recipesByType[selectedType] || []) : [];
+
+  // 计算总页数（基于当前选中类型）
+  const totalPages = Math.ceil(currentTypeRecipes.length / recipesPerPage);
+  const startIndex = currentPage * recipesPerPage;
+  const endIndex = Math.min(startIndex + recipesPerPage, currentTypeRecipes.length);
+  const displayRecipes = currentTypeRecipes.slice(startIndex, endIndex);
+
+  // 鼠标滚轮翻页
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    // e.preventDefault();
+    if (totalPages === 0) return;
+
+    if (e.deltaY > 0) {
+      // 向下滚动，下一页
+      setCurrentPage((prev) => (prev + 1) % totalPages);
+    } else {
+      // 向上滚动，上一页
+      setCurrentPage((prev) => (prev - 1 + totalPages) % totalPages);
+    }
+  }, [totalPages]);
+
+  // 切换配方类型时重置页码
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [selectedType]);
+
+  // 切换配方类型
+  const handleTypeChange = useCallback((type: string) => {
+    setSelectedType(type);
+  }, []);
+
+  // 标签栏翻页
+  const handleTabPrev = useCallback(() => {
+    setTabPage((prev) => (prev - 1 + totalTabPages) % totalTabPages);
+  }, [totalTabPages]);
+
+  const handleTabNext = useCallback(() => {
+    setTabPage((prev) => (prev + 1) % totalTabPages);
+  }, [totalTabPages]);
+
+  // 当选中类型不在当前页时，自动跳转到包含该类型的页
+  useEffect(() => {
+    if (selectedType && recipeTypes.length > 0) {
+      const selectedIndex = recipeTypes.indexOf(selectedType);
+      if (selectedIndex >= 0) {
+        const targetPage = Math.floor(selectedIndex / TABS_PER_PAGE);
+        setTabPage(targetPage);
+      }
+    }
+  }, [selectedType, recipeTypes]);
+
+  if (!visible) return null;
+
+  // 点击外部关闭弹窗
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      closeRecipeModal();
+    }
+  };
+
+  return (
+    <div
+      className="recipe-modal-backdrop"
+      onClick={handleBackdropClick}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 2000,
+        animation: "fadeIn 0.15s ease",
+        pointerEvents: "auto",
+      }}
+    >
+      <div
+        className="recipe-modal-content"
+        onClick={(e) => e.stopPropagation()} // 阻止点击内容区域时关闭弹窗
+        style={{
+          background: "rgba(30, 30, 35, 0.98)",
+          border: "1px solid rgba(255, 255, 255, 0.15)",
+          borderRadius: "12px",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+          maxWidth: "550px",
+          width: "calc(90% - 250px)", // 减去物品列表面板的宽度
+          display: "flex",
+          flexDirection: "column",
+          animation: "slideIn 0.2s ease",
+          position: "relative",
+          paddingTop: "44px", // 为书签标签留出空间
+        }}
+      >
+        {/* 书签式标签栏 */}
+        {recipeTypes.length > 0 && (
+          <div
+            className="recipe-type-tabs-container"
+            style={{
+              position: "absolute",
+              top: "-48px",
+              left: "20px",
+              right: "20px",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            {/* 左箭头 */}
+            {totalTabPages > 1 && (
+              <button
+                className="tab-nav-btn prev"
+                onClick={handleTabPrev}
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  padding: "4px",
+                  background: "rgba(30, 30, 35, 0.98)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  borderRadius: "8px 8px 4px 4px",
+                  color: "#a1a1aa",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  boxShadow: "0 -2px 8px rgba(0, 0, 0, 0.2)",
+                  transform: "translateY(-2px)",
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#e4e4e7";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#a1a1aa";
+                }}
+              >
+                ◀
+              </button>
+            )}
+
+            {/* 标签 */}
+            <div
+              className="recipe-type-tabs"
+              style={{
+                display: "flex",
+                gap: "4px",
+                flex: 1,
+              }}
+            >
+              {visibleTabTypes.map((type) => {
+                const isSelected = selectedType === type;
+                return (
+                  <button
+                    key={type}
+                    className={`recipe-type-tab ${isSelected ? "active" : ""}`}
+                    onClick={() => handleTypeChange(type)}
+                    title={getRecipeTypeName(type)}
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      padding: "4px",
+                      background: isSelected ? "rgba(30, 30, 35, 0.98)" : "rgba(60, 60, 65, 0.8)",
+                      border: "1px solid rgba(255, 255, 255, 0.15)",
+                      borderBottom: isSelected ? "none" : "2px solid transparent",
+                      borderRadius: isSelected ? "8px 8px 0 0" : "8px 8px 4px 4px",
+                      color: isSelected ? "#e4e4e7" : "#a1a1aa",
+                      fontSize: "12px",
+                      fontWeight: isSelected ? "600" : "500",
+                      cursor: "pointer",
+                      boxShadow: isSelected ? "0 -2px 8px rgba(0, 0, 0, 0.2)" : "none",
+                      transform: isSelected ? "translateY(0)" : "translateY(-2px)",
+                      transition: "all 0.15s ease",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      ...(isSelected && {
+                        marginBottom: "-2px",
+                        paddingBottom: "6px",
+                        borderBottom: "2px solid #6366f1",
+                      }),
+                    }}
+                  >
+                    <MCItemIcon itemId="minecraft:crafting_table" size={32} />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 右箭头 */}
+            {totalTabPages > 1 && (
+              <button
+                className="tab-nav-btn next"
+                onClick={handleTabNext}
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  padding: "4px",
+                  background: "rgba(30, 30, 35, 0.98)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  borderRadius: "8px 8px 4px 4px",
+                  color: "#a1a1aa",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  boxShadow: "0 -2px 8px rgba(0, 0, 0, 0.2)",
+                  transform: "translateY(-2px)",
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#e4e4e7";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#a1a1aa";
+                }}
+              >
+                ▶
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* 页码显示 */}
+        <div
+          className="recipe-modal-page-info"
+          style={{
+            position: "absolute",
+            top: "12px",
+            right: "20px",
+            fontSize: "12px",
+            color: "#71717a",
+            fontWeight: "500",
+          }}
+        >
+          {totalPages > 0 && `${currentPage + 1} / ${totalPages}`}
+        </div>
+
+        {/* 配方列表 */}
+        <div
+          className="recipe-modal-body"
+          onWheel={handleWheel}
+          style={{
+            padding: "16px 20px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            minHeight: `${recipesPerPage * 80 + (recipesPerPage - 1) * 12 + 240}px`, // 3个配方高度 + 间距 + 上下padding
+          }}
+        >
+          {loading ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px 20px",
+                color: "#71717a",
+                fontSize: "14px",
+                minHeight: "240px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              加载中...
+            </div>
+          ) : error ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px 20px",
+                color: "#ef4444",
+                fontSize: "14px",
+                minHeight: "240px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {error}
+            </div>
+          ) : recipes.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px 20px",
+                color: "#71717a",
+                fontSize: "14px",
+                minHeight: "320px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {recipeType === "result" ? "暂无合成配方" : "暂无用途"}
+            </div>
+          ) : displayRecipes.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px 20px",
+                color: "#71717a",
+                fontSize: "14px",
+                minHeight: "240px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              该类型暂无配方
+            </div>
+          ) : (
+            <div
+              className="recipe-list"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "12px",
+                width: "100%",
+                flex: 1,
+              }}
+            >
+              {displayRecipes.map((recipe, index) => (
+                <RecipePreview key={`${selectedType}-${currentPage}-${index}`} recipe={recipe} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 全局样式 */}
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+      `}</style>
+    </div>
+  );
+});

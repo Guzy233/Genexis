@@ -12,6 +12,7 @@ import "./TopLayer/FileTabBar";
 import "./TopLayer/ArrowEndDefs";
 import "./TopLayer/SettingPanel";
 import "./TopLayer/ItemListPanel";
+import "./TopLayer/RecipeListModal";
 
 import "./Components/TextNode";
 import "./Components/ImageNode";
@@ -33,7 +34,6 @@ import "./Controllers/Camera";
 import "./Controllers/Deleter";
 import "./Controllers/Grower";
 import "./Controllers/Recipes";
-import "./Controllers/ItemLister";
 
 import { CoordinateSystem } from "./UIs/CoordinateSystem";
 
@@ -62,7 +62,11 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="canvas-container" tabIndex={0}>
+    <div
+      className="canvas-container"
+      tabIndex={0}
+      onContextMenuCapture={(e) => e.preventDefault()}
+    >
       <svg width="100%" height="100%" className="mindmap-svg">
         <g ref={canvasRef} id="canvas">
           <rect
