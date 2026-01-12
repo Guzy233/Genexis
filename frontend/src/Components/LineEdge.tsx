@@ -122,7 +122,7 @@ const intersectRect = (
   if (dx !== 0) {
     const t = (left - lineStart.x) / dx;
     const y = lineStart.y + t * dy;
-    if (t > 0 && t < 1 && y >= top && y <= bottom) {
+    if (t >= 0 && t <= 1 && y >= top && y <= bottom) {
       candidates.push({ t, x: left, y, dx: -1, dy: 0 });
     }
   }
@@ -131,7 +131,7 @@ const intersectRect = (
   if (dx !== 0) {
     const t = (right - lineStart.x) / dx;
     const y = lineStart.y + t * dy;
-    if (t > 0 && t < 1 && y >= top && y <= bottom) {
+    if (t >= 0 && t <= 1 && y >= top && y <= bottom) {
       candidates.push({ t, x: right, y, dx: 1, dy: 0 });
     }
   }
@@ -140,7 +140,7 @@ const intersectRect = (
   if (dy !== 0) {
     const t = (top - lineStart.y) / dy;
     const x = lineStart.x + t * dx;
-    if (t > 0 && t < 1 && x >= left && x <= right) {
+    if (t >= 0 && t <= 1 && x >= left && x <= right) {
       candidates.push({ t, x, y: top, dx: 0, dy: -1 });
     }
   }
@@ -149,7 +149,7 @@ const intersectRect = (
   if (dy !== 0) {
     const t = (bottom - lineStart.y) / dy;
     const x = lineStart.x + t * dx;
-    if (t > 0 && t < 1 && x >= left && x <= right) {
+    if (t >= 0 && t <= 1 && x >= left && x <= right) {
       candidates.push({ t, x, y: bottom, dx: 0, dy: 1 });
     }
   }
@@ -192,49 +192,40 @@ const calculateLineEndpoints = (
   let end = { x: target.x, y: target.y };
   let targetDir = target.dir;
 
-  // 对于 center 锚点，计算与源节点边缘的交点
+  // 1. 如果源是 center，尝试寻找源节点边缘的交点
+  // 应该从目标中心 (或锚点) 看向源中心
   if (anchorSourceType === "center") {
     const sourceIntersection = intersectRect(
-      { x: targetNode.pos.x + targetNode.size.x / 2, y: targetNode.pos.y + targetNode.size.y / 2 },
-      { x: sourceNode.pos.x + sourceNode.size.x / 2, y: sourceNode.pos.y + sourceNode.size.y / 2 },
+      { x: target.x, y: target.y },
+      { x: source.x, y: source.y },
       sourceNode.pos,
       sourceNode.size
     );
     start = sourceIntersection.pos;
   }
 
-  // 对于 center 锚点，计算与目标节点边缘的交点并回退
+  // 2. 如果目标是 center，尝试寻找目标节点边缘的交点
+  // 应该从起点 (已经算好的 start) 看向目标中心
   if (anchorTargetType === "center") {
     const targetIntersection = intersectRect(
       start,
-      { x: targetNode.pos.x + targetNode.size.x / 2, y: targetNode.pos.y + targetNode.size.y / 2 },
+      { x: target.x, y: target.y },
       targetNode.pos,
       targetNode.size
     );
     end = targetIntersection.pos;
     targetDir = targetIntersection.dir;
+  }
 
-    // 沿直线方向回退，给箭头留位置
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const len = Math.hypot(dx, dy);
-    if (len > ARROW_GAP) {
-      end = {
-        x: end.x - (dx / len) * ARROW_GAP,
-        y: end.y - (dy / len) * ARROW_GAP,
-      };
-    }
-  } else {
-    // 对于 absPos 和固定锚点（posDir 或 auto），沿直线方向回退
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const len = Math.hypot(dx, dy);
-    if (len > ARROW_GAP) {
-      end = {
-        x: end.x - (dx / len) * ARROW_GAP,
-        y: end.y - (dy / len) * ARROW_GAP,
-      };
-    }
+  // 3. 无论锚点是什么类型，结尾通常都需要沿直线回退，给箭头留位置
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const len = Math.hypot(dx, dy);
+  if (len > ARROW_GAP) {
+    end = {
+      x: end.x - (dx / len) * ARROW_GAP,
+      y: end.y - (dy / len) * ARROW_GAP,
+    };
   }
 
   return { start, end, targetDir };

@@ -85,7 +85,11 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
       if (aNodeId !== vEdge.source.id) {
         //在已有节点上松开鼠标，设置为目标节点
         vEdge.target = objects[aNodeId] as Node;
-        vEdge.anchorTarget = { type: "auto" };
+        if((objects[aNodeId] as Node).eAncs.length > 1){
+          vEdge.anchorTarget = { type: "auto" };
+        } else {
+          vEdge.anchorTarget = (objects[aNodeId] as Node).eAncs[0];
+        }
         Manager.updateId(vEdge.id);
         // 更新节点关系
         mgrUpdateRelationsFromEdge(vEdge.id);
@@ -94,8 +98,12 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
     } else {
       const node = createNodeCentered(
         screen2Viewport({ x: e.clientX, y: e.clientY })
-      );
-      vEdge.anchorTarget = { type: "auto" };
+      ) as Node;
+      if(node?.eAncs.length > 1){
+        vEdge.anchorTarget = { type: "auto" };
+      } else {
+        vEdge.anchorTarget = node?.eAncs[0];
+      }
       if (node) {
         vEdge.target = node;
         Manager.add(node);
@@ -143,6 +151,12 @@ export const onClickNode = (e: MouseEvent) => {
   vEdge.source = objects[id] as Node;
   vEdge.target = vNode;
   vEdge.anchorTarget = { type: "absPos" };
+
+  if((objects[id] as Node).aAncs.length > 1){
+    vEdge.anchorSource = { type: "auto" };
+  } else {
+    vEdge.anchorSource = (objects[id] as Node).aAncs[0];
+  }
 
   startLinking(vEdge,vNode);
 };
