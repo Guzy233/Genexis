@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { MCItemIcon } from "../Components/MCItemNode";
+import React from "react";
+import { SVGItemSlot, MCItemIcon } from "../Components/MCItemNode";
 import { translations } from "../Controllers/Recipes";
 
 // ============================================================================
@@ -28,31 +28,6 @@ export interface Recipe {
 // 工具函数
 // ============================================================================
 
-const tagItemsCache: Map<string, string[]> = new Map();
-let allTagsLoaded = false;
-let loadPromise: Promise<void> | null = null;
-
-const loadAllTags = async (): Promise<void> => {
-  if (allTagsLoaded) return;
-  if (loadPromise) return loadPromise;
-  loadPromise = (async () => {
-    try {
-      const response = await fetch("/reciper/allTags");
-      if (!response.ok) return;
-      const data: Record<string, string[]> = await response.json();
-      Object.entries(data).forEach(([tag, items]) =>
-        tagItemsCache.set(tag, items)
-      );
-      allTagsLoaded = true;
-    } catch (error) {
-      console.error("获取所有标签失败", error);
-    } finally {
-      loadPromise = null;
-    }
-  })();
-  return loadPromise;
-};
-
 const extractItemInfo = (
   value: any
 ): { itemId: string; count?: number } | null => {
@@ -71,222 +46,6 @@ const extractItemInfo = (
   }
   return null;
 };
-
-// ============================================================================
-// 组件
-// ============================================================================
-
-const TagTooltip: React.FC<{
-  items: string[];
-  targetRect: DOMRect;
-  visible: boolean;
-}> = ({ items, targetRect, visible }) => {
-  if (!visible || items.length === 0) return null;
-  return (
-    <div
-      style={{
-        position: "fixed",
-        left: targetRect.right + 8,
-        top: targetRect.top,
-        zIndex: 3000,
-        background: "rgba(30, 30, 35, 0.98)",
-        border: "1px solid rgba(255, 200, 100, 0.3)",
-        borderRadius: "8px",
-        padding: "8px",
-        boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)",
-        maxWidth: "300px",
-        pointerEvents: "none",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "12px",
-          color: "#a1a1aa",
-          marginBottom: "6px",
-          fontWeight: "600",
-        }}
-      >
-        标签包含 {items.length} 个物品:
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gap: "4px",
-          maxHeight: "200px",
-          overflowY: "auto",
-        }}
-      >
-        {items.map((itemId, i) => (
-          <div
-            key={i}
-            style={{
-              width: "32px",
-              height: "32px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: "4px",
-            }}
-            title={translations[itemId] || itemId}
-          >
-            <MCItemIcon itemId={itemId} size={24} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const ItemSlot: React.FC<{
-  info: { itemId: string; count?: number } | null;
-  isTag?: boolean;
-}> = ({ info, isTag = false }) => {
-  const [idx, setIdx] = useState(0);
-  const [items, setItems] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState<DOMRect | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!info || !isTag) {
-      setItems(info ? [info.itemId] : []);
-      return;
-    }
-    const load = async () => {
-      setLoading(true);
-      await loadAllTags();
-      const tagItems = getTagItems(info.itemId);
-      setItems(tagItems.length > 0 ? tagItems : [info.itemId]);
-      setLoading(false);
-    };
-    load();
-  }, [info, isTag]);
-
-  useEffect(() => {
-    if (items.length <= 1) return;
-    const intv = setInterval(() => setIdx((i) => (i + 1) % items.length), 1000);
-    return () => clearInterval(intv);
-  }, [items.length]);
-
-  const current = items[idx];
-
-  if (!info || !current)
-    return (
-      <div
-        style={{
-          width: "40px",
-          height: "40px",
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: "4px",
-        }}
-        ref={ref}
-      />
-    );
-
-  return (
-    <>
-      <div
-        ref={ref}
-        onClick={() =>
-          items.length > 1 && setIdx((i) => (i + 1) % items.length)
-        }
-        onMouseEnter={() =>
-          (isTag &&
-            ref.current &&
-            setTooltipPos(ref.current.getBoundingClientRect())) ||
-          setShowTooltip(isTag)
-        }
-        onMouseLeave={() => setShowTooltip(false)}
-        style={{
-          width: "40px",
-          height: "40px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          background: isTag
-            ? "rgba(255,200,100,0.1)"
-            : "rgba(255,255,255,0.08)",
-          border: isTag
-            ? "1px solid rgba(255,200,100,0.3)"
-            : "1px solid rgba(255,255,255,0.1)",
-          borderRadius: "4px",
-          cursor: items.length > 1 ? "pointer" : "default",
-        }}
-        title={
-          isTag ? `${items.length} 物品` : translations[current] || current
-        }
-      >
-        {loading ? (
-          <div style={{ fontSize: "10px", color: "#888" }}>...</div>
-        ) : (
-          <MCItemIcon itemId={current} size={32} />
-        )}
-        {isTag && (
-          <div
-            style={{
-              position: "absolute",
-              top: "-2px",
-              right: "-2px",
-              width: "12px",
-              height: "12px",
-              background: "rgba(255,200,100,0.8)",
-              borderRadius: "50%",
-              border: "1px solid rgba(255,255,255,0.3)",
-            }}
-          />
-        )}
-        {info.count! > 1 && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: "-2px",
-              right: "-2px",
-              fontSize: "10px",
-              fontWeight: "bold",
-              color: "#fff",
-              textShadow: "0 1px 2px rgba(0,0,0,0.8)",
-              background: "rgba(0,0,0,0.6)",
-              borderRadius: "4px",
-              padding: "0 3px",
-            }}
-          >
-            {info.count}
-          </div>
-        )}
-        {items.length > 1 && !isTag && (
-          <div
-            style={{
-              position: "absolute",
-              top: "-2px",
-              left: "-2px",
-              fontSize: "10px",
-              fontWeight: "bold",
-              color: "#a1a1aa",
-              textShadow: "0 1px 2px rgba(0,0,0,0.8)",
-            }}
-          >
-            {idx + 1}/{items.length}
-          </div>
-        )}
-      </div>
-      {tooltipPos && (
-        <TagTooltip
-          items={items}
-          targetRect={tooltipPos}
-          visible={showTooltip && isTag}
-        />
-      )}
-    </>
-  );
-};
-
-const getTagItems = (tag: string): string[] => tagItemsCache.get(tag) || [];
 
 // 解析输入：返回 { items: [{itemId, count}][], isTag: boolean[], layout: 'grid' | 'row' }
 const parseInput = (
@@ -346,164 +105,251 @@ const parseOutput = (
   return { itemId: id, count: out.count || 1 };
 };
 
-// 输入组件
-const InputSection: React.FC<{ recipe: Recipe }> = ({ recipe }) => {
-  const parsed = parseInput(recipe);
-  if (!parsed) return null;
+// ============================================================================
+// SVG 配方预览主组件
+// ============================================================================
 
-  if (parsed.layout === "single") {
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "4px",
-        }}
-      >
-        <ItemSlot info={parsed.items[0]} isTag={parsed.isTag[0]} />
-        <div style={{ fontSize: "11px", color: "#71717a" }}>原料</div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 40px)",
-        gap: "4px",
-      }}
-    >
-      {parsed.items.map((info, i) => (
-        <ItemSlot key={i} info={info} isTag={parsed.isTag[i]} />
-      ))}
-    </div>
-  );
-};
-
-// 输出组件
-const OutputSection: React.FC<{ recipe: Recipe }> = ({ recipe }) => {
-  const parsed = parseOutput(recipe);
-  if (!parsed) return null;
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "4px",
-      }}
-    >
-      <div
-        style={{
-          position: "relative",
-          width: "40px",
-          height: "40px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(99,102,241,0.15)",
-          border: "1px solid rgba(99,102,241,0.3)",
-          borderRadius: "4px",
-        }}
-        title={translations[parsed.itemId] || parsed.itemId}
-      >
-        <MCItemIcon itemId={parsed.itemId} size={32} />
-        {parsed.count > 1 && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: "-2px",
-              right: "-2px",
-              fontSize: "12px",
-              fontWeight: "bold",
-              color: "#fff",
-              textShadow: "0 1px 2px rgba(0,0,0,0.8)",
-            }}
-          >
-            {parsed.count}
-          </div>
-        )}
-      </div>
-      <div style={{ fontSize: "11px", color: "#71717a" }}>结果</div>
-    </div>
-  );
-};
-
-// 通用配方预览
-export const RecipePreview: React.FC<{ recipe: Recipe }> = ({ recipe }) => {
+const SVGRecipePreview: React.FC<{ recipe: Recipe }> = ({ recipe }) => {
   const inputLayout = parseInput(recipe);
   const output = parseOutput(recipe);
 
+  // 常量定义
+  const padding = 12;
+  const slotSize = 40;
+  const gap = 4;
+  const arrowGap = 16;
+  const arrowWidth = 20;
+  const labelHeight = 16;
+  const labelOffset = 4;
+  const iconSize = 32;
+
+  // 计算尺寸
+  const getInputSize = () => {
+    if (!inputLayout) return { width: slotSize, height: slotSize };
+    if (inputLayout.layout === "single") {
+      return {
+        width: slotSize,
+        height: slotSize + labelOffset + labelHeight,
+      };
+    }
+    return {
+      width: slotSize * 3 + gap * 2,
+      height: slotSize * 3 + gap * 2,
+    };
+  };
+
+  const inputSize = getInputSize();
+  const outputSize = {
+    width: slotSize,
+    height: slotSize + labelOffset + labelHeight,
+  };
+
+  // 计算额外信息高度
+  const hasExtraInfo =
+    recipe.experience !== undefined || recipe.cookingtime !== undefined;
+  const extraInfoHeight = hasExtraInfo ? 24 : 0;
+
+  const contentWidth =
+    inputSize.width + arrowGap + arrowWidth + arrowGap + outputSize.width;
+  const contentHeight = Math.max(inputSize.height, outputSize.height);
+
+  const totalWidth = contentWidth + padding * 2;
+  const totalHeight = contentHeight + extraInfoHeight + padding * 2;
+
+  // 不支持的配方类型
   if (!inputLayout || !output) {
     return (
-      <div
-        style={{
-          padding: "12px",
-          background: "rgba(40,40,45,0.8)",
-          borderRadius: "8px",
-          color: "#888",
-          fontSize: "13px",
-        }}
-      >
-        暂不支持显示此类型配方: {recipe?.type || "未知"}
-      </div>
+      <svg width={300} height={50} viewBox="0 0 300 50">
+        <rect
+          x={0}
+          y={0}
+          width={300}
+          height={50}
+          fill="rgba(40,40,45,0.8)"
+          rx="8"
+        />
+        <text
+          x={150}
+          y={25}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="#888"
+          fontSize="13"
+        >
+          暂不支持显示此类型配方: {recipe?.type || "未知"}
+        </text>
+      </svg>
     );
   }
 
+  // 计算各部分位置
+  const inputX = padding;
+  const inputY = padding;
+  const arrowX = inputX + inputSize.width + gap;
+  const outputX = arrowX + arrowGap + arrowWidth;
+  const extraInfoY =
+    padding + Math.max(inputSize.height, outputSize.height) + 4;
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: "16px",
-        padding: "12px",
-        background: "rgba(40,40,45,0.8)",
-        borderRadius: "8px",
-        border: "1px solid rgba(255,255,255,0.1)",
-        position: "relative",
-      }}
+    <svg
+      width={totalWidth}
+      height={totalHeight}
+      viewBox={`0 0 ${totalWidth} ${totalHeight}`}
     >
-      <InputSection recipe={recipe} />
-      <div
-        style={{
-          fontSize: "20px",
-          color: "rgba(255,255,255,0.4)",
-          padding: "0 4px",
-        }}
+      {/* 背景 */}
+      <rect
+        x={0}
+        y={0}
+        width={totalWidth}
+        height={totalHeight}
+        fill="rgba(40,40,45,0.8)"
+        stroke="rgba(255,255,255,0.1)"
+        strokeWidth="1"
+        rx="8"
+      />
+
+      {/* 输入槽位 */}
+      {inputLayout.layout === "single" ? (
+        <>
+          <g transform={`translate(${inputX}, ${inputY})`}>
+            <SVGItemSlot
+              info={inputLayout.items[0]}
+              isTag={inputLayout.isTag[0]}
+              size={slotSize}
+            />
+          </g>
+          <text
+            x={inputX + slotSize / 2}
+            y={inputY + slotSize + labelOffset}
+            textAnchor="middle"
+            fill="#71717a"
+            fontSize="11"
+            dominantBaseline="hanging"
+          >
+            原料
+          </text>
+        </>
+      ) : (
+        // 3x3 网格
+        inputLayout.items.map((info, i) => {
+          const x = inputX + (i % 3) * (slotSize + gap);
+          const y = inputY + Math.floor(i / 3) * (slotSize + gap);
+          return (
+            <g transform={`translate(${x}, ${y})`}>
+              <SVGItemSlot
+                info={info}
+                isTag={inputLayout.isTag[i]}
+                size={slotSize}
+              />
+            </g>
+          );
+        })
+      )}
+
+      {/* 箭头 */}
+      <text
+        x={arrowX + arrowGap / 2}
+        y={inputY + contentHeight / 2}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="rgba(255,255,255,0.4)"
+        fontSize="20"
       >
         →
-      </div>
-      <OutputSection recipe={recipe} />
-      {(recipe.experience !== undefined ||
-        recipe.cookingtime !== undefined) && (
-        <div
-          style={{
-            display: "flex",
-            gap: "12px",
-            fontSize: "11px",
-            color: "#a1a1aa",
-            paddingTop: "4px",
-            borderTop: "1px solid rgba(255,255,255,0.05)",
-          }}
+      </text>
+
+      {/* 输出槽位 */}
+      <g transform={`translate(${outputX}, ${inputY})`}>
+        {/* 背景 */}
+        <rect
+          x={0}
+          y={0}
+          width={slotSize}
+          height={slotSize}
+          fill="rgba(99,102,241,0.15)"
+          stroke="rgba(99,102,241,0.3)"
+          strokeWidth="1"
+          rx="4"
+        />
+        {/* 物品图标 - 直接嵌入 MCItemIcon 的 SVG */}
+        <g
+          transform={`translate(${(slotSize - iconSize) / 2}, ${
+            (slotSize - iconSize) / 2
+          })`}
         >
-          {recipe.experience !== undefined && (
-            <div>
-              <span style={{ color: "#fbbf24" }}>✦</span> {recipe.experience}{" "}
-              经验
-            </div>
-          )}
-          {recipe.cookingtime !== undefined && (
-            <div>
-              <span style={{ color: "#f97316" }}>⏱</span>{" "}
-              {recipe.cookingtime / 20} 秒
-            </div>
-          )}
-        </div>
+          <MCItemIcon itemId={output.itemId} size={iconSize} />
+        </g>
+        {/* 数量显示 */}
+        {output.count > 1 && (
+          <text
+            x={slotSize - 5}
+            y={slotSize - 3}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#fff"
+            fontSize="10"
+            fontWeight="bold"
+            style={{ textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+          >
+            {output.count}
+          </text>
+        )}
+        <title>{translations[output.itemId] || output.itemId}</title>
+        {/* 结果标签 */}
+        <text
+          x={slotSize / 2}
+          y={slotSize + labelOffset}
+          textAnchor="middle"
+          fill="#71717a"
+          fontSize="11"
+          dominantBaseline="hanging"
+        >
+          结果
+        </text>
+      </g>
+
+      {/* 额外信息（经验、烹饪时间） */}
+      {hasExtraInfo && (
+        <g>
+          {/* 分隔线 */}
+          <line
+            x1={padding}
+            y1={extraInfoY}
+            x2={totalWidth - padding}
+            y2={extraInfoY}
+            stroke="rgba(255,255,255,0.05)"
+            strokeWidth="1"
+          />
+          {/* 信息文本 */}
+          <g transform={`translate(${padding}, ${extraInfoY + 4})`}>
+            {recipe.experience !== undefined && (
+              <text
+                x={0}
+                y={8}
+                fill="#a1a1aa"
+                fontSize="11"
+                dominantBaseline="hanging"
+              >
+                <tspan fill="#fbbf24">✦</tspan> {recipe.experience} 经验
+              </text>
+            )}
+            {recipe.cookingtime !== undefined && (
+              <text
+                x={recipe.experience !== undefined ? 100 : 0}
+                y={8}
+                fill="#a1a1aa"
+                fontSize="11"
+                dominantBaseline="hanging"
+              >
+                <tspan fill="#f97316">⏱</tspan> {recipe.cookingtime / 20} 秒
+              </text>
+            )}
+          </g>
+        </g>
       )}
-    </div>
+    </svg>
   );
 };
+
+// 导出 SVG 版本
+export const RecipePreview: React.FC<{ recipe: Recipe }> = SVGRecipePreview;

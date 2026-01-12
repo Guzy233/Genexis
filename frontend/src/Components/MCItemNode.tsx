@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
@@ -54,8 +54,6 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => 
       </svg>
     );
   }
-
-  const [modId] = itemId.split(":");
   const spriteUrl = `/reciper/atlas`;
   const x = itemData.X;
   const y = itemData.Y;
@@ -73,6 +71,182 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => 
         y={-y}
       />
     </svg>
+  );
+};
+
+// ============ 通用 SVG 物品格子组件 ============
+
+// 标签缓存
+const tagItemsCache: Map<string, string[]> = new Map();
+let allTagsLoaded = false;
+let loadPromise: Promise<void> | null = null;
+
+const loadAllTags = async (): Promise<void> => {
+  if (allTagsLoaded) return;
+  if (loadPromise) return loadPromise;
+  loadPromise = (async () => {
+    try {
+      const response = await fetch("/reciper/allTags");
+      if (!response.ok) return;
+      const data: Record<string, string[]> = await response.json();
+      Object.entries(data).forEach(([tag, items]) =>
+        tagItemsCache.set(tag, items)
+      );
+      allTagsLoaded = true;
+    } catch (error) {
+      console.error("获取所有标签失败", error);
+    } finally {
+      loadPromise = null;
+    }
+  })();
+  return loadPromise;
+};
+
+const getTagItems = (tag: string): string[] => tagItemsCache.get(tag) || [];
+
+
+// SVG 物品格子组件 Props
+export interface SVGItemSlotProps {
+  info: { itemId: string; count?: number } | null;
+  isTag?: boolean;
+  size?: number;          // 格子大小，默认 40
+  iconSize?: number;      // 图标大小，默认 32
+}
+
+/**
+ * 通用的 SVG 物品格子组件
+ * 支持标签轮播、数量显示
+ * 内部全部使用 SVG 元素渲染
+ */
+export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
+  info,
+  isTag = false,
+  size = 40,
+  iconSize = 32,
+}) => {
+  const [idx, setIdx] = useState(0);
+  const [items, setItems] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    if (!info || !isTag) {
+      setItems(info ? [info.itemId] : []);
+      return;
+    }
+    const load = async () => {
+      setLoading(true);
+      await loadAllTags();
+      const tagItems = getTagItems(info.itemId);
+      setItems(tagItems.length > 0 ? tagItems : [info.itemId]);
+      setLoading(false);
+    };
+    load();
+  }, [info, isTag]);
+
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const intv = setInterval(() => setIdx((i) => (i + 1) % items.length), 1000);
+    return () => clearInterval(intv);
+  }, [items.length]);
+
+  const current = items[idx];
+  const count = info?.count ?? 0;
+  const hasMultiple = items.length > 1;
+
+  const bgColor = isTag ? "rgba(255,200,100,0.1)" : "rgba(255,255,255,0.08)";
+  const borderColor = isTag ? "rgba(255,200,100,0.3)" : "rgba(255,255,255,0.1)";
+
+  if (!info || !current) {
+    return (
+      <svg
+        ref={svgRef}
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+      >
+        <rect
+          x={0}
+          y={0}
+          width={size}
+          height={size}
+          fill="rgba(255,255,255,0.02)"
+          stroke={borderColor}
+          strokeWidth="1"
+          rx="4"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <>
+      <svg
+        ref={svgRef}
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ cursor: hasMultiple ? "pointer" : "default" }}
+        onClick={() => hasMultiple && setIdx((i) => (i + 1) % items.length)}
+      >
+        {/* 背景矩形 */}
+        <rect
+          x={0}
+          y={0}
+          width={size}
+          height={size}
+          fill={bgColor}
+          stroke={borderColor}
+          strokeWidth="1"
+          rx="4"
+        />
+        <g transform={`translate(${(size - iconSize) / 2}, ${(size - iconSize) / 2})`}>
+          {loading ? (
+            <text
+              x={iconSize / 2}
+              y={iconSize / 2}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#888"
+              fontSize="10"
+            >
+              ...
+            </text>
+          ) : (
+            <MCItemIcon itemId={current} size={iconSize} />
+          )}
+        </g>
+        {count > 1 && (
+          <>
+            <rect
+              x={size - 12}
+              y={size - 12}
+              width={14}
+              height={12}
+              rx="3"
+              fill="rgba(0,0,0,0.6)"
+            />
+            <text
+              x={size - 5}
+              y={size - 3}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#fff"
+              fontSize="9"
+              fontWeight="bold"
+              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+            >
+              {count}
+            </text>
+          </>
+        )}
+
+        {/* 不可见的 title 元素用于悬停提示 */}
+        <title>
+          {isTag ? `${items.length} 物品` : translations[current] || current}
+        </title>
+      </svg>
+    </>
   );
 };
 
@@ -256,35 +430,37 @@ Coms["node/mcitem"] = ({ obj }) => {
       )}
 
       {/* 物品图标区域 */}
-      <foreignObject x={(nodeWidth - iconSize) / 2} y={padding} width={iconSize} height={iconSize}>
+      <g transform={`translate(${(nodeWidth - iconSize) / 2}, ${padding})`}>
         <MCItemIcon itemId={node.itemId} size={iconSize} />
-      </foreignObject>
+      </g>
 
-      {/* 显示物品名称（中文名称，支持换行） */}
-      <foreignObject
-        x={-4} // 稍微扩展宽度以容纳更多文字
-        y={iconSize + padding + 2}
-        width={nodeWidth + 8}
-        height={lineHeight * maxLines}
+      {/* 显示物品名称（中文名称，支持两行换行） */}
+      <text
+        x={nodeWidth / 2}
+        y={iconSize + padding + 12}
+        textAnchor="middle"
+        style={{
+          fontSize: "11px",
+          fill: isActived ? "#c4b5fd" : isSelected ? "#a5b4fc" : "#e4e4e7",
+          fontWeight: isActived ? "600" : "normal",
+          pointerEvents: "none",
+          fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
+        }}
       >
-        <div
-          style={{
-            fontSize: "11px",
-            color: isActived ? "#c4b5fd" : isSelected ? "#a5b4fc" : "#e4e4e7",
-            textAlign: "center",
-            lineHeight: `${lineHeight}px`,
-            wordBreak: "break-word",
-            overflowWrap: "break-word",
-            fontWeight: isActived ? "600" : "normal",
-            display: "-webkit-box",
-            WebkitLineClamp: maxLines,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {chineseName}
-        </div>
-      </foreignObject>
+        {chineseName.length > 7 ? (
+          <>
+            <tspan x={nodeWidth / 2} dy="0">
+              {chineseName.slice(0, 7)}
+            </tspan>
+            <tspan x={nodeWidth / 2} dy="13">
+              {chineseName.slice(7, 14)}
+              {chineseName.length > 14 ? "..." : ""}
+            </tspan>
+          </>
+        ) : (
+          chineseName
+        )}
+      </text>
     </g>
   );
 };
