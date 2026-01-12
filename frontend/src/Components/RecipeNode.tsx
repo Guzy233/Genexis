@@ -11,6 +11,7 @@ import {
 import { activedId } from "../Controllers/Selector";
 import { SVGItemSlot, MCItemIcon } from "./MCItemNode";
 import { translations } from "../Controllers/Recipes";
+import { openRecipeModal } from "../TopLayer/RecipeListModal";
 
 // ============================================================================
 // 类型定义
@@ -293,7 +294,8 @@ interface RecipeContentProps {
   onModeChange?: (mode: RecipeModifyMode) => void;
 }
 
-export const SVGRecipeContent: React.FC<RecipeContentProps> = ({
+// 内部渲染组件
+const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
   node,
   onAddToCanvas,
   onModeChange,
@@ -301,6 +303,18 @@ export const SVGRecipeContent: React.FC<RecipeContentProps> = ({
   const { recipe, onCanvas, modifyMode } = node;
   const inputLayout = parseInput(recipe);
   const output = parseOutput(recipe);
+
+  // 处理物品槽位点击 - 打开该物品的配方
+  const handleItemClick = (itemId: string | undefined, e: React.MouseEvent) => {
+    if (!itemId) return;
+    e.stopPropagation();
+    // 左键查看合成配方，右键查看用途
+    if (e.button === 0) {
+      openRecipeModal(itemId, "result");
+    } else if (e.button === 2) {
+      openRecipeModal(itemId, "usage");
+    }
+  };
 
   // 常量定义
   const padding = 12;
@@ -419,11 +433,25 @@ export const SVGRecipeContent: React.FC<RecipeContentProps> = ({
       {/* 输入槽位 */}
       {inputLayout.layout === "single" ? (
         <>
-          <g transform={`translate(${inputX}, ${inputY})`}>
+          <g
+            transform={`translate(${inputX}, ${inputY})`}
+            style={{ cursor: "pointer" }}
+            onMouseDownCapture={(e) => handleItemClick(inputLayout.items[0]?.itemId, e)}
+            onContextMenu={(e) => e.preventDefault()}
+          >
             <SVGItemSlot
               info={inputLayout.items[0]}
               isTag={inputLayout.isTag[0]}
               size={slotSize}
+            />
+            {/* 透明点击层 */}
+            <rect
+              x={0}
+              y={0}
+              width={slotSize}
+              height={slotSize}
+              fill="transparent"
+              style={{ cursor: "pointer" }}
             />
           </g>
           <text
@@ -442,12 +470,29 @@ export const SVGRecipeContent: React.FC<RecipeContentProps> = ({
           const x = inputX + (i % 3) * (slotSize + gap);
           const y = inputY + Math.floor(i / 3) * (slotSize + gap);
           return (
-            <g key={i} transform={`translate(${x}, ${y})`}>
+            <g
+              key={i}
+              transform={`translate(${x}, ${y})`}
+              style={{ cursor: info ? "pointer" : "default" }}
+              onMouseDownCapture={(e) => handleItemClick(info?.itemId, e)}
+              onContextMenu={(e) => e.preventDefault()}
+            >
               <SVGItemSlot
                 info={info}
                 isTag={inputLayout.isTag[i]}
                 size={slotSize}
               />
+              {/* 透明点击层 */}
+              {info && (
+                <rect
+                  x={0}
+                  y={0}
+                  width={slotSize}
+                  height={slotSize}
+                  fill="transparent"
+                  style={{ cursor: "pointer" }}
+                />
+              )}
             </g>
           );
         })
@@ -466,7 +511,12 @@ export const SVGRecipeContent: React.FC<RecipeContentProps> = ({
       </text>
 
       {/* 输出槽位 */}
-      <g transform={`translate(${outputX}, ${inputY})`}>
+      <g
+        transform={`translate(${outputX}, ${inputY})`}
+        style={{ cursor: "pointer" }}
+        onMouseDownCapture={(e) => handleItemClick(output.itemId, e)}
+        onContextMenu={(e) => e.preventDefault()}
+      >
         <rect
           x={0}
           y={0}
@@ -494,6 +544,7 @@ export const SVGRecipeContent: React.FC<RecipeContentProps> = ({
             fontSize="10"
             fontWeight="bold"
             style={{ textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+            pointerEvents="none"
           >
             {output.count}
           </text>
@@ -506,9 +557,18 @@ export const SVGRecipeContent: React.FC<RecipeContentProps> = ({
           fill="#71717a"
           fontSize="11"
           dominantBaseline="hanging"
+          pointerEvents="none"
         >
           结果
         </text>
+        {/* 透明点击层确保点击 */}
+        <rect
+          x={0}
+          y={0}
+          width={slotSize}
+          height={slotSize}
+          fill="transparent"
+        />
       </g>
 
       {/* 额外信息（经验、烹饪时间） */}
@@ -596,7 +656,7 @@ export const SVGRecipeContent: React.FC<RecipeContentProps> = ({
               strokeWidth="1"
               rx="4"
               style={{ cursor: "pointer" }}
-              onClick={(e) => {
+              onClickCapture={(e) => {
                 e.stopPropagation();
                 handleModeClick();
               }}
@@ -620,6 +680,33 @@ export const SVGRecipeContent: React.FC<RecipeContentProps> = ({
     </g>
   );
 };
+
+// 使用 memo 包装，只在 recipe 数据或状态变化时重新渲染
+export const SVGRecipeContent = React.memo(
+  SVGRecipeContentInner,
+  (prevProps, nextProps) => {
+    // 比较 recipe 对象（浅比较关键字段）
+    const prevRecipe = prevProps.node.recipe;
+    const nextRecipe = nextProps.node.recipe;
+    
+    if (prevRecipe !== nextRecipe) {
+      // 深度比较 recipe 的关键字段
+      if (prevRecipe.type !== nextRecipe.type) return false;
+      if (JSON.stringify(prevRecipe.ingredients) !== JSON.stringify(nextRecipe.ingredients)) return false;
+      if (JSON.stringify(prevRecipe.pattern) !== JSON.stringify(nextRecipe.pattern)) return false;
+      if (JSON.stringify(prevRecipe.key) !== JSON.stringify(nextRecipe.key)) return false;
+      if (JSON.stringify(prevRecipe.result) !== JSON.stringify(nextRecipe.result)) return false;
+      if (JSON.stringify(prevRecipe.output) !== JSON.stringify(nextRecipe.output)) return false;
+    }
+    
+    // 比较 onCanvas 和 modifyMode
+    if (prevProps.node.onCanvas !== nextProps.node.onCanvas) return false;
+    if (prevProps.node.modifyMode !== nextProps.node.modifyMode) return false;
+    
+    // 回调函数不需要比较（它们的变化不影响渲染）
+    return true;
+  }
+);
 
 // ============================================================================
 // 画布节点组件

@@ -115,7 +115,7 @@ topLayer.push(() => {
     setLoading(true);
     setError(null);
     try {
-      const endpoint = type === "result" ? `/reciper/result/${itemId}` : `/reciper/usage/${itemId}`;
+      const endpoint = type === "result" ? `/reciper/result?id=${encodeURIComponent(itemId)}` : `/reciper/usage?id=${encodeURIComponent(itemId)}`;
       const response = await fetch(endpoint);
       if (!response.ok) {
         throw new Error("获取配方失败");
