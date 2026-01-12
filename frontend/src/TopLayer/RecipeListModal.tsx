@@ -1,7 +1,43 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { topLayer } from "../Globals";
 import { RecipePreview, Recipe } from "./RecipePreview";
 import { MCItemIcon } from "../Components/MCItemNode";
+
+// ============================================================================
+// 配方预览包装器 - 追踪屏幕位置
+// ============================================================================
+
+interface RecipePreviewWrapperProps {
+  recipe: Recipe;
+  onAddedToCanvas?: () => void;
+}
+
+const RecipePreviewWrapper: React.FC<RecipePreviewWrapperProps> = ({
+  recipe,
+  onAddedToCanvas,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const getScreenPosition = useCallback(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      // 返回容器的左上角位置
+      return { x: rect.left, y: rect.top };
+    }
+    // 默认返回屏幕中心
+    return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ display: "inline-block" }}>
+      <RecipePreview
+        recipe={recipe}
+        getScreenPosition={getScreenPosition}
+        onAddedToCanvas={onAddedToCanvas}
+      />
+    </div>
+  );
+};
 
 // 配方列表弹窗配置
 let recipesPerPage = 3; // 每页显示的配方数量（可配置）
@@ -492,7 +528,11 @@ topLayer.push(() => {
               }}
             >
               {displayRecipes.map((recipe, index) => (
-                <RecipePreview key={`${selectedType}-${currentPage}-${index}`} recipe={recipe} />
+                <RecipePreviewWrapper
+                  key={`${selectedType}-${currentPage}-${index}`}
+                  recipe={recipe}
+                  onAddedToCanvas={() => closeRecipeModal()}
+                />
               ))}
             </div>
           )}

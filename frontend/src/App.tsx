@@ -17,6 +17,7 @@ import "./TopLayer/RecipeListModal";
 import "./Components/TextNode";
 import "./Components/ImageNode";
 import "./Components/MCItemNode";
+import "./Components/RecipeNode";
 import "./Components/CurveEdge";
 import "./Components/LineEdge";
 
