@@ -89,6 +89,32 @@ const RECIPE_TYPE_NAMES: Record<string, string> = {
   "minecraft:smithing": "锻造",
   "smithing_trim": "锻造模具",
   "minecraft:smithing_trim": "锻造模具",
+  "enderio:alloy_smelting": "合金熔炼 (EnderIO)",
+  "actuallyadditions:empowering": "原子强化 (AA)",
+  "immersiveengineering:arc_furnace": "电弧炉 (IE)",
+  "immersiveengineering:crusher": "粉碎机 (IE)",
+  "immersiveengineering:squeezer": "工业压榨 (IE)",
+  "immersiveengineering:fermenter": "发酵池 (IE)",
+  "immersiveengineering:metal_press": "金属冲压 (IE)",
+  "immersiveengineering:blast_furnace": "粗制焦炉 (IE)",
+  "immersiveengineering:coke_oven": "焦炭炉 (IE)",
+  "immersiveengineering:alloy": "合金窑 (IE)",
+  "thermal:smelter": "感应熔炉 (Thermal)",
+  "thermal:pulverizer": "磨粉机 (Thermal)",
+  "thermal:sawmill": "锯木厂 (Thermal)",
+  "thermal:press": "多功能压机 (Thermal)",
+  "thermal:crucible": "熔化炉 (Thermal)",
+  "thermal:chiller": "流体转注机 (Thermal)",
+  "thermal:refinery": "精炼厂 (Thermal)",
+  "thermal:centrifuge": "离心机 (Thermal)",
+  "thermal:brewer": "炼药机 (Thermal)",
+  "mekanism:crushing": "粉碎 (Mekanism)",
+  "mekanism:enriching": "富集 (Mekanism)",
+  "mekanism:smelting": "熔炼 (Mekanism)",
+  "mekanism:purifying": "净化 (Mekanism)",
+  "mekanism:injecting": "注入 (Mekanism)",
+  "mekanism:compressing": "压缩 (Mekanism)",
+  "mekanism:sawing": "锯木 (Mekanism)",
 };
 
 // 获取配方类型显示名称
@@ -485,6 +511,26 @@ topLayer.push(() => {
         >
           {totalPages > 0 && `${currentPage + 1} / ${totalPages}`}
         </div>
+
+        {/* 当前配方名称 */}
+        {selectedType && (
+          <div
+            className="recipe-modal-type-title"
+            style={{
+              padding: "4px 24px",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#a5b4fc",
+              letterSpacing: "0.5px",
+              borderLeft: "3px solid #6366f1",
+              marginLeft: "20px",
+              marginTop: "8px",
+              background: "linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%)",
+            }}
+          >
+            {getRecipeTypeName(selectedType)}
+          </div>
+        )}
 
         {/* 配方列表 */}
         <div

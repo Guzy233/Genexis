@@ -32,6 +32,10 @@ export interface Recipe {
   output?: { id?: string; item?: string; count?: number };
   experience?: number;
   cookingtime?: number;
+  time?: number;
+  duration?: number;
+  energy?: number | { amount?: number; energy?: number; value?: number };
+  temperature?: number;
   [key: string]: any;
 }
 
@@ -59,12 +63,12 @@ const extractItemInfo = (
   }
   if (typeof value === "object") {
     if (value.tag) return { itemId: value.tag, isTag: true };
-    
+
     // 支持 IE/Common 的 basePredicate 结构
     const target = value.basePredicate || value;
     const id = target.id || target.item;
     const tag = target.tag;
-    
+
     if (tag) return { itemId: tag, isTag: true, count: value.count };
     if (id) {
       const isTag = id.startsWith("#");
@@ -136,7 +140,7 @@ const recipeParsers: RecipeParser[] = [
     parse: (r) => {
       const items = new Array(9).fill(null);
       const isTag = new Array(9).fill(false);
-      
+
       const baseInfo = extractItemInfo(r.base);
       items[4] = baseInfo;
       isTag[4] = !!baseInfo?.isTag;
@@ -161,7 +165,7 @@ const recipeParsers: RecipeParser[] = [
     parse: (r) => {
       const items = new Array(6).fill(null);
       const isTag = new Array(6).fill(false);
-      
+
       // 添加物 1x2 (Row 0, Col 0-1)
       const rawAdditives = Array.isArray(r.additives) ? r.additives.flat(2) : [];
       rawAdditives.forEach((a: any, i: number) => {
@@ -182,14 +186,47 @@ const recipeParsers: RecipeParser[] = [
       return { items: items, isTag: isTag, layout: "grid", gridSize: { rows: 3, cols: 2 } };
     },
   },
-  // 5. 单物品输入 (Single)
+  // 5. IE 合金窑 (Alloy Kiln)
+  {
+    name: "ie_alloy",
+    canParse: (r) => r.type?.includes("immersiveengineering:alloy") || (!!r.input0 && !!r.input1 && r.type?.includes("alloy")),
+    parse: (r) => {
+      const i0 = extractItemInfo(r.input0);
+      const i1 = extractItemInfo(r.input1);
+      return {
+        items: [i0, i1],
+        isTag: [!!i0?.isTag, !!i1?.isTag],
+        layout: "grid",
+        gridSize: { rows: 1, cols: 2 }
+      };
+    },
+  },
+  // 6. EnderIO 合金炉 (Alloy Smelting)
+  {
+    name: "alloy_smelting",
+    canParse: (r) => r.type?.includes("alloy_smelting") || (!!r.inputs && Array.isArray(r.inputs) && r.type?.includes("enderio")),
+    parse: (r) => {
+      const items = new Array(3).fill(null);
+      const isTag = new Array(3).fill(false);
+      const rawInputs = Array.isArray(r.inputs) ? r.inputs : [];
+      rawInputs.forEach((v: any, i: number) => {
+        if (i < 3) {
+          const info = extractItemInfo(v);
+          items[i] = info;
+          isTag[i] = !!info?.isTag;
+        }
+      });
+      return { items, isTag, layout: "grid", gridSize: { rows: 3, cols: 1 } };
+    },
+  },
+  // 7. 单物品输入 (Single)
   {
     name: "single",
     canParse: (r) => !!(r.ingredient || r.input),
     parse: (r) => {
       const single = r.ingredient || r.input;
       const info = extractItemInfo(single);
-      const isTag = typeof single === "object" && "tag" in single && !!single.tag;
+      const isTag = !!info?.isTag;
       return { items: [info], isTag: [isTag], layout: "single" };
     },
   }
@@ -216,13 +253,46 @@ const parseOutput = (
   return { itemId: info.itemId, count: info.count || 1 };
 };
 
+// 获取额外信息列表
+const getExtraInfoItems = (recipe: Recipe) => {
+  const items: Array<{ icon: string; text: string; color: string; label: string }> = [];
+
+  // 1. 经验
+  if (recipe.experience !== undefined) {
+    items.push({ icon: "✦", text: `${recipe.experience} XP`, color: "#fbbf24", label: "经验" });
+  }
+
+  // 2. 耗时
+  const time = recipe.cookingtime ?? recipe.time ?? recipe.duration ?? recipe.processingTime;
+  if (time !== undefined) {
+    const seconds = typeof time === "number" ? Math.round((time / 20) * 10) / 10 : time;
+    items.push({ icon: "⏱", text: `${seconds}s`, color: "#f97316", label: "耗时" });
+  }
+
+  // 3. 能量
+  const energyVal = typeof recipe.energy === "object"
+    ? (recipe.energy.amount ?? recipe.energy.energy ?? recipe.energy.value)
+    : (recipe.energy ?? recipe.physics?.energy);
+  if (energyVal !== undefined) {
+    items.push({ icon: "⚡", text: `${energyVal} FE`, color: "#ef4444", label: "能量" });
+  }
+
+  // 4. 温度
+  const tempVal = recipe.temperature ?? recipe.heat ?? recipe.physics?.temperature;
+  if (tempVal !== undefined) {
+    items.push({ icon: "🌡", text: `${tempVal}°C`, color: "#dc2626", label: "温度" });
+  }
+
+  return items;
+};
+
 // ============================================================================
 // 计算节点尺寸
 // ============================================================================
 
 export const calculateRecipeNodeSize = (recipe: Recipe): { width: number; height: number } => {
   const inputLayout = parseInput(recipe);
-  
+
   const padding = 12;
   const slotSize = 40;
   const gap = 4;
@@ -254,19 +324,35 @@ export const calculateRecipeNodeSize = (recipe: Recipe): { width: number; height
     height: slotSize + labelOffset + labelHeight,
   };
 
-  const hasExtraInfo =
-    recipe.experience !== undefined || recipe.cookingtime !== undefined;
-  const extraInfoHeight = hasExtraInfo ? 24 : 0;
-
+  const infoItems = getExtraInfoItems(recipe);
   const contentWidth =
     inputSize.width + arrowGap + arrowWidth + arrowGap + outputSize.width;
-  
-  // 按钮挪到右侧，总宽度包含按钮
+
   const actionButtonWidth = slotSize;
+
+  // 1. 计算对齐后的高度需求
+  // 槽位中心对齐逻辑：
+  const inputBaseHeight = inputLayout?.layout === "single" ? slotSize : inputSize.height;
+  const centerY = inputBaseHeight / 2;
+  const outputTop = centerY - slotSize / 2;
+  const outputTotalHeight = outputTop + outputSize.height;
+
+  // 2. 判定额外信息是否能放在输出下方
+  const spaceBelowOutput = inputSize.height - (outputTop + outputSize.height);
+  // 每个项目占 18px，留出 12px 缓冲区
+  const fitsBelowOutput = infoItems.length > 0 && spaceBelowOutput >= (infoItems.length * 18 + 12);
+
+  const showAtBottom = infoItems.length > 0 && !fitsBelowOutput;
+  const extraInfoHeight = showAtBottom ? 32 : 0; // 调大间距以便留白
+
   const totalWidth = contentWidth + arrowGap + actionButtonWidth + padding * 2;
-  
-  // 总高度基于输入侧高度（包含额外信息或按钮的最小值）
-  const totalHeight = Math.max(inputSize.height + extraInfoHeight, actionButtonHeight - 4) + padding * 2;
+
+  // 总高度取三者最大值：输入侧（含底部信息）、输出侧（含下方信息）、操作按钮
+  const totalHeight = Math.max(
+    inputSize.height + extraInfoHeight,
+    outputTotalHeight + (fitsBelowOutput ? infoItems.length * 18 + 12 : 0),
+    actionButtonHeight - 4
+  ) + padding * 2;
 
   return { width: totalWidth, height: totalHeight };
 };
@@ -448,16 +534,30 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
     height: slotSize + labelOffset + labelHeight,
   };
 
-  const hasExtraInfo =
-    recipe.experience !== undefined || recipe.cookingtime !== undefined;
-  const extraInfoHeight = hasExtraInfo ? 24 : 0;
+  const infoItems = getExtraInfoItems(recipe);
 
+  // 1. 布局对齐计算
+  const inputBaseHeight = inputLayout?.layout === "single" ? slotSize : inputSize.height;
+  const centerY = inputBaseHeight / 2 + padding;
+
+  // 输出槽位顶部位置 = 槽位中心 - 槽位一半高度
+  const outputY = centerY - slotSize / 2;
+  const outputTotalBottom = outputY + outputSize.height;
+
+  // 2. 空间判定
+  const spaceBelowOutput = (inputBaseHeight + padding) - outputTotalBottom;
+  const fitsBelowOutput = infoItems.length > 0 && spaceBelowOutput >= (infoItems.length * 18 + 12);
+
+  const showAtBottom = infoItems.length > 0 && !fitsBelowOutput;
+  const showBelowOutput = infoItems.length > 0 && fitsBelowOutput;
+
+  const extraInfoHeight = showAtBottom ? 32 : 0;
   const contentWidth =
     inputSize.width + arrowGap + arrowWidth + arrowGap + outputSize.width;
 
   const actionButtonWidth = slotSize;
   const totalWidth = contentWidth + arrowGap + actionButtonWidth + padding * 2;
-  const totalHeight = Math.max(inputSize.height + extraInfoHeight, actionButtonHeight - 4) + padding * 2;
+  const totalHeight = Math.max(inputSize.height + extraInfoHeight, outputY - padding + outputSize.height + (showBelowOutput ? infoItems.length * 18 + 12 : 0), actionButtonHeight - 4) + padding * 2;
 
   // 不支持的配方类型
   if (!inputLayout || !output) {
@@ -488,20 +588,20 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
   // 计算各部分位置
   const inputX = padding;
   const inputY = padding;
-  const inputBaseHeight = inputSize.height;
-  const centerY = inputY + inputBaseHeight / 2;
-
   const arrowX = inputX + inputSize.width + arrowGap;
   const outputX = arrowX + arrowWidth + arrowGap;
-  const outputY = centerY - outputSize.height / 2;
 
-  const extraInfoY = inputY + inputBaseHeight + 4;
-  
+  const extraInfoBottomY = inputY + inputSize.height + 4;
+
+  // 放在输出下方的起始位置
+  const extraInfoBelowX = outputX;
+  const extraInfoBelowY = outputY + outputSize.height + 12;
+
   const actionButtonX = totalWidth - padding - slotSize;
   const actionButtonY = inputY + inputBaseHeight - (actionButtonHeight - 4);
 
-  // 箭头垂直中心点
-  const arrowCenterY = inputY + inputSize.height / 2;
+  // 修正箭头 Y 坐标，始终对齐槽位中心
+  const arrowCenterY = centerY;
 
   // 模式切换按钮文字
   const modeLabels: Record<RecipeModifyMode, string> = {
@@ -638,9 +738,8 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
           rx="4"
         />
         <g
-          transform={`translate(${(slotSize - iconSize) / 2}, ${
-            (slotSize - iconSize) / 2
-          })`}
+          transform={`translate(${(slotSize - iconSize) / 2}, ${(slotSize - iconSize) / 2
+            })`}
         >
           <MCItemIcon itemId={output.itemId} size={iconSize} />
         </g>
@@ -681,45 +780,52 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
         />
       </g>
 
-      {/* 额外信息（经验、时间、能量等） */}
-      {hasExtraInfo && (
+      {/* 额外信息 */}
+      {showAtBottom && (
         <g>
           <line
-            x1={padding}
-            y1={extraInfoY}
-            x2={totalWidth - padding}
-            y2={extraInfoY}
-            stroke="rgba(255,255,255,0.05)"
+            x1={padding + 12}
+            y1={extraInfoBottomY}
+            x2={totalWidth - padding - 12}
+            y2={extraInfoBottomY}
+            stroke="rgba(255,255,255,0.06)"
             strokeWidth="1"
           />
-          <g transform={`translate(${padding}, ${extraInfoY + 4})`}>
-            {(() => {
-              const infoItems = [];
-              if (recipe.experience !== undefined) {
-                infoItems.push({ icon: "✦", text: `${recipe.experience} XP`, color: "#fbbf24" });
-              }
-              const time = recipe.cookingtime ?? recipe.time ?? recipe.duration;
-              if (time !== undefined) {
-                infoItems.push({ icon: "⏱", text: `${time / 20}s`, color: "#f97316" });
-              }
-              if (recipe.energy !== undefined) {
-                infoItems.push({ icon: "⚡", text: `${recipe.energy} FE`, color: "#ef4444" });
-              }
-
-              return infoItems.map((item, idx) => (
-                <text
-                  key={idx}
-                  x={idx * 85} // 简单的左右间距
-                  y={8}
-                  fill="#a1a1aa"
-                  fontSize="11"
-                  dominantBaseline="hanging"
-                >
-                  <tspan fill={item.color}>{item.icon}</tspan> {item.text}
-                </text>
-              ));
-            })()}
+          <g transform={`translate(${padding + 12}, ${extraInfoBottomY + 6})`}>
+            {infoItems.map((item, idx) => (
+              <text
+                key={idx}
+                x={idx * 85}
+                y={8}
+                fill="#a1a1aa"
+                fontSize="11"
+                dominantBaseline="hanging"
+              >
+                <tspan fill={item.color}>{item.icon}</tspan> {item.text}
+                <title>{item.label}</title>
+              </text>
+            ))}
           </g>
+        </g>
+      )}
+
+      {showBelowOutput && (
+        <g transform={`translate(${extraInfoBelowX}, ${extraInfoBelowY})`}>
+          {infoItems.map((item, idx) => (
+            <g key={idx} transform={`translate(0, ${idx * 18})`}>
+              <text
+                x={slotSize / 2}
+                y={0}
+                fill="#a1a1aa"
+                fontSize="10"
+                textAnchor="middle"
+                dominantBaseline="hanging"
+              >
+                <tspan fill={item.color}>{item.icon}</tspan> {item.text}
+              </text>
+              <title>{item.label}</title>
+            </g>
+          ))}
         </g>
       )}
 
@@ -802,7 +908,7 @@ export const SVGRecipeContent = React.memo(
     // 比较 recipe 对象（浅比较关键字段）
     const prevRecipe = prevProps.node.recipe;
     const nextRecipe = nextProps.node.recipe;
-    
+
     if (prevRecipe !== nextRecipe) {
       // 深度比较 recipe 的关键字段
       if (prevRecipe.type !== nextRecipe.type) return false;
@@ -812,11 +918,11 @@ export const SVGRecipeContent = React.memo(
       if (JSON.stringify(prevRecipe.result) !== JSON.stringify(nextRecipe.result)) return false;
       if (JSON.stringify(prevRecipe.output) !== JSON.stringify(nextRecipe.output)) return false;
     }
-    
+
     // 比较 onCanvas 和 modifyMode
     if (prevProps.node.onCanvas !== nextProps.node.onCanvas) return false;
     if (prevProps.node.modifyMode !== nextProps.node.modifyMode) return false;
-    
+
     // 回调函数不需要比较（它们的变化不影响渲染）
     return true;
   }
