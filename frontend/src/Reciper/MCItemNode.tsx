@@ -13,7 +13,7 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
-import { coords, translations } from "../Controllers/Recipes";
+import { coords, translations } from "./Data";
 import { saveHistory } from "../Manager";
 import { activedId } from "../Controllers/Selector";
 
@@ -54,7 +54,6 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => 
       </svg>
     );
   }
-  const spriteUrl = `/reciper/atlas`;
   const x = itemData.X;
   const y = itemData.Y;
 
@@ -66,9 +65,11 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => 
       style={{ imageRendering: "pixelated" }}
     >
       <image
-        href={spriteUrl}
+        href={`/reciper/atlas`}
         x={-x}
         y={-y}
+        className="item-icon"
+        id={itemId}
       />
     </svg>
   );

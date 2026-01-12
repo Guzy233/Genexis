@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { topLayer } from "../Globals";
 import { RecipePreview, Recipe } from "./RecipePreview";
-import { MCItemIcon } from "../Components/MCItemNode";
+import { MCItemIcon } from "./MCItemNode";
+import { RECIPE_TYPE_NAMES, fetchRecipes as fetchRecipesApi } from "./Data";
 
 // ============================================================================
 // 配方预览包装器 - 追踪屏幕位置
@@ -69,53 +70,7 @@ export const closeRecipeModal = () => {
   recipeModalSubscribers.forEach((cb) => cb(false, prevItemId, prevType));
 };
 
-// 配方类型名称映射
-const RECIPE_TYPE_NAMES: Record<string, string> = {
-  "minecraft:crafting_shaped": "有序合成",
-  "crafting_shaped": "有序合成",
-  "minecraft:crafting_shapeless": "无序合成",
-  "crafting_shapeless": "无序合成",
-  "minecraft:smelting": "熔炼",
-  "smelting": "熔炼",
-  "minecraft:blasting": "高温熔炼",
-  "blasting": "高温熔炼",
-  "minecraft:smoking": "烟熏",
-  "smoking": "烟熏",
-  "minecraft:campfire_cooking": "营火烹饪",
-  "campfire_cooking": "营火烹饪",
-  "stonecutting": "切石",
-  "minecraft:stonecutting": "切石",
-  "smithing": "锻造",
-  "minecraft:smithing": "锻造",
-  "smithing_trim": "锻造模具",
-  "minecraft:smithing_trim": "锻造模具",
-  "enderio:alloy_smelting": "合金熔炼 (EnderIO)",
-  "actuallyadditions:empowering": "原子强化 (AA)",
-  "immersiveengineering:arc_furnace": "电弧炉 (IE)",
-  "immersiveengineering:crusher": "粉碎机 (IE)",
-  "immersiveengineering:squeezer": "工业压榨 (IE)",
-  "immersiveengineering:fermenter": "发酵池 (IE)",
-  "immersiveengineering:metal_press": "金属冲压 (IE)",
-  "immersiveengineering:blast_furnace": "粗制焦炉 (IE)",
-  "immersiveengineering:coke_oven": "焦炭炉 (IE)",
-  "immersiveengineering:alloy": "合金窑 (IE)",
-  "thermal:smelter": "感应熔炉 (Thermal)",
-  "thermal:pulverizer": "磨粉机 (Thermal)",
-  "thermal:sawmill": "锯木厂 (Thermal)",
-  "thermal:press": "多功能压机 (Thermal)",
-  "thermal:crucible": "熔化炉 (Thermal)",
-  "thermal:chiller": "流体转注机 (Thermal)",
-  "thermal:refinery": "精炼厂 (Thermal)",
-  "thermal:centrifuge": "离心机 (Thermal)",
-  "thermal:brewer": "炼药机 (Thermal)",
-  "mekanism:crushing": "粉碎 (Mekanism)",
-  "mekanism:enriching": "富集 (Mekanism)",
-  "mekanism:smelting": "熔炼 (Mekanism)",
-  "mekanism:purifying": "净化 (Mekanism)",
-  "mekanism:injecting": "注入 (Mekanism)",
-  "mekanism:compressing": "压缩 (Mekanism)",
-  "mekanism:sawing": "锯木 (Mekanism)",
-};
+
 
 // 获取配方类型显示名称
 const getRecipeTypeName = (type: string): string => {
@@ -141,12 +96,7 @@ topLayer.push(() => {
     setLoading(true);
     setError(null);
     try {
-      const endpoint = type === "result" ? `/reciper/result?id=${encodeURIComponent(itemId)}` : `/reciper/usage?id=${encodeURIComponent(itemId)}`;
-      const response = await fetch(endpoint);
-      if (!response.ok) {
-        throw new Error("获取配方失败");
-      }
-      const data: Recipe[] = await response.json();
+      const data = await fetchRecipesApi(itemId, type);
       setRecipes(data);
       // 默认选中第一个类型（如果有的话）
       if (data.length > 0) {

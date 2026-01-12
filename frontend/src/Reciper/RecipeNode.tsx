@@ -1,8 +1,6 @@
 import React from "react";
 import { atom, useAtom } from "jotai";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
-import { ObjectFactories } from "../Controllers/Creator";
-import { ToolItems, CATEGORY_NODES } from "../TopLayer/ToolBar";
 import {
   registerSerializer,
   serializeAnchors,
@@ -10,8 +8,8 @@ import {
 } from "../Serialization";
 import { activedId } from "../Controllers/Selector";
 import { SVGItemSlot, MCItemIcon } from "./MCItemNode";
-import { translations } from "../Controllers/Recipes";
-import { openRecipeModal } from "../TopLayer/RecipeListModal";
+import { translations } from "./Data";
+import { openRecipeModal } from "./RecipeListModal";
 
 // ============================================================================
 // 类型定义
@@ -64,7 +62,6 @@ const extractItemInfo = (
   if (typeof value === "object") {
     if (value.tag) return { itemId: value.tag, isTag: true };
 
-    // 支持 IE/Common 的 basePredicate 结构
     const target = value.basePredicate || value;
     const id = target.id || target.item;
     const tag = target.tag;
@@ -384,51 +381,6 @@ export const createRecipeNode = (recipe: Recipe, onCanvas: boolean = true): Reci
   };
 };
 
-// 注册对象工厂
-ObjectFactories["node/recipe"] = (): RecipeNode => {
-  // 默认创建一个空配方节点（实际使用时应通过 createRecipeNode 指定配方）
-  const emptyRecipe: Recipe = { type: "minecraft:crafting_shaped" };
-  return createRecipeNode(emptyRecipe, true);
-};
-
-// 注册工具项
-ToolItems.push({
-  id: "node/recipe",
-  type: "node",
-  category: CATEGORY_NODES,
-  icon: (
-    <svg viewBox="0 0 60 60" style={{ width: "100%", height: "100%" }}>
-      {/* 工作台图标 */}
-      <rect
-        x="8"
-        y="8"
-        width="44"
-        height="44"
-        rx="6"
-        fill="rgba(139, 69, 19, 0.3)"
-        stroke="#8B4513"
-        strokeWidth="2"
-      />
-      {/* 3x3 网格 */}
-      {[0, 1, 2].flatMap((row) =>
-        [0, 1, 2].map((col) => (
-          <rect
-            key={`${row}-${col}`}
-            x={12 + col * 13}
-            y={12 + row * 13}
-            width="11"
-            height="11"
-            rx="2"
-            fill="rgba(255, 255, 255, 0.1)"
-            stroke="rgba(255, 255, 255, 0.2)"
-            strokeWidth="1"
-          />
-        ))
-      )}
-    </svg>
-  ),
-});
-
 // ============================================================================
 // 序列化
 // ============================================================================
@@ -446,7 +398,6 @@ registerSerializer(
       eAncs: serializeAnchors(node.eAncs, null),
       selected: node.selected,
       recipe: node.recipe,
-      onCanvas: node.onCanvas,
       modifyMode: node.modifyMode,
     };
   },
@@ -461,7 +412,7 @@ registerSerializer(
       selected: data.selected ?? false,
       updater: atom(0),
       recipe: data.recipe,
-      onCanvas: data.onCanvas ?? true,
+      onCanvas: true,
       modifyMode: data.modifyMode ?? "override",
     };
     return node;
@@ -487,18 +438,6 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
   const { recipe, onCanvas, modifyMode } = node;
   const inputLayout = parseInput(recipe);
   const output = parseOutput(recipe);
-
-  // 处理物品槽位点击 - 打开该物品的配方
-  const handleItemClick = (itemId: string | undefined, e: React.MouseEvent) => {
-    if (!itemId) return;
-    e.stopPropagation();
-    // 左键查看合成配方，右键查看用途
-    if (e.button === 0) {
-      openRecipeModal(itemId, "result");
-    } else if (e.button === 2) {
-      openRecipeModal(itemId, "usage");
-    }
-  };
 
   // 常量定义
   const padding = 12;
@@ -645,22 +584,12 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
           <g
             transform={`translate(${inputX}, ${inputY})`}
             style={{ cursor: "pointer" }}
-            onMouseDownCapture={(e) => handleItemClick(inputLayout.items[0]?.itemId, e)}
             onContextMenu={(e) => e.preventDefault()}
           >
             <SVGItemSlot
               info={inputLayout.items[0]}
               isTag={inputLayout.isTag[0]}
               size={slotSize}
-            />
-            {/* 透明点击层 */}
-            <rect
-              x={0}
-              y={0}
-              width={slotSize}
-              height={slotSize}
-              fill="transparent"
-              style={{ cursor: "pointer" }}
             />
           </g>
           <text
@@ -684,7 +613,6 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
               key={i}
               transform={`translate(${x}, ${y})`}
               style={{ cursor: info ? "pointer" : "default" }}
-              onMouseDownCapture={(e) => handleItemClick(info?.itemId, e)}
               onContextMenu={(e) => e.preventDefault()}
             >
               <SVGItemSlot
@@ -692,17 +620,6 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
                 isTag={inputLayout.isTag[i]}
                 size={slotSize}
               />
-              {/* 透明点击层 */}
-              {info && (
-                <rect
-                  x={0}
-                  y={0}
-                  width={slotSize}
-                  height={slotSize}
-                  fill="transparent"
-                  style={{ cursor: "pointer" }}
-                />
-              )}
             </g>
           );
         })
@@ -724,7 +641,6 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
       <g
         transform={`translate(${outputX}, ${outputY})`}
         style={{ cursor: "pointer" }}
-        onMouseDownCapture={(e) => handleItemClick(output.itemId, e)}
         onContextMenu={(e) => e.preventDefault()}
       >
         <rect
@@ -770,14 +686,7 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
         >
           结果
         </text>
-        {/* 透明点击层确保点击 */}
-        <rect
-          x={0}
-          y={0}
-          width={slotSize}
-          height={slotSize}
-          fill="transparent"
-        />
+
       </g>
 
       {/* 额外信息 */}
@@ -876,7 +785,7 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
               strokeWidth="1"
               rx="4"
               style={{ cursor: "pointer" }}
-              onClickCapture={(e) => {
+              onClick={(e) => {
                 e.stopPropagation();
                 handleModeClick();
               }}

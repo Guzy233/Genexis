@@ -6,12 +6,12 @@ import {
   createRecipeNode,
   SVGRecipeContent,
   calculateRecipeNodeSize,
-} from "../Components/RecipeNode";
+} from "./RecipeNode";
 import { screen2Viewport } from "../Controllers/Camera";
 import Manager, { saveHistory } from "../Manager";
 
 // 重导出 Recipe 类型供其他模块使用
-export type { Recipe } from "../Components/RecipeNode";
+export type { Recipe } from "./RecipeNode";
 
 // ============================================================================
 // 配方预览组件 - 用于弹窗中的预览

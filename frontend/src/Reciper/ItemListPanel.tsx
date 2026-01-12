@@ -6,12 +6,10 @@ import React, {
   useRef,
 } from "react";
 import { Controllers, topLayer } from "../Globals";
-import { MCItemIcon } from "../Components/MCItemNode";
-import { coords, recipesLoaded, translations } from "../Controllers/Recipes";
-import { screen2Viewport } from "../Controllers/Camera";
-import { ObjectFactories } from "../Controllers/Creator";
-import Manager from "../Manager";
+import { MCItemIcon } from "./MCItemNode";
+import { coords, recipesLoaded, translations, searchItemsApi } from "./Data";
 import { openRecipeModal } from "./RecipeListModal";
+import { startDragItem } from "./ItemPointer";
 
 // 性能优化配置
 const PAGE_SIZE = 100; // 每次渲染的物品数量
@@ -44,113 +42,6 @@ export const onItemListPanelChange = (
   };
 };
 
-// 拖拽放置物品到画布的过程式逻辑
-const startDragItem = (e: React.MouseEvent, itemId: string) => {
-  e.preventDefault();
-  e.stopPropagation();
-
-  // 获取点击的物品格子，克隆其内容用于拖拽预览
-  const target = e.currentTarget as HTMLElement;
-  const iconElement = target.querySelector("svg");
-
-  // 获取物品的中文名称
-  const itemName = translations[itemId] || itemId;
-
-  // 创建临时拖拽元素
-  const dragElement = document.createElement("div");
-  dragElement.style.position = "fixed";
-  dragElement.style.pointerEvents = "none";
-  dragElement.style.zIndex = "10000";
-  dragElement.style.opacity = "0.8";
-
-  // 创建拖拽预览容器
-  const previewContainer = document.createElement("div");
-  previewContainer.style.display = "flex";
-  previewContainer.style.flexDirection = "column";
-  previewContainer.style.alignItems = "center";
-  previewContainer.style.gap = "4px";
-  previewContainer.style.padding = "8px";
-  previewContainer.style.background = "rgba(30, 30, 35, 0.9)";
-  previewContainer.style.borderRadius = "8px";
-  previewContainer.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-
-  // 克隆图标
-  if (iconElement) {
-    const clonedIcon = iconElement.cloneNode(true) as SVGElement;
-    clonedIcon.setAttribute("width", "32");
-    clonedIcon.setAttribute("height", "32");
-    previewContainer.appendChild(clonedIcon);
-  }
-
-  // 添加名称标签
-  const nameLabel = document.createElement("span");
-  nameLabel.style.fontSize = "12px";
-  nameLabel.style.color = "#e4e4e7";
-  nameLabel.style.whiteSpace = "nowrap";
-  nameLabel.textContent = itemName;
-  previewContainer.appendChild(nameLabel);
-
-  dragElement.appendChild(previewContainer);
-  document.body.appendChild(dragElement);
-
-  // 记录起始位置
-  const startX = e.clientX;
-  const startY = e.clientY;
-  let currentX = startX;
-  let currentY = startY;
-
-  // 更新拖拽元素位置
-  const updateDragPosition = (clientX: number, clientY: number) => {
-    dragElement.style.left = clientX + 16 + "px";
-    dragElement.style.top = clientY + 16 + "px";
-  };
-
-  updateDragPosition(startX, startY);
-
-  // 鼠标移动
-  const onMouseMove = (e: MouseEvent) => {
-    currentX = e.clientX;
-    currentY = e.clientY;
-    updateDragPosition(currentX, currentY);
-  };
-
-  // 鼠标释放
-  const onMouseUp = (e: MouseEvent) => {
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-    window.removeEventListener("blur", onBlur);
-
-    // 移除拖拽元素
-    document.body.removeChild(dragElement);
-
-    // 检查是否在画布区域内释放（简单判断：不在面板内）
-    const panelElement = document.querySelector(".item-list-panel");
-    const isInPanel = panelElement?.contains(e.target as Node);
-    if (isInPanel) return;
-
-    // 创建MC物品节点
-    const node = ObjectFactories["node/mcitem"]() as any;
-    const viewportPos = screen2Viewport({ x: e.clientX, y: e.clientY });
-    node.pos = { x: viewportPos.x - 40, y: viewportPos.y - 50 };
-    node.itemId = itemId;
-    Manager.add(node);
-  };
-
-  // 失去焦点
-  const onBlur = () => {
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-    window.removeEventListener("blur", onBlur);
-    if (document.body.contains(dragElement)) {
-      document.body.removeChild(dragElement);
-    }
-  };
-
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
-  window.addEventListener("blur", onBlur);
-};
-
 // 可拖拽的物品格子组件（保持原样式的item-slot，增加拖拽功能和点击事件）
 const DraggableItemSlot: React.FC<{ itemId: string }> = ({ itemId }) => {
   return (
@@ -159,17 +50,19 @@ const DraggableItemSlot: React.FC<{ itemId: string }> = ({ itemId }) => {
       title={translations[itemId] || itemId}
       onMouseDown={(e) => {
         // 左键点击显示合成配方，右键点击显示用途
-        if (e.button === 0) {
-          // 左键 - 合成配方
-          openRecipeModal(itemId, "result");
-        } else if (e.button === 2) {
-          // 右键 - 用途，阻止默认行为并打开弹窗
-          e.stopPropagation();
-          openRecipeModal(itemId, "usage");
-        } else {
-          // 中键或其他按钮 - 拖拽创建节点
-          startDragItem(e, itemId);
-        }
+        // if (e.button === 0) {
+        //   // 左键 - 合成配方
+        //   openRecipeModal(itemId, "result");
+        // } else if (e.button === 2) {
+        //   // 右键 - 用途，阻止默认行为并打开弹窗
+        //   e.stopPropagation();
+        //   openRecipeModal(itemId, "usage");
+        // } else {
+        // 中键或其他按钮 - 拖拽创建节点
+        // 将e转换为普通event
+        // startDragItem(e.nativeEvent, itemId);
+
+        // }
       }}
       style={{
         userSelect: "none",
@@ -195,24 +88,10 @@ topLayer.push(() => {
 
   // 从后端搜索物品
   const searchItems = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      // 搜索为空时显示所有物品
-      if (recipesLoaded) {
-        setItems(Object.keys(coords));
-      }
-      return;
-    }
-
     setSearching(true);
     try {
-      const response = await fetch(
-        `/reciper/search/${encodeURIComponent(query)}`
-      );
-      if (!response.ok) {
-        throw new Error("搜索失败");
-      }
-      const data = await response.json();
-      setItems(data.items || []);
+      const results = await searchItemsApi(query);
+      setItems(results);
     } catch (error) {
       console.error("搜索物品失败:", error);
       // 保持当前列表不变，避免闪烁
