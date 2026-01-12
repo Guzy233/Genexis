@@ -176,7 +176,11 @@ topLayer.push(() => {
   const recipesByType = useMemo(() => {
     const groups: Record<string, Recipe[]> = {};
     recipes.forEach((recipe) => {
-      const type = recipe?.type || "unknown";
+      let type = recipe?.type || "unknown";
+      // 如果包含 pattern 和 key，统一归类为有序合成
+      if (recipe?.pattern && recipe?.key) {
+        type = "minecraft:crafting_shaped";
+      }
       if (!groups[type]) {
         groups[type] = [];
       }
@@ -185,10 +189,34 @@ topLayer.push(() => {
     return groups;
   }, [recipes]);
 
-  // 获取所有配方类型（按出现顺序）
+  // 获取所有配方类型并按优先级排序
   const recipeTypes = useMemo(() => {
-    const types = new Set(recipes.map((r) => r?.type).filter(Boolean));
-    return Array.from(types);
+    const typesSet = new Set<string>();
+    recipes.forEach((r) => {
+      let t = r?.type || "unknown";
+      if (r?.pattern && r?.key) {
+        t = "minecraft:crafting_shaped";
+      }
+      typesSet.add(t);
+    });
+
+    const typesArray = Array.from(typesSet);
+
+    // 排序逻辑：有序合成 > 无序合成 > 其他 minecraft: > 其他
+    return typesArray.sort((a, b) => {
+      const getPriority = (type: string) => {
+        if (type === "minecraft:crafting_shaped") return 0;
+        if (type === "minecraft:crafting_shapeless") return 1;
+        if (type.startsWith("minecraft:")) return 2;
+        return 3;
+      };
+
+      const pA = getPriority(a);
+      const pB = getPriority(b);
+
+      if (pA !== pB) return pA - pB;
+      return a.localeCompare(b); // 同优先级的按字母顺序
+    });
   }, [recipes]);
 
   // 标签栏总页数
@@ -305,11 +333,12 @@ topLayer.push(() => {
             style={{
               position: "absolute",
               top: "-48px",
-              left: "20px",
+              left: "12px",
               right: "20px",
               display: "flex",
-              alignItems: "center",
-              gap: "4px",
+              alignItems: "flex-end", // 对齐到底部，方便连接
+              gap: "2px",
+              zIndex: 1,
             }}
           >
             {/* 左箭头 */}
@@ -356,6 +385,10 @@ topLayer.push(() => {
             >
               {visibleTabTypes.map((type) => {
                 const isSelected = selectedType === type;
+                // 获取该类型的第一个配方作为图标 ID
+                const firstRecipe = recipesByType[type]?.[0];
+                const iconId = (firstRecipe?.result?.id || firstRecipe?.output?.id || firstRecipe?.result?.item || firstRecipe?.output?.item || "minecraft:crafting_table").replace("#", "");
+
                 return (
                   <button
                     key={type}
@@ -363,31 +396,41 @@ topLayer.push(() => {
                     onClick={() => handleTypeChange(type)}
                     title={getRecipeTypeName(type)}
                     style={{
-                      width: "48px",
-                      height: "48px",
+                      width: "52px",
+                      height: isSelected ? "49px" : "44px",
                       padding: "4px",
-                      background: isSelected ? "rgba(30, 30, 35, 0.98)" : "rgba(60, 60, 65, 0.8)",
+                      background: isSelected ? "rgba(30, 30, 35, 0.98)" : "rgba(45, 45, 52, 0.7)",
                       border: "1px solid rgba(255, 255, 255, 0.15)",
-                      borderBottom: isSelected ? "none" : "2px solid transparent",
-                      borderRadius: isSelected ? "8px 8px 0 0" : "8px 8px 4px 4px",
-                      color: isSelected ? "#e4e4e7" : "#a1a1aa",
-                      fontSize: "12px",
-                      fontWeight: isSelected ? "600" : "500",
+                      borderBottom: isSelected ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
+                      borderRadius: "10px 10px 0 0",
+                      color: isSelected ? "#e4e4e7" : "#71717a",
                       cursor: "pointer",
-                      boxShadow: isSelected ? "0 -2px 8px rgba(0, 0, 0, 0.2)" : "none",
-                      transform: isSelected ? "translateY(0)" : "translateY(-2px)",
-                      transition: "all 0.15s ease",
+                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      ...(isSelected && {
-                        marginBottom: "-2px",
-                        paddingBottom: "6px",
-                        borderBottom: "2px solid #6366f1",
-                      }),
+                      position: "relative",
+                      zIndex: isSelected ? 2 : 1,
+                      marginTop: isSelected ? "0px" : "5px",
+                      boxShadow: isSelected ? "0 -4px 12px rgba(0, 0, 0, 0.2)" : "none",
                     }}
                   >
-                    <MCItemIcon itemId="minecraft:crafting_table" size={32} />
+                    <MCItemIcon itemId={iconId} size={32} />
+                    {isSelected && (
+                      <div
+                        className="active-tab-indicator"
+                        style={{
+                          position: "absolute",
+                          bottom: "0",
+                          left: "4px",
+                          right: "4px",
+                          height: "2px",
+                          background: "#6366f1",
+                          borderRadius: "2px 2px 0 0",
+                          display: "none", // 暂时隐藏指示条，因为我们要用平滑连接
+                        }}
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -542,12 +585,8 @@ topLayer.push(() => {
       {/* 全局样式 */}
       <style>{`
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         @keyframes slideIn {
@@ -559,6 +598,53 @@ topLayer.push(() => {
             opacity: 1;
             transform: scale(1) translateY(0);
           }
+        }
+
+        /* 选中标签的凹角平滑连接效果 */
+        .recipe-type-tab.active::before,
+        .recipe-type-tab.active::after {
+          content: "";
+          position: absolute;
+          bottom: 0;
+          width: 12px;
+          height: 12px;
+          pointer-events: none;
+          display: block !important;
+        }
+
+        .recipe-type-tab.active::before {
+          left: -12px;
+          border-bottom-right-radius: 12px;
+          box-shadow: 5px 5px 0 5px rgba(30, 30, 35, 0.98);
+          clip-path: inset(0 0 0 0 round 0 0 12px 0);
+        }
+
+        .recipe-type-tab.active::after {
+          right: -12px;
+          border-bottom-left-radius: 12px;
+          box-shadow: -5px 5px 0 5px rgba(30, 30, 35, 0.98);
+          clip-path: inset(0 0 0 0 round 0 12px 0 0);
+        }
+        
+        /* 改进 Clip Path 以获得更完美的凹角 */
+        .recipe-type-tab.active::before {
+          left: -12px;
+          width: 12px;
+          height: 12px;
+          background: radial-gradient(circle at 0 0, transparent 12px, rgba(30, 30, 35, 0.98) 12.5px);
+        }
+        
+        .recipe-type-tab.active::after {
+          right: -12px;
+          width: 12px;
+          height: 12px;
+          background: radial-gradient(circle at 100% 0, transparent 12px, rgba(30, 30, 35, 0.98) 12.5px);
+        }
+
+        .recipe-type-tab:not(.active):hover {
+          background: rgba(60, 60, 68, 0.9) !important;
+          color: #e4e4e7 !important;
+          transform: translateY(-2px);
         }
       `}</style>
     </div>

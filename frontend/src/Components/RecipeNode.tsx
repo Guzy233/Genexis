@@ -51,63 +51,156 @@ export interface RecipeNode extends Node {
 
 const extractItemInfo = (
   value: any
-): { itemId: string; count?: number } | null => {
+): { itemId: string; count?: number; isTag?: boolean } | null => {
   if (!value) return null;
   if (typeof value === "string") {
-    return { itemId: value.startsWith("#") ? value.slice(1) : value };
+    const isTag = value.startsWith("#");
+    return { itemId: isTag ? value.slice(1) : value, isTag: isTag };
   }
   if (typeof value === "object") {
-    if (value.tag) return { itemId: value.tag };
-    const id = value.id || value.item;
-    if (id)
+    if (value.tag) return { itemId: value.tag, isTag: true };
+    
+    // 支持 IE/Common 的 basePredicate 结构
+    const target = value.basePredicate || value;
+    const id = target.id || target.item;
+    const tag = target.tag;
+    
+    if (tag) return { itemId: tag, isTag: true, count: value.count };
+    if (id) {
+      const isTag = id.startsWith("#");
       return {
-        itemId: id.startsWith("#") ? id.slice(1) : id,
+        itemId: isTag ? id.slice(1) : id,
         count: value.count,
+        isTag: isTag
       };
+    }
   }
   return null;
 };
 
-// 解析输入
-const parseInput = (
-  recipe: Recipe
-): {
+// ==================== 配方解析策略 ====================
+
+interface ParsedInput {
   items: Array<{ itemId: string; count?: number } | null>;
   isTag: boolean[];
   layout: "grid" | "single";
-} | null => {
-  if (recipe.ingredients) {
-    const parsed = recipe.ingredients.map((v) => {
-      const info = extractItemInfo(v);
-      return { info, isTag: typeof v === "object" && "tag" in v && !!v.tag };
-    });
-    return {
-      items: parsed.map((p) => p.info),
-      isTag: parsed.map((p) => p.isTag),
-      layout: "grid",
-    };
-  }
-  if (recipe.pattern && recipe.key) {
-    const grid: Array<{ itemId: string; count?: number } | null> = [];
-    const isTag: boolean[] = [];
-    for (let y = 0; y < 3; y++) {
-      for (let x = 0; x < 3; x++) {
-        const char = recipe.pattern[y]?.[x];
-        const val = char ? recipe.key[char] : null;
-        const info = extractItemInfo(val);
-        grid.push(info);
-        isTag.push(
-          !!val && typeof val === "object" && "tag" in val && !!val.tag
-        );
+  gridSize?: { rows: number; cols: number }; // 仅 layout 为 grid 时有效
+}
+
+interface RecipeParser {
+  name: string;
+  canParse: (recipe: Recipe) => boolean;
+  parse: (recipe: Recipe) => ParsedInput | null;
+}
+
+const recipeParsers: RecipeParser[] = [
+  // 1. 有序合成 (Shaped)
+  {
+    name: "shaped",
+    canParse: (r) => !!(r.pattern && r.key),
+    parse: (r) => {
+      const grid: Array<{ itemId: string; count?: number } | null> = [];
+      const isTag: boolean[] = [];
+      for (let y = 0; y < 3; y++) {
+        for (let x = 0; x < 3; x++) {
+          const char = r.pattern![y]?.[x];
+          const val = char ? r.key![char] : null;
+          const info = extractItemInfo(val);
+          grid.push(info);
+          isTag.push(!!val && typeof val === "object" && "tag" in val && !!val.tag);
+        }
       }
-    }
-    return { items: grid, isTag, layout: "grid" };
+      return { items: grid, isTag, layout: "grid", gridSize: { rows: 3, cols: 3 } };
+    },
+  },
+  // 2. 无序合成 (Shapeless)
+  {
+    name: "shapeless",
+    canParse: (r) => !!r.ingredients,
+    parse: (r) => {
+      const items = new Array(9).fill(null);
+      const isTag = new Array(9).fill(false);
+      r.ingredients!.forEach((v, i) => {
+        if (i < 9) {
+          items[i] = extractItemInfo(v);
+          isTag[i] = typeof v === "object" && "tag" in v && !!v.tag;
+        }
+      });
+      return { items, isTag, layout: "grid", gridSize: { rows: 3, cols: 3 } };
+    },
+  },
+  // 3. AA 强化配方 (Empowering)
+  {
+    name: "empowering",
+    canParse: (r) => !!(r.base && r.modifiers && r.type?.includes("empowering")),
+    parse: (r) => {
+      const items = new Array(9).fill(null);
+      const isTag = new Array(9).fill(false);
+      
+      const baseInfo = extractItemInfo(r.base);
+      items[4] = baseInfo;
+      isTag[4] = !!baseInfo?.isTag;
+
+      const modifierIndices = [1, 3, 5, 7, 0, 2, 6, 8];
+      const modifiers = Array.isArray(r.modifiers) ? r.modifiers : [];
+      modifiers.forEach((m: any, i: number) => {
+        if (i < modifierIndices.length) {
+          const idx = modifierIndices[i];
+          const info = extractItemInfo(m);
+          items[idx] = info;
+          isTag[idx] = !!info?.isTag;
+        }
+      });
+      return { items, isTag, layout: "grid", gridSize: { rows: 3, cols: 3 } };
+    },
+  },
+  // 4. IE 电弧炉 (Arc Furnace)
+  {
+    name: "arc_furnace",
+    canParse: (r) => r.type?.includes("arc_furnace"),
+    parse: (r) => {
+      const items = new Array(6).fill(null);
+      const isTag = new Array(6).fill(false);
+      
+      // 添加物 1x2 (Row 0, Col 0-1)
+      const rawAdditives = Array.isArray(r.additives) ? r.additives.flat(2) : [];
+      rawAdditives.forEach((a: any, i: number) => {
+        if (i < 2) {
+          const info = extractItemInfo(a);
+          items[i] = info;
+          isTag[i] = !!info?.isTag;
+        }
+      });
+
+      // 主输入 (Row 1, Col 0 => Index 2)
+      const inputInfo = extractItemInfo(r.input);
+      if (inputInfo) {
+        items[2] = inputInfo;
+        isTag[2] = !!inputInfo.isTag;
+      }
+
+      return { items: items, isTag: isTag, layout: "grid", gridSize: { rows: 3, cols: 2 } };
+    },
+  },
+  // 5. 单物品输入 (Single)
+  {
+    name: "single",
+    canParse: (r) => !!(r.ingredient || r.input),
+    parse: (r) => {
+      const single = r.ingredient || r.input;
+      const info = extractItemInfo(single);
+      const isTag = typeof single === "object" && "tag" in single && !!single.tag;
+      return { items: [info], isTag: [isTag], layout: "single" };
+    },
   }
-  const single = recipe.ingredient || recipe.input;
-  if (single) {
-    const info = extractItemInfo(single);
-    const isTag = typeof single === "object" && "tag" in single && !!single.tag;
-    return { items: [info], isTag: [isTag], layout: "single" };
+];
+
+// 解析输入
+const parseInput = (recipe: Recipe): ParsedInput | null => {
+  for (const parser of recipeParsers) {
+    if (parser.canParse(recipe)) {
+      return parser.parse(recipe);
+    }
   }
   return null;
 };
@@ -116,11 +209,11 @@ const parseInput = (
 const parseOutput = (
   recipe: Recipe
 ): { itemId: string; count: number } | null => {
-  const out = recipe.result || recipe.output;
-  if (!out) return null;
-  const id = out.id || out.item;
-  if (!id) return null;
-  return { itemId: id, count: out.count || 1 };
+  const outSource = recipe.result || recipe.output || (Array.isArray(recipe.results) ? recipe.results[0] : null);
+  if (!outSource) return null;
+  const info = extractItemInfo(outSource);
+  if (!info) return null;
+  return { itemId: info.itemId, count: info.count || 1 };
 };
 
 // ============================================================================
@@ -147,9 +240,11 @@ export const calculateRecipeNodeSize = (recipe: Recipe): { width: number; height
         height: slotSize + labelOffset + labelHeight,
       };
     }
+    const cols = inputLayout.gridSize?.cols || 3;
+    const rows = inputLayout.gridSize?.rows || 3;
     return {
-      width: slotSize * 3 + gap * 2,
-      height: slotSize * 3 + gap * 2,
+      width: slotSize * cols + gap * (cols - 1),
+      height: slotSize * rows + gap * (rows - 1),
     };
   };
 
@@ -165,10 +260,13 @@ export const calculateRecipeNodeSize = (recipe: Recipe): { width: number; height
 
   const contentWidth =
     inputSize.width + arrowGap + arrowWidth + arrowGap + outputSize.width;
-  const contentHeight = Math.max(inputSize.height, outputSize.height);
-
-  const totalWidth = contentWidth + padding * 2;
-  const totalHeight = contentHeight + extraInfoHeight + actionButtonHeight + padding * 2;
+  
+  // 按钮挪到右侧，总宽度包含按钮
+  const actionButtonWidth = slotSize;
+  const totalWidth = contentWidth + arrowGap + actionButtonWidth + padding * 2;
+  
+  // 总高度基于输入侧高度（包含额外信息或按钮的最小值）
+  const totalHeight = Math.max(inputSize.height + extraInfoHeight, actionButtonHeight - 4) + padding * 2;
 
   return { width: totalWidth, height: totalHeight };
 };
@@ -336,9 +434,11 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
         height: slotSize + labelOffset + labelHeight,
       };
     }
+    const cols = inputLayout.gridSize?.cols || 3;
+    const rows = inputLayout.gridSize?.rows || 3;
     return {
-      width: slotSize * 3 + gap * 2,
-      height: slotSize * 3 + gap * 2,
+      width: slotSize * cols + gap * (cols - 1),
+      height: slotSize * rows + gap * (rows - 1),
     };
   };
 
@@ -354,10 +454,10 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
 
   const contentWidth =
     inputSize.width + arrowGap + arrowWidth + arrowGap + outputSize.width;
-  const contentHeight = Math.max(inputSize.height, outputSize.height);
 
-  const totalWidth = contentWidth + padding * 2;
-  const totalHeight = contentHeight + extraInfoHeight + actionButtonHeight + padding * 2;
+  const actionButtonWidth = slotSize;
+  const totalWidth = contentWidth + arrowGap + actionButtonWidth + padding * 2;
+  const totalHeight = Math.max(inputSize.height + extraInfoHeight, actionButtonHeight - 4) + padding * 2;
 
   // 不支持的配方类型
   if (!inputLayout || !output) {
@@ -388,11 +488,20 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
   // 计算各部分位置
   const inputX = padding;
   const inputY = padding;
-  const arrowX = inputX + inputSize.width + gap;
-  const outputX = arrowX + arrowGap + arrowWidth;
-  const extraInfoY =
-    padding + Math.max(inputSize.height, outputSize.height) + 4;
-  const actionButtonY = extraInfoY + (hasExtraInfo ? extraInfoHeight : 0) + 4;
+  const inputBaseHeight = inputSize.height;
+  const centerY = inputY + inputBaseHeight / 2;
+
+  const arrowX = inputX + inputSize.width + arrowGap;
+  const outputX = arrowX + arrowWidth + arrowGap;
+  const outputY = centerY - outputSize.height / 2;
+
+  const extraInfoY = inputY + inputBaseHeight + 4;
+  
+  const actionButtonX = totalWidth - padding - slotSize;
+  const actionButtonY = inputY + inputBaseHeight - (actionButtonHeight - 4);
+
+  // 箭头垂直中心点
+  const arrowCenterY = inputY + inputSize.height / 2;
 
   // 模式切换按钮文字
   const modeLabels: Record<RecipeModifyMode, string> = {
@@ -467,8 +576,9 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
         </>
       ) : (
         inputLayout.items.map((info, i) => {
-          const x = inputX + (i % 3) * (slotSize + gap);
-          const y = inputY + Math.floor(i / 3) * (slotSize + gap);
+          const cols = inputLayout.gridSize?.cols || 3;
+          const x = inputX + (i % cols) * (slotSize + gap);
+          const y = inputY + Math.floor(i / cols) * (slotSize + gap);
           return (
             <g
               key={i}
@@ -500,8 +610,8 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
 
       {/* 箭头 */}
       <text
-        x={arrowX + arrowGap / 2}
-        y={inputY + contentHeight / 2}
+        x={arrowX + arrowWidth / 2}
+        y={arrowCenterY}
         textAnchor="middle"
         dominantBaseline="middle"
         fill="rgba(255,255,255,0.4)"
@@ -512,7 +622,7 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
 
       {/* 输出槽位 */}
       <g
-        transform={`translate(${outputX}, ${inputY})`}
+        transform={`translate(${outputX}, ${outputY})`}
         style={{ cursor: "pointer" }}
         onMouseDownCapture={(e) => handleItemClick(output.itemId, e)}
         onContextMenu={(e) => e.preventDefault()}
@@ -571,7 +681,7 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
         />
       </g>
 
-      {/* 额外信息（经验、烹饪时间） */}
+      {/* 额外信息（经验、时间、能量等） */}
       {hasExtraInfo && (
         <g>
           <line
@@ -583,34 +693,38 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
             strokeWidth="1"
           />
           <g transform={`translate(${padding}, ${extraInfoY + 4})`}>
-            {recipe.experience !== undefined && (
-              <text
-                x={0}
-                y={8}
-                fill="#a1a1aa"
-                fontSize="11"
-                dominantBaseline="hanging"
-              >
-                <tspan fill="#fbbf24">✦</tspan> {recipe.experience} 经验
-              </text>
-            )}
-            {recipe.cookingtime !== undefined && (
-              <text
-                x={recipe.experience !== undefined ? 100 : 0}
-                y={8}
-                fill="#a1a1aa"
-                fontSize="11"
-                dominantBaseline="hanging"
-              >
-                <tspan fill="#f97316">⏱</tspan> {recipe.cookingtime / 20} 秒
-              </text>
-            )}
+            {(() => {
+              const infoItems = [];
+              if (recipe.experience !== undefined) {
+                infoItems.push({ icon: "✦", text: `${recipe.experience} XP`, color: "#fbbf24" });
+              }
+              const time = recipe.cookingtime ?? recipe.time ?? recipe.duration;
+              if (time !== undefined) {
+                infoItems.push({ icon: "⏱", text: `${time / 20}s`, color: "#f97316" });
+              }
+              if (recipe.energy !== undefined) {
+                infoItems.push({ icon: "⚡", text: `${recipe.energy} FE`, color: "#ef4444" });
+              }
+
+              return infoItems.map((item, idx) => (
+                <text
+                  key={idx}
+                  x={idx * 85} // 简单的左右间距
+                  y={8}
+                  fill="#a1a1aa"
+                  fontSize="11"
+                  dominantBaseline="hanging"
+                >
+                  <tspan fill={item.color}>{item.icon}</tspan> {item.text}
+                </text>
+              ));
+            })()}
           </g>
         </g>
       )}
 
       {/* 操作按钮区域 */}
-      <g transform={`translate(${outputX}, ${actionButtonY})`}>
+      <g transform={`translate(${actionButtonX}, ${actionButtonY})`}>
         {!onCanvas ? (
           /* 加号按钮 - 添加到画布 */
           <g style={{ cursor: "pointer" }}>
