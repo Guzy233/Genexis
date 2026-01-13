@@ -818,32 +818,8 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
   );
 };
 
-// 使用 memo 包装，只在 recipe 数据或状态变化时重新渲染
-export const SVGRecipeContent = React.memo(
-  SVGRecipeContentInner,
-  (prevProps, nextProps) => {
-    // 比较 recipe 对象（浅比较关键字段）
-    const prevRecipe = prevProps.node.recipe;
-    const nextRecipe = nextProps.node.recipe;
-
-    if (prevRecipe !== nextRecipe) {
-      // 深度比较 recipe 的关键字段
-      if (prevRecipe.type !== nextRecipe.type) return false;
-      if (JSON.stringify(prevRecipe.ingredients) !== JSON.stringify(nextRecipe.ingredients)) return false;
-      if (JSON.stringify(prevRecipe.pattern) !== JSON.stringify(nextRecipe.pattern)) return false;
-      if (JSON.stringify(prevRecipe.key) !== JSON.stringify(nextRecipe.key)) return false;
-      if (JSON.stringify(prevRecipe.result) !== JSON.stringify(nextRecipe.result)) return false;
-      if (JSON.stringify(prevRecipe.output) !== JSON.stringify(nextRecipe.output)) return false;
-    }
-
-    // 比较 onCanvas 和 modifyMode
-    if (prevProps.node.onCanvas !== nextProps.node.onCanvas) return false;
-    if (prevProps.node.modifyMode !== nextProps.node.modifyMode) return false;
-
-    // 回调函数不需要比较（它们的变化不影响渲染）
-    return true;
-  }
-);
+// 使用 memo 包装，不接收被动更新
+export const SVGRecipeContent = React.memo(SVGRecipeContentInner);
 
 // ============================================================================
 // 画布节点组件
