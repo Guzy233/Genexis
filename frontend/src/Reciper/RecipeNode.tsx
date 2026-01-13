@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { atom, useAtom } from "jotai";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import {
@@ -10,6 +10,8 @@ import { activedId } from "../Controllers/Selector";
 import { SVGItemSlot, MCItemIcon } from "./MCItemNode";
 import { translations } from "./Data";
 import { openRecipeModal } from "./RecipeListModal";
+import { PrimitiveAtom } from "jotai";
+import Manager, { store } from "../Manager";
 
 // ============================================================================
 // 类型定义
@@ -44,7 +46,9 @@ export type RecipeModifyMode = "override" | "delete" | "add";
 export interface RecipeNode extends Node {
   recipe: Recipe;
   onCanvas: boolean;
-  modifyMode?: RecipeModifyMode; // 仅当 onCanvas=true 时有效
+  modifyMode?: RecipeModifyMode;
+  //由于配方内部计算复杂，额外增加一个更新器专门用于更新内部布局，外层节点位置更新不影响内部布局计算
+  contentUpdater: PrimitiveAtom<number>
 }
 
 // ============================================================================
@@ -370,6 +374,7 @@ export const createRecipeNode = (recipe: Recipe, onCanvas: boolean = true): Reci
     id: crypto.randomUUID(),
     type: "node/recipe",
     updater: atom(0),
+    contentUpdater: atom(0),
     pos: { x: 0, y: 0 },
     size: { x: size.width, y: size.height },
     selected: false,
@@ -411,6 +416,7 @@ registerSerializer(
       eAncs: deserializeAnchors(data.eAncs),
       selected: data.selected ?? false,
       updater: atom(0),
+      contentUpdater: atom(0),
       recipe: data.recipe,
       onCanvas: true,
       modifyMode: data.modifyMode ?? "override",
@@ -426,15 +432,14 @@ registerSerializer(
 interface RecipeContentProps {
   node: RecipeNode;
   onAddToCanvas?: (node: RecipeNode) => void;
-  onModeChange?: (mode: RecipeModifyMode) => void;
 }
 
 // 内部渲染组件
 const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
   node,
   onAddToCanvas,
-  onModeChange,
 }) => {
+  useAtom(node.contentUpdater)
   const { recipe, onCanvas, modifyMode } = node;
   const inputLayout = parseInput(recipe);
   const output = parseOutput(recipe);
@@ -556,11 +561,12 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
   };
 
   const handleModeClick = () => {
-    if (onModeChange && modifyMode) {
+    if (modifyMode) {
       const modes: RecipeModifyMode[] = ["override", "delete", "add"];
       const currentIndex = modes.indexOf(modifyMode);
       const nextMode = modes[(currentIndex + 1) % modes.length];
-      onModeChange(nextMode);
+      node.modifyMode = nextMode
+      Manager.updateAtom(node.contentUpdater);
     }
   };
 
@@ -585,12 +591,14 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
             transform={`translate(${inputX}, ${inputY})`}
             style={{ cursor: "pointer" }}
             onContextMenu={(e) => e.preventDefault()}
-          >
+          >{inputLayout.items[0]?.itemId &&
             <SVGItemSlot
-              info={inputLayout.items[0]}
+              // info={inputLayout.items[0]}
+              itemIdorTag={inputLayout.items[0].itemId}
+              count={inputLayout.items[0].count}
               isTag={inputLayout.isTag[0]}
               size={slotSize}
-            />
+            />}
           </g>
           <text
             x={inputX + slotSize / 2}
@@ -614,12 +622,12 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
               transform={`translate(${x}, ${y})`}
               style={{ cursor: info ? "pointer" : "default" }}
               onContextMenu={(e) => e.preventDefault()}
-            >
+            >{info?.itemId &&
               <SVGItemSlot
-                info={info}
+                itemIdorTag={info?.itemId}
                 isTag={inputLayout.isTag[i]}
                 size={slotSize}
-              />
+              />}
             </g>
           );
         })
@@ -848,14 +856,6 @@ Coms["node/recipe"] = ({ obj }) => {
   const isActived = node.id === activedId;
   const isSelected = node.selected;
 
-  const handleModeChange = (mode: RecipeModifyMode) => {
-    node.modifyMode = mode;
-    // 触发重新渲染
-    import("../Manager").then(({ default: Manager }) => {
-      Manager.update(node);
-    });
-  };
-
   return (
     <g
       transform={`translate(${node.pos.x}, ${node.pos.y})`}
@@ -877,7 +877,7 @@ Coms["node/recipe"] = ({ obj }) => {
       )}
 
       {/* 配方内容 */}
-      <SVGRecipeContent node={node} onModeChange={handleModeChange} />
+      <SVGRecipeContent node={node} />
     </g>
   );
 };

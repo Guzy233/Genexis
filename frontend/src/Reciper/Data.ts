@@ -71,10 +71,10 @@ export const RECIPE_TYPE_NAMES: Record<string, string> = {
 
 // 从后端获取配方数据
 export async function fetchRecipes(itemId: string, type: "result" | "usage"): Promise<Recipe[]> {
-  const endpoint = type === "result" 
-    ? `/reciper/result?id=${encodeURIComponent(itemId)}` 
+  const endpoint = type === "result"
+    ? `/reciper/result?id=${encodeURIComponent(itemId)}`
     : `/reciper/usage?id=${encodeURIComponent(itemId)}`;
-  
+
   const response = await fetch(endpoint);
   if (!response.ok) {
     throw new Error("获取配方失败");
@@ -96,9 +96,35 @@ export async function searchItemsApi(query: string): Promise<string[]> {
   return data.items || [];
 }
 
+// 标签缓存
+const tagItems: Map<string, string[]> = new Map();
+
+const loadAllTags = async () => {
+  try {
+    const response = await fetch("/reciper/allTags");
+    if (!response.ok) return;
+    const data: Record<string, string[]> = await response.json();
+    Object.entries(data).forEach(([tag, items]) =>
+      tagItems.set(tag, items)
+    );
+  } catch (error) {
+    console.error("获取所有标签失败", error);
+  }
+}
+
+
+export const getTagItems = (tag: string): string[] => tagItems.get(tag) || [];
+
+export const getNextTag = (tag: string, item: string) => {
+
+}
+
+
+
 Controllers.push({
   Begin: (_canvas: SVGGElement) => {
     loadRecipes()
+    loadAllTags()
   },
   End: (_canvas: SVGGElement) => {
 

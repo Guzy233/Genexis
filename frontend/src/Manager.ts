@@ -18,6 +18,7 @@ import {
   deserializeRelationGraph,
   rebuildRelationGraph,
 } from "./Algorithm";
+import { PrimitiveAtom } from "jotai";
 
 export const objects: Record<string, Obj> = {};
 export const store = getDefaultStore();
@@ -613,6 +614,9 @@ export default {
   update: (obj: Obj) => {
     store.set(obj.updater, state++);
     markAsModified();
+  },
+  updateAtom: (atom: PrimitiveAtom<number>) => {
+    store.set(atom, state++)
   },
   deleteId: (id: string) => {
     delete objects[id];

@@ -13,7 +13,7 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
-import { coords, translations } from "./Data";
+import { coords, getTagItems, translations } from "./Data";
 import { saveHistory } from "../Manager";
 import { activedId } from "../Controllers/Selector";
 
@@ -21,13 +21,14 @@ import { activedId } from "../Controllers/Selector";
 export interface MCItemIconProps {
   itemId: string;      // 完整物品ID，如 "minecraft:stone"
   size?: number;       // 显示尺寸，默认64
+  tag?: string
 }
 
 /**
  * MC物品图标展示组件
  * 只传入itemId即可显示对应的物品图标
  */
-export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => {
+export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64, tag }) => {
   // 获取物品坐标信息
   const itemData = coords[itemId];
   if (!itemData) {
@@ -70,6 +71,7 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => 
         y={-y}
         className="item-icon"
         id={itemId}
+        data-tag={tag}
       />
     </svg>
   );
@@ -77,38 +79,13 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => 
 
 // ============ 通用 SVG 物品格子组件 ============
 
-// 标签缓存
-const tagItemsCache: Map<string, string[]> = new Map();
-let allTagsLoaded = false;
-let loadPromise: Promise<void> | null = null;
-
-const loadAllTags = async (): Promise<void> => {
-  if (allTagsLoaded) return;
-  if (loadPromise) return loadPromise;
-  loadPromise = (async () => {
-    try {
-      const response = await fetch("/reciper/allTags");
-      if (!response.ok) return;
-      const data: Record<string, string[]> = await response.json();
-      Object.entries(data).forEach(([tag, items]) =>
-        tagItemsCache.set(tag, items)
-      );
-      allTagsLoaded = true;
-    } catch (error) {
-      console.error("获取所有标签失败", error);
-    } finally {
-      loadPromise = null;
-    }
-  })();
-  return loadPromise;
-};
-
-const getTagItems = (tag: string): string[] => tagItemsCache.get(tag) || [];
 
 
 // SVG 物品格子组件 Props
 export interface SVGItemSlotProps {
-  info: { itemId: string; count?: number } | null;
+  // info: { itemId: string; count?: number } | null;
+  itemIdorTag: string
+  count?: number
   isTag?: boolean;
   size?: number;          // 格子大小，默认 40
   iconSize?: number;      // 图标大小，默认 32
@@ -120,30 +97,14 @@ export interface SVGItemSlotProps {
  * 内部全部使用 SVG 元素渲染
  */
 export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
-  info,
+  itemIdorTag,
+  count = 1,
   isTag = false,
   size = 40,
   iconSize = 32,
 }) => {
   const [idx, setIdx] = useState(0);
-  const [items, setItems] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    if (!info || !isTag) {
-      setItems(info ? [info.itemId] : []);
-      return;
-    }
-    const load = async () => {
-      setLoading(true);
-      await loadAllTags();
-      const tagItems = getTagItems(info.itemId);
-      setItems(tagItems.length > 0 ? tagItems : [info.itemId]);
-      setLoading(false);
-    };
-    load();
-  }, [info, isTag]);
+  const items = isTag ? getTagItems(itemIdorTag) : [itemIdorTag]
 
   useEffect(() => {
     if (items.length <= 1) return;
@@ -152,16 +113,13 @@ export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
   }, [items.length]);
 
   const current = items[idx];
-  const count = info?.count ?? 0;
-  const hasMultiple = items.length > 1;
 
   const bgColor = isTag ? "rgba(255,200,100,0.1)" : "rgba(255,255,255,0.08)";
   const borderColor = isTag ? "rgba(255,200,100,0.3)" : "rgba(255,255,255,0.1)";
 
-  if (!info || !current) {
+  if (!itemIdorTag || !current) {
     return (
       <svg
-        ref={svgRef}
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
@@ -183,12 +141,9 @@ export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
   return (
     <>
       <svg
-        ref={svgRef}
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        style={{ cursor: hasMultiple ? "pointer" : "default" }}
-        onClick={() => hasMultiple && setIdx((i) => (i + 1) % items.length)}
       >
         {/* 背景矩形 */}
         <rect
@@ -202,20 +157,7 @@ export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
           rx="4"
         />
         <g transform={`translate(${(size - iconSize) / 2}, ${(size - iconSize) / 2})`}>
-          {loading ? (
-            <text
-              x={iconSize / 2}
-              y={iconSize / 2}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill="#888"
-              fontSize="10"
-            >
-              ...
-            </text>
-          ) : (
-            <MCItemIcon itemId={current} size={iconSize} />
-          )}
+          <MCItemIcon itemId={current} size={iconSize} tag={isTag ? itemIdorTag : undefined} />
         </g>
         {count > 1 && (
           <>
@@ -242,7 +184,6 @@ export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
           </>
         )}
 
-        {/* 不可见的 title 元素用于悬停提示 */}
         <title>
           {isTag ? `${items.length} 物品` : translations[current] || current}
         </title>
@@ -252,7 +193,7 @@ export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
 };
 
 export interface MCItemNode extends Node {
-  itemId: string; // 格式: modid:itemid
+  itemIdorTag: string; // 格式: modid:itemid
   spriteSize: { width: number; height: number };
 }
 
@@ -267,7 +208,7 @@ export const createMCItemNode = (): MCItemNode => {
     updater: atom(0),
     pos: { x: 0, y: 0 },
     size: { x: 80, y: 80 },
-    itemId: "actuallyadditions:advanced_coil",
+    itemIdorTag: "actuallyadditions:advanced_coil",
     spriteSize: { width: 64, height: 64 },
     selected: false,
     eAncs: anchors_default,
@@ -277,52 +218,6 @@ export const createMCItemNode = (): MCItemNode => {
 
 // 注册对象工厂
 ObjectFactories["node/mcitem"] = createMCItemNode;
-
-// 注册工具项
-ToolItems.push({
-  id: "node/mcitem",
-  type: "node",
-  category: CATEGORY_NODES,
-  icon: (
-    <svg viewBox="0 0 60 60" style={{ width: "100%", height: "100%" }}>
-      <rect
-        x="4"
-        y="8"
-        width="52"
-        height="44"
-        rx="8"
-        fill="rgba(255, 255, 255, 0.05)"
-        stroke="rgba(255, 255, 255, 0.15)"
-        strokeWidth="2"
-      />
-      {/* 工作台图标 - 3D 透视效果 */}
-      {/* 顶部表面 */}
-      <path
-        d="M 18 22 L 30 16 L 42 22 L 30 28 Z"
-        fill="rgba(99, 102, 241, 0.3)"
-        stroke="#6366f1"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      {/* 左侧面 */}
-      <path
-        d="M 18 22 L 18 36 L 30 42 L 30 28 Z"
-        fill="rgba(99, 102, 241, 0.15)"
-        stroke="#6366f1"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      {/* 右侧面 */}
-      <path
-        d="M 30 28 L 30 42 L 42 36 L 42 22 Z"
-        fill="rgba(99, 102, 241, 0.2)"
-        stroke="#6366f1"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-});
 
 // 注册序列化函数
 registerSerializer(
@@ -338,7 +233,7 @@ registerSerializer(
       aAncs: serializeAnchors(node.aAncs, "rect"),
       // 启用锚点使用编码字符串
       eAncs: serializeAnchors(node.eAncs, null),
-      itemId: node.itemId,
+      itemId: node.itemIdorTag,
       spriteSize: { ...node.spriteSize },
       selected: node.selected,
     };
@@ -351,7 +246,7 @@ registerSerializer(
       size: { ...data.size },
       aAncs: deserializeAnchors(data.aAncs),
       eAncs: deserializeAnchors(data.eAncs),
-      itemId: data.itemId,
+      itemIdorTag: data.itemId,
       spriteSize: { ...data.spriteSize },
       selected: data.selected ?? false,
       updater: atom(0),
@@ -366,14 +261,14 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
   const items: ContextMenuItem[] = [];
 
   // 清除物品选项（仅当有物品时显示）
-  if (node.itemId && node.type === "node/mcitem") {
+  if (node.itemIdorTag && node.type === "node/mcitem") {
     items.push({
       id: "clearItem",
       label: "清除物品",
       icon: "🗑️",
       onClick: (t: Obj) => {
         const n = t as MCItemNode;
-        n.itemId = "";
+        n.itemIdorTag = "";
         Manager.update(n);
         saveHistory();
       },
@@ -389,7 +284,7 @@ Coms["node/mcitem"] = ({ obj }) => {
   const node = obj as MCItemNode;
 
   // 获取中文翻译
-  const chineseName = translations[node.itemId] || node.itemId;
+  const chineseName = translations[node.itemIdorTag] || node.itemIdorTag;
 
   // 节点尺寸
   const nodeWidth = 72;
@@ -432,7 +327,12 @@ Coms["node/mcitem"] = ({ obj }) => {
 
       {/* 物品图标区域 */}
       <g transform={`translate(${(nodeWidth - iconSize) / 2}, ${padding})`}>
-        <MCItemIcon itemId={node.itemId} size={iconSize} />
+        <SVGItemSlot
+          itemIdorTag={node.itemIdorTag}
+          isTag={coords[node.itemIdorTag] === undefined}
+          size={nodeWidth - 2 * padding}
+          iconSize={iconSize}
+        />
       </g>
 
       {/* 显示物品名称（中文名称，支持两行换行） */}

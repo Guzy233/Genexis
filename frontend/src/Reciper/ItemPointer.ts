@@ -6,12 +6,12 @@ import { translations } from "./Data";
 import { openRecipeModal } from "./RecipeListModal";
 
 // 拖拽放置物品到画布的过程式逻辑
-export const startDragItem = (e: MouseEvent, itemId: string) => {
+export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
   e.preventDefault();
   e.stopPropagation();
 
   // 获取物品的中文名称
-  const itemName = translations[itemId] || itemId;
+  const itemName = translations[itemIdorTag] || itemIdorTag;
 
   // 创建临时拖拽元素
   const dragElement = document.createElement("div");
@@ -81,7 +81,7 @@ export const startDragItem = (e: MouseEvent, itemId: string) => {
     const node = ObjectFactories["node/mcitem"]() as any;
     const viewportPos = screen2Viewport({ x: e.clientX, y: e.clientY });
     node.pos = { x: viewportPos.x - 40, y: viewportPos.y - 50 };
-    node.itemId = itemId;
+    node.itemIdorTag = itemIdorTag;
     Manager.add(node);
   };
 
@@ -103,6 +103,7 @@ export const startDragItem = (e: MouseEvent, itemId: string) => {
 
 function onMouseDown(e: MouseEvent) {
   const id = (e.target as SVGElement).closest(".item-icon")?.id
+  const tag = (e.target as SVGElement).closest(".item-icon")?.getAttribute("data-tag")
   if (!id) return;
 
   if (e.shiftKey)
@@ -114,8 +115,9 @@ function onMouseDown(e: MouseEvent) {
     openRecipeModal(id, "result")
   else if (e.button === 2)
     openRecipeModal(id, "usage")
-  else
-    startDragItem(e, id)
+  else {
+    startDragItem(e, tag ? tag : id)
+  }
 }
 
 Controllers.push({

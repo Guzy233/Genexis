@@ -36,6 +36,7 @@ export const RecipePreview: React.FC<RecipePreviewProps> = ({
       id: `preview-${crypto.randomUUID()}`,
       type: "node/recipe",
       updater: atom(0),
+      contentUpdater: atom(0),
       pos: { x: 0, y: 0 },
       size: { x: 0, y: 0 }, // 尺寸由内容决定
       selected: false,
