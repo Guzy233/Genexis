@@ -8,8 +8,7 @@ import {
 } from "../Serialization";
 import { activedId } from "../Controllers/Selector";
 import { SVGItemSlot, MCItemIcon } from "./MCItemNode";
-import { translations } from "./Data";
-import { openRecipeModal } from "./RecipeListModal";
+import { translations } from "./Reciper";
 import { PrimitiveAtom } from "jotai";
 import Manager, { store } from "../Manager";
 

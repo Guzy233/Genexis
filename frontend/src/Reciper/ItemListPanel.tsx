@@ -6,10 +6,9 @@ import React, {
   useRef,
 } from "react";
 import { Controllers, topLayer } from "../Globals";
-import { MCItemIcon } from "./MCItemNode";
-import { coords, recipesLoaded, translations, searchItemsApi } from "./Data";
-import { openRecipeModal } from "./RecipeListModal";
-import { startDragItem } from "./ItemPointer";
+import { SVGItemSlot } from "./MCItemNode";
+import { coords, recipesLoaded, translations, searchItemsApi } from "./Reciper";
+import { openInitializationModal } from "./InitializationModal";
 
 // 性能优化配置
 const PAGE_SIZE = 100; // 每次渲染的物品数量
@@ -40,38 +39,6 @@ export const onItemListPanelChange = (
   return () => {
     itemListPanelSubscribers.delete(callback);
   };
-};
-
-// 可拖拽的物品格子组件（保持原样式的item-slot，增加拖拽功能和点击事件）
-const DraggableItemSlot: React.FC<{ itemId: string }> = ({ itemId }) => {
-  return (
-    <div
-      className="item-slot"
-      title={translations[itemId] || itemId}
-      onMouseDown={(e) => {
-        // 左键点击显示合成配方，右键点击显示用途
-        // if (e.button === 0) {
-        //   // 左键 - 合成配方
-        //   openRecipeModal(itemId, "result");
-        // } else if (e.button === 2) {
-        //   // 右键 - 用途，阻止默认行为并打开弹窗
-        //   e.stopPropagation();
-        //   openRecipeModal(itemId, "usage");
-        // } else {
-        // 中键或其他按钮 - 拖拽创建节点
-        // 将e转换为普通event
-        // startDragItem(e.nativeEvent, itemId);
-
-        // }
-      }}
-      style={{
-        userSelect: "none",
-        WebkitUserSelect: "none",
-      }}
-    >
-      <MCItemIcon itemId={itemId} size={32} />
-    </div>
-  );
 };
 
 // 注册物品列表面板到顶层
@@ -212,7 +179,7 @@ topLayer.push(() => {
           }}
         >
           {visibleItems.map((itemId) => (
-            <DraggableItemSlot key={itemId} itemId={itemId} />
+            <SVGItemSlot key={itemId} itemIdorTag={itemId} />
           ))}
           {hasMore && !searching && (
             <div
@@ -260,21 +227,29 @@ topLayer.push(() => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        <div style={{ display: "flex", justifyContent: "flex-end", width: "100%", marginTop: "8px" }}>
+          <button
+            onClick={() => openInitializationModal()}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#666",
+              cursor: "pointer",
+              fontSize: "12px",
+              padding: "4px 8px",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#888")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#666")}
+          >
+            设置
+          </button>
+        </div>
       </div>
     </div>
   );
 });
 
 // 监听打开物品列表面板事件
-const toggleItemList = () => {
+export const toggleItemList = () => {
   showItemListPanel ? closeItemListPanel() : openItemListPanel();
 };
-
-Controllers.push({
-  Begin: () => {
-    window.addEventListener("toggle-item-list", toggleItemList);
-  },
-  End: () => {
-    window.removeEventListener("toggle-item-list", toggleItemList);
-  },
-});

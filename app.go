@@ -145,3 +145,10 @@ func (a *App) LoadFile() (string, error) {
 	}
 	return string(jsonResult), nil
 }
+
+// OpenFolder 打开文件夹选择对话框
+func (a *App) OpenFolder() (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select Folder",
+	})
+}

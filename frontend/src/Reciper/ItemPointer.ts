@@ -2,7 +2,7 @@ import { screen2Viewport } from "../Controllers/Camera";
 import { ObjectFactories } from "../Controllers/Creator";
 import { Controllers, idFromEvent } from "../Globals";
 import Manager from "../Manager";
-import { translations } from "./Data";
+import { translations } from "./Reciper";
 import { openRecipeModal } from "./RecipeListModal";
 
 // 拖拽放置物品到画布的过程式逻辑

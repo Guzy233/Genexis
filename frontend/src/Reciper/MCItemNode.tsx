@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { atom, useAtom } from "jotai";
 import Manager from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
-import { ToolItems, CATEGORY_NODES } from "../TopLayer/ToolBar";
 import { ObjectFactories } from "../Controllers/Creator";
 import {
   ContextMenuFactories,
@@ -13,7 +12,7 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
-import { coords, getTagItems, translations } from "./Data";
+import { coords, getTagItems, translations } from "./Reciper";
 import { saveHistory } from "../Manager";
 import { activedId } from "../Controllers/Selector";
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { topLayer } from "../Globals";
 import { RecipePreview, Recipe } from "./RecipePreview";
 import { MCItemIcon } from "./MCItemNode";
-import { RECIPE_TYPE_NAMES, fetchRecipes as fetchRecipesApi } from "./Data";
+import { RECIPE_TYPE_NAMES, fetchRecipes as fetchRecipesApi } from "./Reciper";
 
 // ============================================================================
 // 配方预览包装器 - 追踪屏幕位置

@@ -1,4 +1,6 @@
 import { Controllers } from "../Globals";
+import { openItemListPanel, toggleItemList } from "./ItemListPanel";
+import { openInitializationModal } from "./InitializationModal";
 import { Recipe } from "./RecipePreview";
 
 export var coords: Record<string, any> = {}
@@ -13,7 +15,7 @@ async function getTranslations() {
   translations = await fetch("/reciper/translations").then(res => res.json())
 }
 
-async function loadRecipes() {
+export async function loadRecipes() {
   await Promise.all([
     getCoords(),
     getTranslations()
@@ -99,7 +101,7 @@ export async function searchItemsApi(query: string): Promise<string[]> {
 // 标签缓存
 const tagItems: Map<string, string[]> = new Map();
 
-const loadAllTags = async () => {
+export const loadAllTags = async () => {
   try {
     const response = await fetch("/reciper/allTags");
     if (!response.ok) return;
@@ -115,18 +117,26 @@ const loadAllTags = async () => {
 
 export const getTagItems = (tag: string): string[] => tagItems.get(tag) || [];
 
-export const getNextTag = (tag: string, item: string) => {
+let reciperInitialized = false;
 
+const onKeydown = (e: KeyboardEvent) => {
+  if (e.key !== 'e' || !e.ctrlKey)
+    return
+
+  if (!recipesLoaded) {
+    openInitializationModal()
+  } else {
+    toggleItemList()
+  }
 }
-
 
 
 Controllers.push({
   Begin: (_canvas: SVGGElement) => {
-    loadRecipes()
-    loadAllTags()
+    window.addEventListener("keydown", onKeydown)
+
   },
   End: (_canvas: SVGGElement) => {
-
+    window.removeEventListener("keydown", onKeydown)
   },
 });

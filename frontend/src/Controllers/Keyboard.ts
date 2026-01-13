@@ -323,9 +323,6 @@ const executeAction = (action: KeyAction): void => {
         newFile();
       });
       break;
-    case KeyAction.OPEN_ITEM_LIST:
-      window.dispatchEvent(new CustomEvent("toggle-item-list"));
-      break;
   }
 };
 
