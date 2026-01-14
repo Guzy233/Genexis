@@ -78,6 +78,7 @@ const App: React.FC = () => {
             width="100000"
             height="100000"
             fill="url(#grid)"
+            id="background"
           />
 
           <CoordinateSystem />

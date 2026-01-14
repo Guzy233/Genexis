@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { atom, useAtom } from "jotai";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import {
@@ -92,6 +92,8 @@ export interface ItemDisplay {
   y: number;
   size: number;
   label?: string;
+  role: 'input' | 'output';
+  index: number;
 }
 
 export interface ExtraInfoDisplay {
@@ -183,7 +185,9 @@ const createStandardLayout = (
         x: padding,
         y: padding,
         size: slotSize,
-        label: "原料"
+        label: "原料",
+        role: 'input',
+        index: 0
       });
     }
   } else {
@@ -196,7 +200,9 @@ const createStandardLayout = (
         isTag: info?.isTag,
         x,
         y,
-        size: slotSize
+        size: slotSize,
+        role: 'input',
+        index: i
       });
     });
   }
@@ -207,7 +213,9 @@ const createStandardLayout = (
     x: padding + inputWidth + arrowGap + arrowWidth + arrowGap,
     y: outputY,
     size: slotSize,
-    label: "结果"
+    label: "结果",
+    role: 'output',
+    index: 0
   });
 
   // 箭头
@@ -492,6 +500,87 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
     );
   }
 
+  const containerRef = useRef<SVGGElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onReplace = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { idorTag } = customEvent.detail;
+      const target = e.target as HTMLElement;
+      const slot = target.closest('[data-slot-role]');
+      if (!slot) return;
+
+      const role = slot.getAttribute('data-slot-role') as 'input' | 'output';
+      const index = parseInt(slot.getAttribute('data-slot-index') || '0');
+
+      // 更新配方逻辑
+      const isTag = idorTag.startsWith('#');
+      const actualId = isTag ? idorTag.slice(1) : idorTag;
+      const newItem = isTag ? { tag: actualId } : { item: actualId };
+
+      if (role === 'output') {
+        const outValue = { ...newItem, count: 1 };
+        if (recipe.result) recipe.result = outValue;
+        else if (recipe.output) recipe.output = outValue;
+        else if (Array.isArray(recipe.results)) recipe.results[0] = outValue;
+        else recipe.result = outValue;
+      } else {
+        const type = recipe.type || "";
+        if (type.includes("shaped") || (recipe.pattern && recipe.key)) {
+          if (!recipe.pattern) recipe.pattern = ["   ", "   ", "   "];
+          if (!recipe.key) recipe.key = {};
+          const y = Math.floor(index / 3);
+          const x = index % 3;
+          let row = recipe.pattern[y] || "   ";
+          let char = row[x];
+          if (!char || char === ' ') {
+            const usedChars = new Set(Object.keys(recipe.key));
+            const possible = "ABCDEFGHIJKLMN";
+            char = possible.split("").find(c => !usedChars.has(c)) || "X";
+            row = (row + "   ").substring(0, x) + char + (row + "   ").substring(x + 1, 3);
+            recipe.pattern[y] = row;
+          }
+          recipe.key[char] = newItem;
+        } else if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
+          recipe.ingredients[index] = newItem;
+        } else if (type.includes("empowering")) {
+          if (index === 4) recipe.base = newItem;
+          else {
+            const modifierIndices = [1, 3, 5, 7, 0, 2, 6, 8];
+            const modIdx = modifierIndices.indexOf(index);
+            if (modIdx !== -1) {
+              if (!recipe.modifiers) recipe.modifiers = [];
+              recipe.modifiers[modIdx] = newItem;
+            }
+          }
+        } else if (type.includes("arc_furnace")) {
+          if (index < 2) {
+            if (!recipe.additives) recipe.additives = [];
+            recipe.additives[index] = newItem;
+          } else if (index === 2) {
+            recipe.input = newItem;
+          }
+        } else if (recipe.ingredient) {
+          recipe.ingredient = newItem;
+        } else if (recipe.input) {
+          recipe.input = newItem;
+        } else if (recipe.input0 !== undefined && index === 0) recipe.input0 = newItem;
+        else if (recipe.input1 !== undefined && index === 1) recipe.input1 = newItem;
+        else if (recipe.inputs && Array.isArray(recipe.inputs)) {
+          recipe.inputs[index] = newItem;
+        }
+      }
+
+      Manager.updateAtom(node.contentUpdater);
+    };
+
+    el.addEventListener('replace-item', onReplace);
+    return () => el.removeEventListener('replace-item', onReplace);
+  }, [node, recipe]);
+
   const handleModeClick = () => {
     if (modifyMode) {
       const modes: RecipeModifyMode[] = ["override", "delete", "add"];
@@ -515,7 +604,7 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
   };
 
   return (
-    <g>
+    <g ref={containerRef}>
       {/* 背景 */}
       <rect
         x={0}
@@ -530,7 +619,13 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
 
       {/* 物品绘制 */}
       {layout.items.map((item, i) => (
-        <g key={i} transform={`translate(${item.x}, ${item.y})`} onContextMenu={(e) => e.preventDefault()}>
+        <g
+          key={i}
+          transform={`translate(${item.x}, ${item.y})`}
+          onContextMenu={(e) => e.preventDefault()}
+          data-slot-role={item.role}
+          data-slot-index={item.index}
+        >
           <SVGItemSlot
             itemIdorTag={item.itemId}
             count={item.count}

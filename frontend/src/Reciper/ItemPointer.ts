@@ -73,16 +73,27 @@ export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
     document.body.removeChild(dragElement);
 
     // 检查是否在画布区域内释放（简单判断：不在面板内）
-    const panelElement = document.querySelector(".item-list-panel");
-    const isInPanel = panelElement?.contains(e.target as Node);
-    if (isInPanel) return;
+    // const panelElement = document.querySelector(".item-list-panel");
+    // const isInPanel = panelElement?.contains(e.target as Node);
+    // if (isInPanel) return;
+    if (e.target instanceof SVGRectElement && e.target.id === "background") {
+      // 创建MC物品节点
+      const node = ObjectFactories["node/mcitem"]() as any;
+      const viewportPos = screen2Viewport({ x: e.clientX, y: e.clientY });
+      node.pos = { x: viewportPos.x - 40, y: viewportPos.y - 50 };
+      node.itemIdorTag = itemIdorTag;
+      Manager.add(node);
+    } else {
+      const target = e.target as SVGElement;
+      const slot = target.closest("[data-slot-role]");
+      if (!slot) return;
 
-    // 创建MC物品节点
-    const node = ObjectFactories["node/mcitem"]() as any;
-    const viewportPos = screen2Viewport({ x: e.clientX, y: e.clientY });
-    node.pos = { x: viewportPos.x - 40, y: viewportPos.y - 50 };
-    node.itemIdorTag = itemIdorTag;
-    Manager.add(node);
+      target.dispatchEvent(
+        new CustomEvent("replace-item", {
+          bubbles: true,
+          detail: { x: e.clientX, y: e.clientY, idorTag: itemIdorTag }
+        }))
+    }
   };
 
   // 失去焦点
@@ -102,8 +113,25 @@ export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
 
 
 function onMouseDown(e: MouseEvent) {
-  const id = (e.target as SVGElement).closest(".item-icon")?.id
-  const tag = (e.target as SVGElement).closest(".item-icon")?.getAttribute("data-tag")
+  const target = e.target as SVGElement;
+  const itemIcon = target.closest(".item-icon");
+
+  if (e.button === 1) { // 中键删除
+    const slot = target.closest("[data-slot-role]");
+    if (slot) {
+      e.preventDefault();
+      e.stopPropagation();
+      target.dispatchEvent(
+        new CustomEvent("replace-item", {
+          bubbles: true,
+          detail: { idorTag: "" }
+        })
+      );
+    }
+    return;
+  }
+
+  const id = itemIcon?.id;
   if (!id) return;
 
   if (e.shiftKey)
@@ -116,6 +144,7 @@ function onMouseDown(e: MouseEvent) {
   else if (e.button === 2)
     openRecipeModal(id, "usage")
   else {
+    const tag = (e.target as SVGElement).closest(".item-icon")?.getAttribute("data-tag")
     startDragItem(e, tag ? tag : id)
   }
 }
