@@ -53,6 +53,7 @@ export interface FileTab {
   nodeRelations: NodeRelationGraph; // 该文件的节点关系图
   isModified: boolean; // 是否有未保存的修改
   history: FileHistory; // 该文件的撤销/重做历史
+  metadata: SerializedCanvas["metadata"]; // 元数据（如游戏配置）
 }
 
 // 打开的标签列表
@@ -73,6 +74,33 @@ const updateTabs = () => {
 // 生成唯一 ID
 const generateTabId = () =>
   `tab-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
+// ==================== 钩子系统 ====================
+type FileHook = (tab: FileTab) => void;
+const onFileLoadedHooks = new Set<FileHook>();
+const onFileSavedHooks = new Set<FileHook>();
+const onBeforeSaveHooks = new Set<FileHook>();
+const onTabCreatedHooks = new Set<FileHook>();
+
+export const registerOnFileLoaded = (hook: FileHook) => {
+  onFileLoadedHooks.add(hook);
+  return () => onFileLoadedHooks.delete(hook);
+};
+
+export const registerOnFileSaved = (hook: FileHook) => {
+  onFileSavedHooks.add(hook);
+  return () => onFileSavedHooks.delete(hook);
+};
+
+export const registerOnBeforeSave = (hook: FileHook) => {
+  onBeforeSaveHooks.add(hook);
+  return () => onBeforeSaveHooks.delete(hook);
+};
+
+export const registerOnTabCreated = (hook: FileHook) => {
+  onTabCreatedHooks.add(hook);
+  return () => onTabCreatedHooks.delete(hook);
+};
 
 // 创建新的历史栈
 const createNewHistory = (): FileHistory => ({
@@ -116,8 +144,8 @@ export const saveHistory = (): void => {
     history.splice(currentIndex + 1);
   }
 
-  // 保存当前状态
-  const snapshot = serializeCanvas(objects);
+
+  const snapshot = serializeCanvas(objects, activeTab.metadata);
   history.push(snapshot);
   activeTab.history.currentIndex = history.length - 1;
 
@@ -201,11 +229,6 @@ export const switchTab = (tabId: string) => {
   // 切换到目标标签
   activeTabId = tabId;
 
-  // 清空当前 objects
-  Object.keys(objects).forEach((key) => {
-    delete objects[key];
-  });
-
   // 恢复目标标签的 objects
   Object.assign(objects, targetTab.objects);
 
@@ -219,8 +242,10 @@ export const switchTab = (tabId: string) => {
 
   updateCanvas();
   updateTabs();
+  onFileLoadedHooks.forEach(hook => hook(targetTab));
   return true;
 };
+
 
 // 关闭标签
 export const closeTab = async (tabId: string) => {
@@ -297,9 +322,12 @@ export const createNewTab = () => {
     nodeRelations: createRelationGraph(),
     isModified: false,
     history: createNewHistory(),
+    metadata: {},
   };
   openTabs.push(newTab);
   activeTabId = newTab.id;
+
+  onTabCreatedHooks.forEach(hook => hook(newTab));
 
   // 初始化历史：保存空状态
   saveHistory();
@@ -396,8 +424,11 @@ export const saveFile = async (saveAs: boolean = false): Promise<boolean> => {
   const activeTab = getActiveTab();
   if (!activeTab) return false;
 
+  // 保存前触发钩子
+  onBeforeSaveHooks.forEach(hook => hook(activeTab));
+
   // 序列化画布数据
-  const serializedData = serializeCanvas(objects);
+  const serializedData = serializeCanvas(objects, activeTab.metadata);
   const jsonData = JSON.stringify(serializedData, null, 2);
 
   // 确定保存路径
@@ -419,6 +450,7 @@ export const saveFile = async (saveAs: boolean = false): Promise<boolean> => {
   setTabModified(false);
   updateTabs();
 
+  onFileSavedHooks.forEach(hook => hook(activeTab));
   return true;
 };
 
@@ -470,18 +502,19 @@ export const loadFile = async (): Promise<boolean> => {
     activeTab.fileName = fileName;
     activeTab.objects = { ...objects };
     activeTab.nodeRelations = nodeRelations;
+    activeTab.metadata = data.metadata;
     setTabModified(false);
     // 重置历史
     activeTab.history.history = [];
     activeTab.history.currentIndex = -1;
     saveHistory();
   } else {
-    // 创建新标签
     const newTab = createNewTab();
     newTab.filePath = filePath;
     newTab.fileName = fileName;
     newTab.objects = { ...objects };
     newTab.nodeRelations = nodeRelations;
+    newTab.metadata = data.metadata;
     setTabModified(false);
     // 重置历史
     newTab.history.history = [];
@@ -491,6 +524,11 @@ export const loadFile = async (): Promise<boolean> => {
 
   updateCanvas();
   updateTabs();
+
+  const finalTab = getActiveTab();
+  if (finalTab) {
+    onFileLoadedHooks.forEach(hook => hook(finalTab));
+  }
 
   return true;
 };

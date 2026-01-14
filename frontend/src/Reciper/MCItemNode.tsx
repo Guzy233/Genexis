@@ -12,7 +12,7 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
-import { coords, getTagItems, translations } from "./Reciper";
+import { coords, getTagItems, translations, atlasUrl } from "./Reciper";
 import { saveHistory } from "../Manager";
 import { activedId } from "../Controllers/Selector";
 
@@ -65,7 +65,7 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64, tag }
       style={{ imageRendering: "pixelated" }}
     >
       <image
-        href={`/reciper/atlas`}
+        href={atlasUrl}
         x={-x}
         y={-y}
         className="item-icon"

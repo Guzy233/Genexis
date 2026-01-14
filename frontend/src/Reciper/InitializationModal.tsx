@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { topLayer } from "../Globals";
-import { loadRecipes, loadAllTags } from "./Reciper";
+import { loadRecipes, loadAllTags, initializeReciperApi } from "./Reciper";
 import { openItemListPanel } from "./ItemListPanel";
 import { OpenFolder } from "../../wailsjs/go/main/App";
 
@@ -22,6 +22,7 @@ const InitializationModal: React.FC = () => {
   const [gameFolder, setGameFolder] = useState("");
   const [version, setVersion] = useState("1.20.1");
   const [datapackName, setDatapackName] = useState("");
+  const [language, setLanguage] = useState("zh_cn");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,26 +62,12 @@ const InitializationModal: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("reciper/initialize", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          gameFolder: gameFolder.trim(),
-          version: version.trim(),
-          datapackName: datapackName.trim(),
-        }),
+      await initializeReciperApi({
+        gameFolder: gameFolder.trim(),
+        version: version.trim(),
+        datapackName: datapackName.trim(),
+        language: language,
       });
-
-      if (!response.ok) {
-        throw new Error("初始化失败");
-      }
-
-      // 初始化成功后加载配方和标签
-      await loadRecipes();
-      await loadAllTags();
-      openItemListPanel();
       closeInitializationModal();
     } catch (err) {
       console.error(err);
@@ -228,6 +215,29 @@ const InitializationModal: React.FC = () => {
               fontSize: "14px",
             }}
           />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <label style={{ color: "#a1a1aa", fontSize: "14px" }}>
+            语言 / Language
+          </label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            style={{
+              background: "rgba(0, 0, 0, 0.2)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "6px",
+              padding: "10px 12px",
+              color: "#e4e4e7",
+              outline: "none",
+              fontSize: "14px",
+              cursor: "pointer",
+            }}
+          >
+            <option value="zh_cn" style={{ background: "#27272a" }}>简体中文 (zh_cn)</option>
+            <option value="en_us" style={{ background: "#27272a" }}>English (en_us)</option>
+          </select>
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "8px" }}>
