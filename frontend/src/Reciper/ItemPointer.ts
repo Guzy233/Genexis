@@ -135,9 +135,9 @@ function onMouseDown(e: MouseEvent) {
 
   e.stopPropagation()
 
-  if (e.button === 0)
+  if (e.button === 3)
     openRecipeModal(id, "result")
-  else if (e.button === 2)
+  else if (e.button === 4)
     openRecipeModal(id, "usage")
   else {
     const tag = (e.target as SVGElement).closest(".item-icon")?.getAttribute("data-tag")

@@ -1371,9 +1371,20 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
       const role = slot.getAttribute('data-slot-role') as 'input' | 'output';
 
       // 构建新物品对象
-      const newItem = role === 'output'
-        ? { id: idorTag, count: 1 }
-        : idorTag;
+      let newItem: any;
+      if (role === 'output') {
+        // 输出槽位始终使用 id 格式
+        newItem = { id: idorTag.startsWith('#') ? idorTag.substring(1) : idorTag, count: 1 };
+      } else {
+        // 输入槽位需要区分 item 和 tag
+        if (idorTag.startsWith('#')) {
+          // tag 格式 - 去掉 # 前缀
+          newItem = { tag: idorTag.substring(1) };
+        } else {
+          // item 格式
+          newItem = { item: idorTag };
+        }
+      }
 
       // 使用统一回写函数
       applySlotPath(recipe, slotPath, newItem);
@@ -1561,12 +1572,86 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
 // 画布节点组件
 // ============================================================================
 
+// 配方类型中文名称映射
+const RECIPE_TYPE_NAMES: Record<string, string> = {
+  "minecraft:crafting_shaped": "有序合成",
+  "crafting_shaped": "有序合成",
+  "minecraft:crafting_shapeless": "无序合成",
+  "crafting_shapeless": "无序合成",
+  "minecraft:smelting": "熔炼",
+  "smelting": "熔炼",
+  "minecraft:blasting": "高炉冶炼",
+  "blasting": "高炉冶炼",
+  "minecraft:smoking": "烟熏",
+  "smoking": "烟熏",
+  "minecraft:campfire_cooking": "篝火烹饪",
+  "campfire_cooking": "篝火烹饪",
+  "minecraft:stonecutting": "切石",
+  "stonecutting": "切石",
+  "minecraft:smithing": "锻造",
+  "smithing": "锻造",
+  "actuallyadditions:empowering": "充能",
+  "immersiveengineering:arc_furnace": "电弧炉",
+  "immersiveengineering:alloy": "合金冶炼",
+  "enderio:alloy_smelting": "合金熔炉",
+  "advanced_ae:reaction": "高级反应",
+  "mekanism:metallurgic_infusing": "冶金灌注",
+  "mekanism:crushing": "粉碎",
+  "mekanism:enriching": "富集",
+  "mekanism:combining": "压缩",
+  "mekanism:purifying": "提纯",
+  "mekanism:injecting": "注入",
+  "mekanism:sawing": "精密锯切",
+  "mekanism:chemical_infusing": "化学注入",
+  "mekanism:dissolution": "溶解",
+  "mekanism:washing": "化学清洗",
+  "mekanism:crystallizing": "结晶",
+  "mekanism:reaction": "加压反应",
+  "mekanism:centrifuging": "同位素离心",
+  "mekanism:nucleosynthesizing": "反物质核合成",
+  "create:mixing": "动力搅拌",
+  "create:crushing": "粉碎轮",
+  "create:pressing": "压片",
+  "create:cutting": "切割",
+  "create:milling": "石磨",
+  "create:compacting": "压块",
+  "create:haunting": "缠魂",
+  "create:splashing": "洗涤",
+  "create:deploying": "机械手",
+  "create:filling": "流体填充",
+  "create:emptying": "流体排空",
+  "create:sequenced_assembly": "动力装配",
+};
+
+// 获取配方类型的中文名称
+const getRecipeTypeName = (type: string): string => {
+  if (RECIPE_TYPE_NAMES[type]) {
+    return RECIPE_TYPE_NAMES[type];
+  }
+
+  // 尝试模糊匹配
+  const lowerType = type.toLowerCase();
+  if (lowerType.includes('shaped')) return '有序合成';
+  if (lowerType.includes('shapeless')) return '无序合成';
+  if (lowerType.includes('smelting')) return '熔炼';
+  if (lowerType.includes('blasting')) return '高炉冶炼';
+  if (lowerType.includes('crushing')) return '粉碎';
+  if (lowerType.includes('mixing')) return '搅拌';
+  if (lowerType.includes('pressing')) return '压制';
+  if (lowerType.includes('infusing')) return '灌注';
+
+  // 返回原始类型（去掉命名空间前缀）
+  const shortType = type.split(':').pop() || type;
+  return shortType.replace(/_/g, ' ');
+};
+
 Coms["node/recipe"] = ({ obj }) => {
   useAtom(obj.updater);
   const node = obj as RecipeNode;
 
   const isActived = node.id === activedId;
   const isSelected = node.selected;
+  const typeName = getRecipeTypeName(node.recipe.type || "");
 
   return (
     <g
@@ -1574,6 +1659,18 @@ Coms["node/recipe"] = ({ obj }) => {
       className="node-group"
       data-id={node.id}
     >
+      {/* 配方类型名称 - 左上角外部 */}
+      {node.onCanvas && <text
+        x={0}
+        y={-6}
+        fill="#71717a"
+        fontSize="10"
+        dominantBaseline="auto"
+        pointerEvents="none"
+      >
+        {typeName}
+      </text>}
+
       {/* 选中/激活时的边框 */}
       {(isSelected || isActived) && (
         <rect
