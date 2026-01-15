@@ -56,26 +56,23 @@ export interface RecipeNode extends Node {
 
 const extractItemInfo = (
   value: any
-): { itemId: string; count?: number; isTag?: boolean } | null => {
+): { itemId: string; count?: number } | null => {
   if (!value) return null;
   if (typeof value === "string") {
-    const isTag = value.startsWith("#");
-    return { itemId: isTag ? value.slice(1) : value, isTag: isTag };
+    return { itemId: value };
   }
   if (typeof value === "object") {
-    if (value.tag) return { itemId: value.tag, isTag: true };
+    if (value.tag) return { itemId: value.tag.startsWith('#') ? value.tag : '#' + value.tag };
 
     const target = value.basePredicate || value;
     const id = target.id || target.item;
     const tag = target.tag;
 
-    if (tag) return { itemId: tag, isTag: true, count: value.count };
+    if (tag) return { itemId: tag.startsWith('#') ? tag : '#' + tag, count: value.count };
     if (id) {
-      const isTag = id.startsWith("#");
       return {
-        itemId: isTag ? id.slice(1) : id,
+        itemId: id,
         count: value.count,
-        isTag: isTag
       };
     }
   }
@@ -95,7 +92,6 @@ export type SlotPath =
 export interface ItemInputInfo {
   itemId: string;
   count?: number;
-  isTag?: boolean;
   slotPath: SlotPath;
 }
 
@@ -104,7 +100,6 @@ export interface ItemInputInfo {
 export interface ItemDisplay {
   itemId: string;
   count?: number;
-  isTag?: boolean;
   x: number;
   y: number;
   size: number;
@@ -154,7 +149,7 @@ const getOutputSlotPath = (recipe: Recipe): SlotPath => {
 const createStandardLayout = (
   recipe: Recipe,
   inputs: Array<ItemInputInfo | null>,
-  output: { itemId: string; count: number; isTag?: boolean } | null,
+  output: { itemId: string; count: number } | null,
   gridSize: { rows: number; cols: number } | "single" = "single"
 ): RecipeLayout | null => {
   if (!output) return null;
@@ -209,7 +204,6 @@ const createStandardLayout = (
       items.push({
         itemId: inputs[0].itemId,
         count: inputs[0].count,
-        isTag: inputs[0].isTag,
         slotPath: inputs[0].slotPath,
         x: padding,
         y: padding,
@@ -226,7 +220,6 @@ const createStandardLayout = (
       items.push({
         itemId: info?.itemId || "",
         count: info?.count,
-        isTag: info?.isTag,
         slotPath: info?.slotPath || { type: 'array', path: 'unknown', index: i },
         x,
         y,
@@ -291,12 +284,12 @@ const createStandardLayout = (
 
 const parseOutput = (
   recipe: Recipe
-): { itemId: string; count: number; isTag?: boolean } | null => {
+): { itemId: string; count: number } | null => {
   const outSource = recipe.result || recipe.output || (Array.isArray(recipe.results) ? recipe.results[0] : null);
   if (!outSource) return null;
   const info = extractItemInfo(outSource);
   if (!info) return null;
-  return { itemId: info.itemId, count: info.count || 1, isTag: info.isTag };
+  return { itemId: info.itemId, count: info.count || 1 };
 };
 
 const parseShaped: RecipeParser = (r) => {
@@ -708,15 +701,12 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
         return;
       }
 
-      // 构建新物品对象
-      const isTag = idorTag.startsWith('#');
-      const actualId = isTag ? idorTag.slice(1) : idorTag;
       const role = slot.getAttribute('data-slot-role') as 'input' | 'output';
 
-      // 输出槽位需要包含 count
+      // 构建新物品对象
       const newItem = role === 'output'
-        ? (isTag ? { tag: actualId, count: 1 } : { item: actualId, count: 1 })
-        : (isTag ? { tag: actualId } : { item: actualId });
+        ? { id: idorTag, count: 1 }
+        : idorTag;
 
       // 使用统一回写函数
       applySlotPath(recipe, slotPath, newItem);
@@ -777,7 +767,6 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
           <SVGItemSlot
             itemIdorTag={item.itemId}
             count={item.count}
-            isTag={item.isTag}
             size={item.size}
           />
           {item.label && (

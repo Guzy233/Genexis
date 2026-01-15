@@ -85,7 +85,6 @@ export interface SVGItemSlotProps {
   // info: { itemId: string; count?: number } | null;
   itemIdorTag: string
   count?: number
-  isTag?: boolean;
   size?: number;          // 格子大小，默认 40
   iconSize?: number;      // 图标大小，默认 32
 }
@@ -98,11 +97,11 @@ export interface SVGItemSlotProps {
 export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
   itemIdorTag,
   count = 1,
-  isTag = false,
   size = 40,
   iconSize = 32,
 }) => {
   const [idx, setIdx] = useState(0);
+  const isTag = itemIdorTag?.startsWith('#');
   const items = isTag ? getTagItems(itemIdorTag) : [itemIdorTag]
 
   useEffect(() => {
@@ -328,7 +327,6 @@ Coms["node/mcitem"] = ({ obj }) => {
       <g transform={`translate(${(nodeWidth - iconSize) / 2}, ${padding})`}>
         <SVGItemSlot
           itemIdorTag={node.itemIdorTag}
-          isTag={coords[node.itemIdorTag] === undefined}
           size={nodeWidth - 2 * padding}
           iconSize={iconSize}
         />

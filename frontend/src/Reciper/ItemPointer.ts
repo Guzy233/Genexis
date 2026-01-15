@@ -72,10 +72,6 @@ export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
     // 移除拖拽元素
     document.body.removeChild(dragElement);
 
-    // 检查是否在画布区域内释放（简单判断：不在面板内）
-    // const panelElement = document.querySelector(".item-list-panel");
-    // const isInPanel = panelElement?.contains(e.target as Node);
-    // if (isInPanel) return;
     if (e.target instanceof SVGRectElement && e.target.id === "background") {
       // 创建MC物品节点
       const node = ObjectFactories["node/mcitem"]() as any;
