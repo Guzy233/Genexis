@@ -82,6 +82,23 @@ const extractItemInfo = (
   return null;
 };
 
+// ==================== 槽位路径定义 ====================
+
+// 槽位路径类型 - 描述如何访问和修改配方中的某个槽位
+export type SlotPath =
+  | { type: 'direct'; path: string }                                    // 直接路径，如 "ingredient", "input", "result"
+  | { type: 'array'; path: string; index: number }                      // 数组索引，如 "ingredients[0]"
+  | { type: 'shaped'; row: number; col: number }                        // 有序合成特殊处理
+  | { type: 'custom'; writer: (recipe: Recipe, newItem: any) => void }; // 自定义写入器
+
+// 输入项信息（解析阶段使用）
+export interface ItemInputInfo {
+  itemId: string;
+  count?: number;
+  isTag?: boolean;
+  slotPath: SlotPath;
+}
+
 // ==================== 配方布局定义 ====================
 
 export interface ItemDisplay {
@@ -94,6 +111,7 @@ export interface ItemDisplay {
   label?: string;
   role: 'input' | 'output';
   index: number;
+  slotPath: SlotPath;  // 槽位路径，用于回写
 }
 
 export interface ExtraInfoDisplay {
@@ -125,9 +143,17 @@ export type RecipeParser = (recipe: Recipe) => RecipeLayout | null;
 
 // ==================== 标准布局生成器 ====================
 
+// 获取输出槽位路径
+const getOutputSlotPath = (recipe: Recipe): SlotPath => {
+  if (recipe.result) return { type: 'direct', path: 'result' };
+  if (recipe.output) return { type: 'direct', path: 'output' };
+  if (Array.isArray(recipe.results)) return { type: 'array', path: 'results', index: 0 };
+  return { type: 'direct', path: 'result' }; // 默认
+};
+
 const createStandardLayout = (
   recipe: Recipe,
-  inputs: Array<{ itemId: string; count?: number; isTag?: boolean } | null>,
+  inputs: Array<ItemInputInfo | null>,
   output: { itemId: string; count: number; isTag?: boolean } | null,
   gridSize: { rows: number; cols: number } | "single" = "single"
 ): RecipeLayout | null => {
@@ -181,7 +207,10 @@ const createStandardLayout = (
   if (gridSize === "single") {
     if (inputs[0]) {
       items.push({
-        ...inputs[0]!,
+        itemId: inputs[0].itemId,
+        count: inputs[0].count,
+        isTag: inputs[0].isTag,
+        slotPath: inputs[0].slotPath,
         x: padding,
         y: padding,
         size: slotSize,
@@ -198,6 +227,7 @@ const createStandardLayout = (
         itemId: info?.itemId || "",
         count: info?.count,
         isTag: info?.isTag,
+        slotPath: info?.slotPath || { type: 'array', path: 'unknown', index: i },
         x,
         y,
         size: slotSize,
@@ -210,6 +240,7 @@ const createStandardLayout = (
   // 输出物品
   items.push({
     ...output,
+    slotPath: getOutputSlotPath(recipe),
     x: padding + inputWidth + arrowGap + arrowWidth + arrowGap,
     y: outputY,
     size: slotSize,
@@ -269,7 +300,7 @@ const parseOutput = (
 };
 
 const parseShaped: RecipeParser = (r) => {
-  const inputs: Array<{ itemId: string; count?: number; isTag?: boolean } | null> = [];
+  const inputs: Array<ItemInputInfo | null> = [];
   if (!r.pattern || !r.key) return null;
 
   // 默认使用 3x3 网格
@@ -280,7 +311,15 @@ const parseShaped: RecipeParser = (r) => {
     for (let x = 0; x < cols; x++) {
       const char = r.pattern[y]?.[x];
       const val = char ? r.key[char] : null;
-      inputs.push(extractItemInfo(val));
+      const info = extractItemInfo(val);
+      if (info) {
+        inputs.push({
+          ...info,
+          slotPath: { type: 'shaped', row: y, col: x }
+        });
+      } else {
+        inputs.push(null);
+      }
     }
   }
   return createStandardLayout(r, inputs, parseOutput(r), { rows, cols });
@@ -288,50 +327,118 @@ const parseShaped: RecipeParser = (r) => {
 
 const parseShapeless: RecipeParser = (r) => {
   if (!r.ingredients) return null;
-  const inputs = r.ingredients.map(extractItemInfo);
+
   // 无序配方填充至 3x3
-  const paddedInputs = new Array(9).fill(null);
-  inputs.forEach((info, i) => {
-    if (i < 9) paddedInputs[i] = info;
+  const paddedInputs: Array<ItemInputInfo | null> = new Array(9).fill(null);
+  r.ingredients.forEach((ing: any, i: number) => {
+    if (i < 9) {
+      const info = extractItemInfo(ing);
+      if (info) {
+        paddedInputs[i] = {
+          ...info,
+          slotPath: { type: 'array', path: 'ingredients', index: i }
+        };
+      }
+    }
   });
   return createStandardLayout(r, paddedInputs, parseOutput(r), { rows: 3, cols: 3 });
 };
 
 const parseSmelting: RecipeParser = (r) => {
-  const input = extractItemInfo(r.ingredient || r.input);
+  const inputSource = r.ingredient || r.input;
+  const inputPath = r.ingredient ? 'ingredient' : 'input';
+  const info = extractItemInfo(inputSource);
+
+  const input: ItemInputInfo | null = info ? {
+    ...info,
+    slotPath: { type: 'direct', path: inputPath }
+  } : null;
+
   return createStandardLayout(r, [input], parseOutput(r), "single");
 };
 
 const parseEmpowering: RecipeParser = (r) => {
-  const items = new Array(9).fill(null);
+  const items: Array<ItemInputInfo | null> = new Array(9).fill(null);
+
+  // base 在中心位置 (index 4)
   const baseInfo = extractItemInfo(r.base);
-  items[4] = baseInfo;
+  if (baseInfo) {
+    items[4] = {
+      ...baseInfo,
+      slotPath: { type: 'direct', path: 'base' }
+    };
+  }
+
+  // modifiers 按特定顺序排列
   const modifierIndices = [1, 3, 5, 7, 0, 2, 6, 8];
   const modifiers = Array.isArray(r.modifiers) ? r.modifiers : [];
   modifiers.forEach((m: any, i: number) => {
-    if (i < modifierIndices.length) items[modifierIndices[i]] = extractItemInfo(m);
+    if (i < modifierIndices.length) {
+      const info = extractItemInfo(m);
+      if (info) {
+        items[modifierIndices[i]] = {
+          ...info,
+          slotPath: { type: 'array', path: 'modifiers', index: i }
+        };
+      }
+    }
   });
+
   return createStandardLayout(r, items, parseOutput(r), { rows: 3, cols: 3 });
 };
 
 const parseArcFurnace: RecipeParser = (r) => {
-  // IE Arc Furnace: 2 additives (1x2) + 1 main input (1x1)
-  const items = new Array(6).fill(null);
+  // IE Arc Furnace: 2 additives + 1 main input
+  const items: Array<ItemInputInfo | null> = new Array(6).fill(null);
   const rawAdditives = Array.isArray(r.additives) ? r.additives.flat(2) : [];
-  rawAdditives.slice(0, 2).forEach((a: any, i: number) => items[i] = extractItemInfo(a));
-  items[2] = extractItemInfo(r.input);
+
+  rawAdditives.slice(0, 2).forEach((a: any, i: number) => {
+    const info = extractItemInfo(a);
+    if (info) {
+      items[i] = {
+        ...info,
+        slotPath: { type: 'array', path: 'additives', index: i }
+      };
+    }
+  });
+
+  const inputInfo = extractItemInfo(r.input);
+  if (inputInfo) {
+    items[2] = {
+      ...inputInfo,
+      slotPath: { type: 'direct', path: 'input' }
+    };
+  }
+
   return createStandardLayout(r, items, parseOutput(r), { rows: 2, cols: 3 });
 };
 
 const parseIEAlloy: RecipeParser = (r) => {
-  const i0 = extractItemInfo(r.input0);
-  const i1 = extractItemInfo(r.input1);
-  return createStandardLayout(r, [i0, i1], parseOutput(r), { rows: 1, cols: 2 });
+  const i0Info = extractItemInfo(r.input0);
+  const i1Info = extractItemInfo(r.input1);
+
+  const inputs: Array<ItemInputInfo | null> = [
+    i0Info ? { ...i0Info, slotPath: { type: 'direct', path: 'input0' } } : null,
+    i1Info ? { ...i1Info, slotPath: { type: 'direct', path: 'input1' } } : null
+  ];
+
+  return createStandardLayout(r, inputs, parseOutput(r), { rows: 1, cols: 2 });
 };
 
 const parseEnderIOAlloySmelting: RecipeParser = (r) => {
   if (!r.inputs || !Array.isArray(r.inputs)) return null;
-  const inputs = r.inputs.map(extractItemInfo);
+
+  const inputs: Array<ItemInputInfo | null> = r.inputs.map((ing: any, i: number) => {
+    const info = extractItemInfo(ing);
+    if (info) {
+      return {
+        ...info,
+        slotPath: { type: 'array', path: 'inputs', index: i }
+      };
+    }
+    return null;
+  });
+
   return createStandardLayout(r, inputs, parseOutput(r), { rows: inputs.length, cols: 1 });
 };
 
@@ -472,6 +579,83 @@ registerSerializer(
 );
 
 // ============================================================================
+// 回写工具函数
+// ============================================================================
+
+// 设置嵌套对象的值
+const setNestedValue = (obj: any, path: string, value: any) => {
+  (obj as any)[path] = value;
+};
+
+// 有序合成配方的特殊回写逻辑
+const applyShapedSlot = (recipe: Recipe, row: number, col: number, newItem: any) => {
+  if (!recipe.pattern) recipe.pattern = ["   ", "   ", "   "];
+  if (!recipe.key) recipe.key = {};
+
+  // 确保 pattern 有足够的行
+  while (recipe.pattern.length <= row) {
+    recipe.pattern.push("   ");
+  }
+
+  let currentPattern = recipe.pattern[row] || "   ";
+  // 确保行有足够的列
+  while (currentPattern.length <= col) {
+    currentPattern += " ";
+  }
+  const currentChar = currentPattern[col];
+
+  // 检查该字符在 pattern 中是否被多处使用
+  const charUsageCount = currentChar && currentChar !== ' '
+    ? recipe.pattern.join('').split(currentChar).length - 1
+    : 0;
+
+  if (currentChar && currentChar !== ' ' && charUsageCount > 1) {
+    // 该字符被多处使用，需要分配新字符
+    const usedChars = new Set(Object.keys(recipe.key));
+    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const newChar = possible.split("").find(c => !usedChars.has(c)) || currentChar;
+
+    // 更新 pattern 中该位置的字符
+    recipe.pattern[row] = currentPattern.substring(0, col) + newChar + currentPattern.substring(col + 1);
+    recipe.key[newChar] = newItem;
+  } else {
+    // 该字符只被使用一次，或是空格（新槽位）
+    if (!currentChar || currentChar === ' ') {
+      const usedChars = new Set(Object.keys(recipe.key));
+      const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const newChar = possible.split("").find(c => !usedChars.has(c)) || "A";
+      recipe.pattern[row] = currentPattern.substring(0, col) + newChar + currentPattern.substring(col + 1);
+      recipe.key[newChar] = newItem;
+    } else {
+      recipe.key[currentChar] = newItem;
+    }
+  }
+};
+
+// 统一回写函数
+const applySlotPath = (recipe: Recipe, slotPath: SlotPath, newItem: any) => {
+  switch (slotPath.type) {
+    case 'direct':
+      setNestedValue(recipe, slotPath.path, newItem);
+      break;
+    case 'array':
+      let arr = (recipe as any)[slotPath.path];
+      if (!arr || !Array.isArray(arr)) {
+        arr = [];
+        (recipe as any)[slotPath.path] = arr;
+      }
+      arr[slotPath.index] = newItem;
+      break;
+    case 'shaped':
+      applyShapedSlot(recipe, slotPath.row, slotPath.col, newItem);
+      break;
+    case 'custom':
+      slotPath.writer(recipe, newItem);
+      break;
+  }
+};
+
+// ============================================================================
 // SVG 配方内容渲染组件
 // ============================================================================
 
@@ -480,8 +664,8 @@ interface RecipeContentProps {
   onAddToCanvas?: (node: RecipeNode) => void;
 }
 
-// 内部渲染组件
-const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
+// 内部渲染组件,使用 memo 包装，不接收被动更新
+export const SVGRecipeContent = React.memo<RecipeContentProps>(({
   node,
   onAddToCanvas,
 }) => {
@@ -513,66 +697,29 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
       const slot = target.closest('[data-slot-role]');
       if (!slot) return;
 
-      const role = slot.getAttribute('data-slot-role') as 'input' | 'output';
-      const index = parseInt(slot.getAttribute('data-slot-index') || '0');
+      // 从 data 属性获取 slotPath
+      const slotPathAttr = slot.getAttribute('data-slot-path');
+      if (!slotPathAttr) return;
 
-      // 更新配方逻辑
+      let slotPath: SlotPath;
+      try {
+        slotPath = JSON.parse(slotPathAttr);
+      } catch {
+        return;
+      }
+
+      // 构建新物品对象
       const isTag = idorTag.startsWith('#');
       const actualId = isTag ? idorTag.slice(1) : idorTag;
-      const newItem = isTag ? { tag: actualId } : { item: actualId };
+      const role = slot.getAttribute('data-slot-role') as 'input' | 'output';
 
-      if (role === 'output') {
-        const outValue = { ...newItem, count: 1 };
-        if (recipe.result) recipe.result = outValue;
-        else if (recipe.output) recipe.output = outValue;
-        else if (Array.isArray(recipe.results)) recipe.results[0] = outValue;
-        else recipe.result = outValue;
-      } else {
-        const type = recipe.type || "";
-        if (type.includes("shaped") || (recipe.pattern && recipe.key)) {
-          if (!recipe.pattern) recipe.pattern = ["   ", "   ", "   "];
-          if (!recipe.key) recipe.key = {};
-          const y = Math.floor(index / 3);
-          const x = index % 3;
-          let row = recipe.pattern[y] || "   ";
-          let char = row[x];
-          if (!char || char === ' ') {
-            const usedChars = new Set(Object.keys(recipe.key));
-            const possible = "ABCDEFGHIJKLMN";
-            char = possible.split("").find(c => !usedChars.has(c)) || "X";
-            row = (row + "   ").substring(0, x) + char + (row + "   ").substring(x + 1, 3);
-            recipe.pattern[y] = row;
-          }
-          recipe.key[char] = newItem;
-        } else if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
-          recipe.ingredients[index] = newItem;
-        } else if (type.includes("empowering")) {
-          if (index === 4) recipe.base = newItem;
-          else {
-            const modifierIndices = [1, 3, 5, 7, 0, 2, 6, 8];
-            const modIdx = modifierIndices.indexOf(index);
-            if (modIdx !== -1) {
-              if (!recipe.modifiers) recipe.modifiers = [];
-              recipe.modifiers[modIdx] = newItem;
-            }
-          }
-        } else if (type.includes("arc_furnace")) {
-          if (index < 2) {
-            if (!recipe.additives) recipe.additives = [];
-            recipe.additives[index] = newItem;
-          } else if (index === 2) {
-            recipe.input = newItem;
-          }
-        } else if (recipe.ingredient) {
-          recipe.ingredient = newItem;
-        } else if (recipe.input) {
-          recipe.input = newItem;
-        } else if (recipe.input0 !== undefined && index === 0) recipe.input0 = newItem;
-        else if (recipe.input1 !== undefined && index === 1) recipe.input1 = newItem;
-        else if (recipe.inputs && Array.isArray(recipe.inputs)) {
-          recipe.inputs[index] = newItem;
-        }
-      }
+      // 输出槽位需要包含 count
+      const newItem = role === 'output'
+        ? (isTag ? { tag: actualId, count: 1 } : { item: actualId, count: 1 })
+        : (isTag ? { tag: actualId } : { item: actualId });
+
+      // 使用统一回写函数
+      applySlotPath(recipe, slotPath, newItem);
 
       Manager.updateAtom(node.contentUpdater);
     };
@@ -625,6 +772,7 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
           onContextMenu={(e) => e.preventDefault()}
           data-slot-role={item.role}
           data-slot-index={item.index}
+          data-slot-path={JSON.stringify(item.slotPath)}
         >
           <SVGItemSlot
             itemIdorTag={item.itemId}
@@ -733,10 +881,7 @@ const SVGRecipeContentInner: React.FC<RecipeContentProps> = ({
       )}
     </g>
   );
-};
-
-// 使用 memo 包装，不接收被动更新
-export const SVGRecipeContent = React.memo(SVGRecipeContentInner);
+});
 
 // ============================================================================
 // 画布节点组件
