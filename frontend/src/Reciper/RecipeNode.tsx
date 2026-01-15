@@ -97,7 +97,11 @@ export interface ItemInputInfo {
 
 // ==================== 配方布局定义 ====================
 
+// 槽位类型
+export type SlotType = 'item' | 'fluid';
+
 export interface ItemDisplay {
+  slotType?: SlotType;  // 默认 'item'
   itemId: string;
   count?: number;
   x: number;
@@ -108,6 +112,34 @@ export interface ItemDisplay {
   index: number;
   slotPath: SlotPath;  // 槽位路径，用于回写
 }
+
+// 流体显示信息
+export interface FluidDisplay {
+  slotType: 'fluid';
+  fluidId: string;      // 流体ID
+  amount: number;       // 流体量 (mb)
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  role: 'input' | 'output';
+  slotPath: SlotPath;
+}
+
+// 流体颜色映射
+const FLUID_COLORS: Record<string, string> = {
+  'minecraft:water': '#5b9bd5',
+  'water': '#5b9bd5',
+  'c:water': '#5b9bd5',
+  'justdirethings:time_fluid_source': '#90ee90',
+  'justdirethings:time_fluid': '#90ee90',
+  'c:experience': '#7cfc00',
+  'ae2:f': '#90ee90',  // AE2 fluid type marker
+};
+
+const getFluidColor = (fluidId: string): string => {
+  return FLUID_COLORS[fluidId] || '#888888';
+};
 
 export interface ExtraInfoDisplay {
   icon: string;
@@ -122,6 +154,7 @@ export interface RecipeLayout {
   width: number;
   height: number;
   items: ItemDisplay[];
+  fluids?: FluidDisplay[];  // 流体槽位
   arrow?: { x: number; y: number; text: string; fontSize?: number };
   extraInfos: ExtraInfoDisplay[];
   actionButton?: { x: number; y: number; width: number; height: number };
@@ -435,6 +468,161 @@ const parseEnderIOAlloySmelting: RecipeParser = (r) => {
   return createStandardLayout(r, inputs, parseOutput(r), { rows: inputs.length, cols: 1 });
 };
 
+// Advanced AE Reaction 解析器
+// 布局: [流体输入] [3x3物品输入] [→] [物品/流体输出]
+const parseAdvancedAEReaction: RecipeParser = (r) => {
+  const padding = 12;
+  const slotSize = 40;
+  const gap = 4;
+  const fluidWidth = 24;
+  const fluidHeight = slotSize * 3 + gap * 2;  // 与3x3网格等高
+  const arrowGap = 12;
+  const arrowWidth = 20;
+
+  // 输入物品 3x3
+  const inputItems: ItemDisplay[] = [];
+  const inputRaw = Array.isArray(r.input_items) ? r.input_items : [];
+
+  // 填充3x3网格
+  const gridInputs: Array<ItemInputInfo | null> = new Array(9).fill(null);
+  inputRaw.forEach((item: any, idx: number) => {
+    if (idx < 9) {
+      const info = extractItemInfo(item.ingredient || item);
+      if (info) {
+        gridInputs[idx] = {
+          ...info,
+          count: item.amount || item.count || 1,
+          slotPath: { type: 'array', path: 'input_items', index: idx }
+        };
+      }
+    }
+  });
+
+  const gridStartX = padding + fluidWidth + gap;
+  const gridWidth = slotSize * 3 + gap * 2;
+
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      const idx = row * 3 + col;
+      const info = gridInputs[idx];
+      inputItems.push({
+        slotType: 'item',
+        itemId: info?.itemId || "",
+        count: info?.count,
+        x: gridStartX + col * (slotSize + gap),
+        y: padding + row * (slotSize + gap),
+        size: slotSize,
+        role: 'input',
+        index: idx,
+        slotPath: info?.slotPath || { type: 'array', path: 'input_items', index: idx }
+      });
+    }
+  }
+
+  // 输入流体
+  const inputFluid = r.input_fluid;
+  const inputFluids: FluidDisplay[] = [];
+  if (inputFluid) {
+    const fluidIng = inputFluid.ingredient || inputFluid;
+    const fluidId = fluidIng.tag || fluidIng.fluid || fluidIng.id || 'unknown';
+    inputFluids.push({
+      slotType: 'fluid',
+      fluidId: fluidId.startsWith('#') ? fluidId : (fluidIng.tag ? '#' + fluidId : fluidId),
+      amount: inputFluid.amount || 1000,
+      x: padding,
+      y: padding,
+      width: fluidWidth,
+      height: fluidHeight,
+      role: 'input',
+      slotPath: { type: 'direct', path: 'input_fluid' }
+    });
+  }
+
+  // 输出解析: 支持 {#: amount, #t: "ae2:f" | "ae2:i", id: "xxx"} 格式
+  const output = r.output as any;
+  const outputX = gridStartX + gridWidth + arrowGap + arrowWidth + arrowGap;
+  const outputItems: ItemDisplay[] = [];
+  const outputFluids: FluidDisplay[] = [];
+
+  if (output) {
+    const outputType = output['#t'] as string | undefined;  // "ae2:f" = fluid, "ae2:i" = item
+    const outputAmount = (output['#'] || 1) as number;
+    const outputId = (output.id || 'unknown') as string;
+
+    if (outputType === 'ae2:f') {
+      // 流体输出
+      outputFluids.push({
+        slotType: 'fluid',
+        fluidId: outputId,
+        amount: outputAmount,
+        x: outputX + slotSize + gap,
+        y: padding,
+        width: fluidWidth,
+        height: fluidHeight,
+        role: 'output',
+        slotPath: { type: 'direct', path: 'output' }
+      });
+    } else {
+      // 物品输出
+      outputItems.push({
+        slotType: 'item',
+        itemId: outputId,
+        count: outputAmount,
+        x: outputX,
+        y: padding + (fluidHeight - slotSize) / 2,  // 垂直居中
+        size: slotSize,
+        label: "结果",
+        role: 'output',
+        index: 0,
+        slotPath: { type: 'direct', path: 'output' }
+      });
+    }
+  }
+
+  // 计算总尺寸
+  const hasFluidOutput = outputFluids.length > 0;
+  const hasItemOutput = outputItems.length > 0;
+  const outputWidth = hasFluidOutput && hasItemOutput
+    ? slotSize + gap + fluidWidth
+    : (hasFluidOutput ? fluidWidth : slotSize);
+
+  const totalWidth = padding + fluidWidth + gap + gridWidth + arrowGap + arrowWidth + arrowGap + outputWidth + padding;
+  const totalHeight = padding + fluidHeight + padding;
+
+  // 能量信息
+  const extraInfos: ExtraInfoDisplay[] = [];
+  if (r.input_energy) {
+    extraInfos.push({
+      icon: "⚡",
+      text: `${r.input_energy} FE`,
+      color: "#ef4444",
+      label: "能量",
+      x: padding + 30,
+      y: totalHeight + 5
+    });
+  }
+
+  return {
+    width: totalWidth,
+    height: totalHeight + (extraInfos.length > 0 ? 20 : 0),
+    items: [...inputItems, ...outputItems],
+    fluids: [...inputFluids, ...outputFluids],
+    arrow: {
+      x: gridStartX + gridWidth + arrowGap + arrowWidth / 2,
+      y: padding + fluidHeight / 2,
+      text: "→",
+      fontSize: 20
+    },
+    extraInfos,
+    actionButton: {
+      x: totalWidth - padding - slotSize,
+      y: padding + fluidHeight - 24,
+      width: slotSize,
+      height: 24
+    }
+  };
+};
+
 // ==================== 解析器表 ====================
 
 const recipeParserTable: Record<string, RecipeParser> = {
@@ -454,6 +642,7 @@ const recipeParserTable: Record<string, RecipeParser> = {
   "immersiveengineering:arc_furnace": parseArcFurnace,
   "immersiveengineering:alloy": parseIEAlloy,
   "enderio:alloy_smelting": parseEnderIOAlloySmelting,
+  "advanced_ae:reaction": parseAdvancedAEReaction,
 };
 
 // 备用解析逻辑（处理带前缀或包含特定关键字的类型）
@@ -784,6 +973,58 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
           )}
         </g>
       ))}
+
+      {/* 流体槽位绘制 */}
+      {layout.fluids?.map((fluid, i) => {
+        const color = getFluidColor(fluid.fluidId);
+        const fillPercent = Math.min(1, fluid.amount / 10000);  // 假设最大10000mb
+        const fillHeight = fluid.height * fillPercent;
+        const emptyHeight = fluid.height - fillHeight;
+
+        return (
+          <g
+            key={`fluid-${i}`}
+            transform={`translate(${fluid.x}, ${fluid.y})`}
+            data-slot-role={fluid.role}
+            data-slot-path={JSON.stringify(fluid.slotPath)}
+            style={{ cursor: 'pointer' }}
+          >
+            {/* 流体槽背景 */}
+            <rect
+              x={0}
+              y={0}
+              width={fluid.width}
+              height={fluid.height}
+              fill="rgba(30,30,35,0.9)"
+              stroke="rgba(255,255,255,0.2)"
+              strokeWidth="1"
+              rx="3"
+            />
+            {/* 流体填充 */}
+            <rect
+              x={1}
+              y={emptyHeight + 1}
+              width={fluid.width - 2}
+              height={fillHeight - 2}
+              fill={color}
+              opacity={0.8}
+              rx="2"
+            />
+            {/* 流体量文字 */}
+            <text
+              x={fluid.width / 2}
+              y={fluid.height + 12}
+              textAnchor="middle"
+              fill="#a1a1aa"
+              fontSize="9"
+              dominantBaseline="hanging"
+            >
+              {fluid.amount >= 1000 ? `${(fluid.amount / 1000).toFixed(1)}B` : `${fluid.amount}mb`}
+            </text>
+            <title>{fluid.fluidId} - {fluid.amount}mb</title>
+          </g>
+        );
+      })}
 
       {/* 箭头 */}
       {layout.arrow && (
