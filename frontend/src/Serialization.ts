@@ -5,7 +5,6 @@ import { Anchor, Obj, Node } from "./Globals";
 
 export interface SerializedCanvas {
   version: number;
-  metadata: Record<string, Record<string, any>>;
   objects: SerializedObj[];
 }
 
@@ -162,7 +161,7 @@ export const deserializeAnchors = (
 
 // ==================== 画布序列化/反序列化 ====================
 
-export const serializeCanvas = (objects: Record<string, Obj>, metadata: SerializedCanvas["metadata"]): SerializedCanvas => {
+export const serializeCanvas = (objects: Record<string, Obj>): SerializedCanvas => {
   const serializedObjects: SerializedObj[] = [];
 
   Object.values(objects).forEach((obj) => {
@@ -173,7 +172,6 @@ export const serializeCanvas = (objects: Record<string, Obj>, metadata: Serializ
 
   return {
     version: 2, // 更新版本号以使用新的锚点编码
-    metadata,
     objects: serializedObjects,
   };
 };

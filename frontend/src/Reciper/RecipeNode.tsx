@@ -452,7 +452,7 @@ registerSerializer(
       modifyMode: node.modifyMode,
     };
   },
-  (data) => {
+  (data: any) => {
     const node: RecipeNode = {
       id: data.id,
       type: data.type,

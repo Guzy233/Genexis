@@ -53,7 +53,7 @@ export interface FileTab {
   nodeRelations: NodeRelationGraph; // 该文件的节点关系图
   isModified: boolean; // 是否有未保存的修改
   history: FileHistory; // 该文件的撤销/重做历史
-  metadata: SerializedCanvas["metadata"]; // 元数据（如游戏配置）
+  metadata: Record<string, any>; // 元数据（如游戏配置）
 }
 
 // 打开的标签列表
@@ -145,7 +145,7 @@ export const saveHistory = (): void => {
   }
 
 
-  const snapshot = serializeCanvas(objects, activeTab.metadata);
+  const snapshot = serializeCanvas(objects);
   history.push(snapshot);
   activeTab.history.currentIndex = history.length - 1;
 
@@ -428,8 +428,11 @@ export const saveFile = async (saveAs: boolean = false): Promise<boolean> => {
   onBeforeSaveHooks.forEach(hook => hook(activeTab));
 
   // 序列化画布数据
-  const serializedData = serializeCanvas(objects, activeTab.metadata);
-  const jsonData = JSON.stringify(serializedData, null, 2);
+  const canvasData = serializeCanvas(objects);
+  const jsonData = JSON.stringify({
+    ...canvasData,
+    metadata: activeTab.metadata,
+  }, null, 2);
 
   // 确定保存路径
   const filePath = saveAs || !activeTab.filePath ? null : activeTab.filePath;
@@ -502,7 +505,7 @@ export const loadFile = async (): Promise<boolean> => {
     activeTab.fileName = fileName;
     activeTab.objects = { ...objects };
     activeTab.nodeRelations = nodeRelations;
-    activeTab.metadata = data.metadata;
+    activeTab.metadata = data.metadata || {};
     setTabModified(false);
     // 重置历史
     activeTab.history.history = [];
@@ -514,7 +517,7 @@ export const loadFile = async (): Promise<boolean> => {
     newTab.fileName = fileName;
     newTab.objects = { ...objects };
     newTab.nodeRelations = nodeRelations;
-    newTab.metadata = data.metadata;
+    newTab.metadata = data.metadata || {};
     setTabModified(false);
     // 重置历史
     newTab.history.history = [];

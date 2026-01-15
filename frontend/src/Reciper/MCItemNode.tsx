@@ -237,7 +237,7 @@ registerSerializer(
       selected: node.selected,
     };
   },
-  (data) => {
+  (data: any) => {
     const node: MCItemNode = {
       id: data.id,
       type: data.type,

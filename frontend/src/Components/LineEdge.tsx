@@ -304,9 +304,8 @@ Coms["edge/line"] = ({ obj }) => {
             />
 
             <g
-              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${
-                midPoint!.angle
-              })`}
+              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${midPoint!.angle
+                })`}
             >
               <rect
                 x={-midPoint!.labelWidth / 2}
@@ -340,7 +339,7 @@ Coms["edge/line"] = ({ obj }) => {
         className="hit-area"
         stroke="transparent"
         strokeWidth="14"
-        onMouseDown={() => {}}
+        onMouseDown={() => { }}
       />
 
       <circle
@@ -395,7 +394,7 @@ registerSerializer(
       label: edge.label,
     };
   },
-  (data) => ({
+  (data: any) => ({
     id: data.id,
     type: data.type,
     anchorSource: data.anchorSource ?? { type: "auto" },
