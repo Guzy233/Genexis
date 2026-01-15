@@ -97,34 +97,71 @@ export interface ItemInputInfo {
 
 // ==================== 配方布局定义 ====================
 
-// 槽位类型
-export type SlotType = 'item' | 'fluid';
+// ==================== 通用槽位系统 ====================
 
-export interface ItemDisplay {
-  slotType?: SlotType;  // 默认 'item'
-  itemId: string;
-  count?: number;
+// 槽位基础接口 - 所有槽位必须实现
+export interface SlotDisplayBase {
+  slotType: string;        // 槽位类型标识符
   x: number;
   y: number;
-  size: number;
-  label?: string;
-  role: 'input' | 'output';
-  index: number;
-  slotPath: SlotPath;  // 槽位路径，用于回写
-}
-
-// 流体显示信息
-export interface FluidDisplay {
-  slotType: 'fluid';
-  fluidId: string;      // 流体ID
-  amount: number;       // 流体量 (mb)
-  x: number;
-  y: number;
-  width: number;
-  height: number;
   role: 'input' | 'output';
   slotPath: SlotPath;
+  label?: string;
 }
+
+// 物品槽位
+export interface ItemSlotDisplay extends SlotDisplayBase {
+  slotType: 'item';
+  itemId: string;
+  count?: number;
+  size: number;
+  index: number;
+}
+
+// 流体槽位
+export interface FluidSlotDisplay extends SlotDisplayBase {
+  slotType: 'fluid';
+  fluidId: string;
+  amount: number;         // mb
+  width: number;
+  height: number;
+}
+
+// 化学品槽位 (Mekanism风格)
+export interface ChemicalSlotDisplay extends SlotDisplayBase {
+  slotType: 'chemical';
+  chemicalType: 'gas' | 'slurry' | 'infuse' | 'pigment';
+  chemicalId: string;
+  amount: number;         // mb
+  width: number;
+  height: number;
+}
+
+// 能源槽位
+export interface EnergySlotDisplay extends SlotDisplayBase {
+  slotType: 'energy';
+  energyType: 'fe' | 'eu' | 'mana' | 'vis' | 'custom';
+  amount: number;
+  maxAmount?: number;
+  width: number;
+  height: number;
+}
+
+// 通用槽位联合类型
+export type SlotDisplay = ItemSlotDisplay | FluidSlotDisplay | ChemicalSlotDisplay | EnergySlotDisplay | (SlotDisplayBase & Record<string, any>);
+
+// ==================== 槽位渲染器注册系统 ====================
+
+export interface SlotRendererProps<T extends SlotDisplayBase = SlotDisplayBase> {
+  slot: T;
+}
+
+export type SlotRenderer<T extends SlotDisplayBase = SlotDisplayBase> = React.FC<SlotRendererProps<T>>;
+
+// 槽位渲染器注册表
+export const SlotRenderers: Record<string, SlotRenderer<any>> = {};
+
+// ==================== 内置槽位渲染器 ====================
 
 // 流体颜色映射
 const FLUID_COLORS: Record<string, string> = {
@@ -134,11 +171,347 @@ const FLUID_COLORS: Record<string, string> = {
   'justdirethings:time_fluid_source': '#90ee90',
   'justdirethings:time_fluid': '#90ee90',
   'c:experience': '#7cfc00',
-  'ae2:f': '#90ee90',  // AE2 fluid type marker
+  'ae2:f': '#90ee90',
 };
 
 const getFluidColor = (fluidId: string): string => {
   return FLUID_COLORS[fluidId] || '#888888';
+};
+
+// 化学品颜色映射 (Mekanism)
+const CHEMICAL_COLORS: Record<string, Record<string, string>> = {
+  gas: {
+    'mekanism:hydrogen': '#a0d8ef',
+    'mekanism:oxygen': '#ff9999',
+    'mekanism:chlorine': '#c8e6b0',
+    'mekanism:steam': '#e8e8e8',
+    'mekanism:ethene': '#f0f0a0',
+    'mekanism:sulfur_dioxide': '#e0d080',
+    'mekanism:uranium_hexafluoride': '#80ff80',
+    '_default': '#88ccff',
+  },
+  slurry: {
+    'iron': '#c8c8c8',
+    'gold': '#ffd700',
+    'copper': '#e07050',
+    'tin': '#d8d8e0',
+    'lead': '#607090',
+    'osmium': '#a0d0e0',
+    'uranium': '#80ff80',
+    '_default': '#a08060',
+  },
+  infuse: {
+    // 精确匹配
+    'mekanism:redstone': '#ff4444',
+    'mekanism:diamond': '#55ffff',
+    'mekanism:carbon': '#444444',
+    'mekanism:gold': '#ffd700',
+    'mekanism:tin': '#d8d8e0',
+    'mekanism:fungi': '#8b4513',
+    'mekanism:bio': '#7cfc00',
+    'mekanism:refined_obsidian': '#4a0080',
+    // tag 格式匹配 (带 # 前缀)
+    '#mekanism:redstone': '#ff4444',
+    '#mekanism:diamond': '#55ffff',
+    '#mekanism:carbon': '#444444',
+    '#mekanism:gold': '#ffd700',
+    '#mekanism:tin': '#d8d8e0',
+    '#mekanism:fungi': '#8b4513',
+    '#mekanism:bio': '#7cfc00',
+    '#mekanism:refined_obsidian': '#4a0080',
+    '_default': '#ff88ff',
+  },
+  pigment: {
+    'mekanism:black': '#222222',
+    'mekanism:white': '#f0f0f0',
+    'mekanism:red': '#ff4444',
+    'mekanism:green': '#44ff44',
+    'mekanism:blue': '#4444ff',
+    'mekanism:yellow': '#ffff44',
+    '_default': '#ffcc00',
+  },
+};
+
+const getChemicalColor = (chemicalType: string, chemicalId: string): string => {
+  const typeColors = CHEMICAL_COLORS[chemicalType] || {};
+
+  // 先尝试精确匹配
+  if (typeColors[chemicalId]) {
+    return typeColors[chemicalId];
+  }
+
+  // 尝试提取资源名称进行匹配 (如 "mekanism:gold" -> "gold")
+  const resourceName = chemicalId.replace(/^#/, '').split(':').pop() || '';
+  for (const [key, color] of Object.entries(typeColors)) {
+    if (key !== '_default' && (key.endsWith(':' + resourceName) || key === resourceName)) {
+      return color;
+    }
+  }
+
+  // 尝试通过资源名称匹配常见颜色
+  const commonColors: Record<string, string> = {
+    'gold': '#ffd700',
+    'iron': '#c8c8c8',
+    'copper': '#e07050',
+    'tin': '#d8d8e0',
+    'redstone': '#ff4444',
+    'diamond': '#55ffff',
+    'carbon': '#444444',
+    'fungi': '#8b4513',
+    'bio': '#7cfc00',
+  };
+  if (commonColors[resourceName]) {
+    return commonColors[resourceName];
+  }
+
+  return typeColors['_default'] || '#888888';
+};
+
+// 能源颜色映射
+const ENERGY_COLORS: Record<string, string> = {
+  'fe': '#ef4444',
+  'eu': '#ffcc00',
+  'mana': '#00ffff',
+  'vis': '#8855ff',
+  'custom': '#888888',
+};
+
+// 物品槽位渲染器
+SlotRenderers['item'] = ({ slot }: SlotRendererProps<ItemSlotDisplay>) => {
+  return (
+    <g>
+      <SVGItemSlot
+        itemIdorTag={slot.itemId}
+        count={slot.count}
+        size={slot.size}
+      />
+      {slot.label && (
+        <text
+          x={slot.size / 2}
+          y={slot.size + 4}
+          textAnchor="middle"
+          fill="#71717a"
+          fontSize="11"
+          dominantBaseline="hanging"
+          pointerEvents="none"
+        >
+          {slot.label}
+        </text>
+      )}
+    </g>
+  );
+};
+
+// 流体槽位渲染器
+SlotRenderers['fluid'] = ({ slot }: SlotRendererProps<FluidSlotDisplay>) => {
+  const color = getFluidColor(slot.fluidId);
+  const fillPercent = Math.min(1, slot.amount / 10000);
+  const fillHeight = slot.height * fillPercent;
+  const emptyHeight = slot.height - fillHeight;
+
+  return (
+    <g style={{ cursor: 'pointer' }}>
+      <rect
+        x={0}
+        y={0}
+        width={slot.width}
+        height={slot.height}
+        fill="rgba(30,30,35,0.9)"
+        stroke="rgba(255,255,255,0.2)"
+        strokeWidth="1"
+        rx="3"
+      />
+      <rect
+        x={1}
+        y={emptyHeight + 1}
+        width={slot.width - 2}
+        height={fillHeight - 2}
+        fill={color}
+        opacity={0.8}
+        rx="2"
+      />
+      <text
+        x={slot.width / 2}
+        y={slot.height + 12}
+        textAnchor="middle"
+        fill="#a1a1aa"
+        fontSize="9"
+        dominantBaseline="hanging"
+      >
+        {slot.amount >= 1000 ? `${(slot.amount / 1000).toFixed(1)}B` : `${slot.amount}mb`}
+      </text>
+      <title>{slot.fluidId} - {slot.amount}mb</title>
+    </g>
+  );
+};
+
+// 化学品槽位渲染器 (Mekanism)
+SlotRenderers['chemical'] = ({ slot }: SlotRendererProps<ChemicalSlotDisplay>) => {
+  const color = getChemicalColor(slot.chemicalType, slot.chemicalId);
+  // 对于小量化学品使用固定比例，避免负数高度
+  const maxAmount = slot.amount < 1000 ? 1000 : 10000;
+  const fillPercent = Math.min(1, Math.max(0.1, slot.amount / maxAmount));  // 至少显示10%
+  const fillHeight = Math.max(4, slot.height * fillPercent);  // 至少4px高度
+  const emptyHeight = slot.height - fillHeight;
+
+  // 化学品类型图标
+  const typeIcons: Record<string, string> = {
+    gas: '◯',
+    slurry: '◈',
+    infuse: '✦',
+    pigment: '◆',
+  };
+
+  return (
+    <g style={{ cursor: 'pointer' }}>
+      <rect
+        x={0}
+        y={0}
+        width={slot.width}
+        height={slot.height}
+        fill="rgba(30,30,35,0.9)"
+        stroke={color}
+        strokeWidth="1"
+        strokeDasharray="3,2"
+        rx="3"
+      />
+      <rect
+        x={1}
+        y={Math.max(1, emptyHeight)}
+        width={slot.width - 2}
+        height={Math.max(2, fillHeight - 2)}
+        fill={color}
+        opacity={0.6}
+        rx="2"
+      />
+      {/* 类型标识 */}
+      <text
+        x={slot.width / 2}
+        y={slot.height / 2}
+        textAnchor="middle"
+        fill={color}
+        fontSize="10"
+        dominantBaseline="middle"
+      >
+        {typeIcons[slot.chemicalType] || '?'}
+      </text>
+      <text
+        x={slot.width / 2}
+        y={slot.height + 12}
+        textAnchor="middle"
+        fill="#a1a1aa"
+        fontSize="9"
+        dominantBaseline="hanging"
+      >
+        {slot.amount >= 1000 ? `${(slot.amount / 1000).toFixed(1)}B` : `${slot.amount}mb`}
+      </text>
+      <title>{slot.chemicalType}: {slot.chemicalId} - {slot.amount}mb</title>
+    </g>
+  );
+};
+
+// 能源槽位渲染器
+SlotRenderers['energy'] = ({ slot }: SlotRendererProps<EnergySlotDisplay>) => {
+  const color = ENERGY_COLORS[slot.energyType] || ENERGY_COLORS['custom'];
+  const maxAmount = slot.maxAmount || slot.amount;
+  const fillPercent = Math.min(1, slot.amount / maxAmount);
+  const fillHeight = slot.height * fillPercent;
+  const emptyHeight = slot.height - fillHeight;
+
+  const unitLabels: Record<string, string> = {
+    fe: 'FE',
+    eu: 'EU',
+    mana: 'Mana',
+    vis: 'Vis',
+    custom: '',
+  };
+
+  return (
+    <g style={{ cursor: 'pointer' }}>
+      <rect
+        x={0}
+        y={0}
+        width={slot.width}
+        height={slot.height}
+        fill="rgba(30,30,35,0.9)"
+        stroke={color}
+        strokeWidth="1"
+        rx="3"
+      />
+      {/* 能量条纹填充 */}
+      <defs>
+        <pattern id={`energy-pattern-${slot.energyType}`} patternUnits="userSpaceOnUse" width="4" height="4">
+          <rect width="4" height="4" fill={color} opacity="0.6" />
+          <path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+        </pattern>
+      </defs>
+      <rect
+        x={1}
+        y={emptyHeight + 1}
+        width={slot.width - 2}
+        height={fillHeight - 2}
+        fill={`url(#energy-pattern-${slot.energyType})`}
+        rx="2"
+      />
+      {/* 闪电图标 */}
+      <text
+        x={slot.width / 2}
+        y={slot.height / 2}
+        textAnchor="middle"
+        fill="rgba(255,255,255,0.5)"
+        fontSize="14"
+        dominantBaseline="middle"
+      >
+        ⚡
+      </text>
+      <text
+        x={slot.width / 2}
+        y={slot.height + 12}
+        textAnchor="middle"
+        fill="#a1a1aa"
+        fontSize="9"
+        dominantBaseline="hanging"
+      >
+        {slot.amount >= 1000 ? `${(slot.amount / 1000).toFixed(1)}k` : slot.amount} {unitLabels[slot.energyType]}
+      </text>
+      <title>{slot.amount} / {maxAmount} {unitLabels[slot.energyType]}</title>
+    </g>
+  );
+};
+
+// 通用未知槽位渲染器（fallback）
+SlotRenderers['_fallback'] = ({ slot }: SlotRendererProps<SlotDisplayBase>) => {
+  return (
+    <g>
+      <rect
+        x={0}
+        y={0}
+        width={40}
+        height={40}
+        fill="rgba(60,60,65,0.8)"
+        stroke="rgba(255,100,100,0.5)"
+        strokeWidth="1"
+        strokeDasharray="2,2"
+        rx="4"
+      />
+      <text
+        x={20}
+        y={20}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="#888"
+        fontSize="10"
+      >
+        ?
+      </text>
+      <title>未知槽位类型: {slot.slotType}</title>
+    </g>
+  );
+};
+
+// 获取槽位渲染器
+const getSlotRenderer = (slotType: string): SlotRenderer<any> => {
+  return SlotRenderers[slotType] || SlotRenderers['_fallback'];
 };
 
 export interface ExtraInfoDisplay {
@@ -153,8 +526,10 @@ export interface ExtraInfoDisplay {
 export interface RecipeLayout {
   width: number;
   height: number;
-  items: ItemDisplay[];
-  fluids?: FluidDisplay[];  // 流体槽位
+  slots: SlotDisplay[];       // 统一的槽位数组
+  // 保留旧字段以保持兼容性
+  items?: ItemSlotDisplay[];
+  fluids?: FluidSlotDisplay[];
   arrow?: { x: number; y: number; text: string; fontSize?: number };
   extraInfos: ExtraInfoDisplay[];
   actionButton?: { x: number; y: number; width: number; height: number };
@@ -229,12 +604,13 @@ const createStandardLayout = (
   ) + padding * 2;
 
   // 构造结果
-  const items: ItemDisplay[] = [];
+  const slots: SlotDisplay[] = [];
 
   // 输入物品
   if (gridSize === "single") {
     if (inputs[0]) {
-      items.push({
+      slots.push({
+        slotType: 'item',
         itemId: inputs[0].itemId,
         count: inputs[0].count,
         slotPath: inputs[0].slotPath,
@@ -250,7 +626,8 @@ const createStandardLayout = (
     inputs.forEach((info, i) => {
       const x = padding + (i % gridSize.cols) * (slotSize + gap);
       const y = padding + Math.floor(i / gridSize.cols) * (slotSize + gap);
-      items.push({
+      slots.push({
+        slotType: 'item',
         itemId: info?.itemId || "",
         count: info?.count,
         slotPath: info?.slotPath || { type: 'array', path: 'unknown', index: i },
@@ -264,7 +641,8 @@ const createStandardLayout = (
   }
 
   // 输出物品
-  items.push({
+  slots.push({
+    slotType: 'item',
     ...output,
     slotPath: getOutputSlotPath(recipe),
     x: padding + inputWidth + arrowGap + arrowWidth + arrowGap,
@@ -301,7 +679,7 @@ const createStandardLayout = (
   return {
     width: totalWidth,
     height: totalHeight,
-    items,
+    slots,
     arrow,
     extraInfos,
     actionButton: {
@@ -479,8 +857,13 @@ const parseAdvancedAEReaction: RecipeParser = (r) => {
   const arrowGap = 12;
   const arrowWidth = 20;
 
+  // 统一槽位数组
+  const slots: SlotDisplay[] = [];
+
+  const gridStartX = padding + fluidWidth + gap;
+  const gridWidth = slotSize * 3 + gap * 2;
+
   // 输入物品 3x3
-  const inputItems: ItemDisplay[] = [];
   const inputRaw = Array.isArray(r.input_items) ? r.input_items : [];
 
   // 填充3x3网格
@@ -498,14 +881,11 @@ const parseAdvancedAEReaction: RecipeParser = (r) => {
     }
   });
 
-  const gridStartX = padding + fluidWidth + gap;
-  const gridWidth = slotSize * 3 + gap * 2;
-
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 3; col++) {
       const idx = row * 3 + col;
       const info = gridInputs[idx];
-      inputItems.push({
+      slots.push({
         slotType: 'item',
         itemId: info?.itemId || "",
         count: info?.count,
@@ -515,17 +895,16 @@ const parseAdvancedAEReaction: RecipeParser = (r) => {
         role: 'input',
         index: idx,
         slotPath: info?.slotPath || { type: 'array', path: 'input_items', index: idx }
-      });
+      } as ItemSlotDisplay);
     }
   }
 
   // 输入流体
   const inputFluid = r.input_fluid;
-  const inputFluids: FluidDisplay[] = [];
   if (inputFluid) {
     const fluidIng = inputFluid.ingredient || inputFluid;
     const fluidId = fluidIng.tag || fluidIng.fluid || fluidIng.id || 'unknown';
-    inputFluids.push({
+    slots.push({
       slotType: 'fluid',
       fluidId: fluidId.startsWith('#') ? fluidId : (fluidIng.tag ? '#' + fluidId : fluidId),
       amount: inputFluid.amount || 1000,
@@ -535,14 +914,14 @@ const parseAdvancedAEReaction: RecipeParser = (r) => {
       height: fluidHeight,
       role: 'input',
       slotPath: { type: 'direct', path: 'input_fluid' }
-    });
+    } as FluidSlotDisplay);
   }
 
   // 输出解析: 支持 {#: amount, #t: "ae2:f" | "ae2:i", id: "xxx"} 格式
   const output = r.output as any;
   const outputX = gridStartX + gridWidth + arrowGap + arrowWidth + arrowGap;
-  const outputItems: ItemDisplay[] = [];
-  const outputFluids: FluidDisplay[] = [];
+  let hasFluidOutput = false;
+  let hasItemOutput = false;
 
   if (output) {
     const outputType = output['#t'] as string | undefined;  // "ae2:f" = fluid, "ae2:i" = item
@@ -551,7 +930,8 @@ const parseAdvancedAEReaction: RecipeParser = (r) => {
 
     if (outputType === 'ae2:f') {
       // 流体输出
-      outputFluids.push({
+      hasFluidOutput = true;
+      slots.push({
         slotType: 'fluid',
         fluidId: outputId,
         amount: outputAmount,
@@ -561,10 +941,11 @@ const parseAdvancedAEReaction: RecipeParser = (r) => {
         height: fluidHeight,
         role: 'output',
         slotPath: { type: 'direct', path: 'output' }
-      });
+      } as FluidSlotDisplay);
     } else {
       // 物品输出
-      outputItems.push({
+      hasItemOutput = true;
+      slots.push({
         slotType: 'item',
         itemId: outputId,
         count: outputAmount,
@@ -575,13 +956,11 @@ const parseAdvancedAEReaction: RecipeParser = (r) => {
         role: 'output',
         index: 0,
         slotPath: { type: 'direct', path: 'output' }
-      });
+      } as ItemSlotDisplay);
     }
   }
 
   // 计算总尺寸
-  const hasFluidOutput = outputFluids.length > 0;
-  const hasItemOutput = outputItems.length > 0;
   const outputWidth = hasFluidOutput && hasItemOutput
     ? slotSize + gap + fluidWidth
     : (hasFluidOutput ? fluidWidth : slotSize);
@@ -605,8 +984,7 @@ const parseAdvancedAEReaction: RecipeParser = (r) => {
   return {
     width: totalWidth,
     height: totalHeight + (extraInfos.length > 0 ? 20 : 0),
-    items: [...inputItems, ...outputItems],
-    fluids: [...inputFluids, ...outputFluids],
+    slots,
     arrow: {
       x: gridStartX + gridWidth + arrowGap + arrowWidth / 2,
       y: padding + fluidHeight / 2,
@@ -617,6 +995,105 @@ const parseAdvancedAEReaction: RecipeParser = (r) => {
     actionButton: {
       x: totalWidth - padding - slotSize,
       y: padding + fluidHeight - 24,
+      width: slotSize,
+      height: 24
+    }
+  };
+};
+
+// Mekanism Metallurgic Infusing 解析器
+// 布局: [化学品输入] [物品输入] [→] [物品输出]
+const parseMekanismMetallurgicInfusing: RecipeParser = (r) => {
+  const padding = 12;
+  const slotSize = 40;
+  const chemicalWidth = 24;
+  const chemicalHeight = slotSize;
+  const arrowGap = 12;
+  const arrowWidth = 20;
+  const gap = 8;
+
+  const slots: SlotDisplay[] = [];
+
+  // 化学品输入 (infuse type)
+  const chemicalInput = r.chemical_input;
+  if (chemicalInput) {
+    const chemicalId = chemicalInput.tag
+      ? (chemicalInput.tag.startsWith('#') ? chemicalInput.tag : '#' + chemicalInput.tag)
+      : (chemicalInput.chemical || chemicalInput.id || 'unknown');
+
+    slots.push({
+      slotType: 'chemical',
+      chemicalType: 'infuse',
+      chemicalId: chemicalId,
+      amount: chemicalInput.amount || 1,
+      x: padding,
+      y: padding,
+      width: chemicalWidth,
+      height: chemicalHeight,
+      role: 'input',
+      slotPath: { type: 'direct', path: 'chemical_input' }
+    } as ChemicalSlotDisplay);
+  }
+
+  // 物品输入
+  const itemInput = r.item_input;
+  const itemInfo = extractItemInfo(itemInput);
+  if (itemInfo) {
+    slots.push({
+      slotType: 'item',
+      itemId: itemInfo.itemId,
+      count: itemInfo.count || (itemInput?.count as number) || 1,
+      x: padding + chemicalWidth + gap,
+      y: padding,
+      size: slotSize,
+      label: "原料",
+      role: 'input',
+      index: 0,
+      slotPath: { type: 'direct', path: 'item_input' }
+    } as ItemSlotDisplay);
+  }
+
+  // 输出物品
+  const output = parseOutput(r);
+  if (output) {
+    slots.push({
+      slotType: 'item',
+      itemId: output.itemId,
+      count: output.count,
+      x: padding + chemicalWidth + gap + slotSize + arrowGap + arrowWidth + arrowGap,
+      y: padding,
+      size: slotSize,
+      label: "结果",
+      role: 'output',
+      index: 0,
+      slotPath: getOutputSlotPath(r)
+    } as ItemSlotDisplay);
+  }
+
+  // 计算总尺寸
+  const contentWidth = chemicalWidth + gap + slotSize + arrowGap + arrowWidth + arrowGap + slotSize;
+  const actionButtonX = padding + contentWidth + arrowGap;
+  const totalWidth = actionButtonX + slotSize + padding;
+  const totalHeight = padding + slotSize + padding;
+
+  // 箭头
+  const arrowX = padding + chemicalWidth + gap + slotSize + arrowGap + arrowWidth / 2;
+  const arrowY = padding + slotSize / 2;
+
+  return {
+    width: totalWidth,
+    height: totalHeight,
+    slots,
+    arrow: {
+      x: arrowX,
+      y: arrowY,
+      text: "→",
+      fontSize: 20
+    },
+    extraInfos: [],
+    actionButton: {
+      x: totalWidth - padding - slotSize,
+      y: padding,
       width: slotSize,
       height: 24
     }
@@ -643,6 +1120,7 @@ const recipeParserTable: Record<string, RecipeParser> = {
   "immersiveengineering:alloy": parseIEAlloy,
   "enderio:alloy_smelting": parseEnderIOAlloySmelting,
   "advanced_ae:reaction": parseAdvancedAEReaction,
+  "mekanism:metallurgic_infusing": parseMekanismMetallurgicInfusing,
 };
 
 // 备用解析逻辑（处理带前缀或包含特定关键字的类型）
@@ -943,85 +1421,51 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
         rx="8"
       />
 
-      {/* 物品绘制 */}
-      {layout.items.map((item, i) => (
-        <g
-          key={i}
-          transform={`translate(${item.x}, ${item.y})`}
-          onContextMenu={(e) => e.preventDefault()}
-          data-slot-role={item.role}
-          data-slot-index={item.index}
-          data-slot-path={JSON.stringify(item.slotPath)}
-        >
-          <SVGItemSlot
-            itemIdorTag={item.itemId}
-            count={item.count}
-            size={item.size}
-          />
-          {item.label && (
-            <text
-              x={item.size / 2}
-              y={item.size + 4}
-              textAnchor="middle"
-              fill="#71717a"
-              fontSize="11"
-              dominantBaseline="hanging"
-              pointerEvents="none"
-            >
-              {item.label}
-            </text>
-          )}
-        </g>
-      ))}
+      {/* 统一槽位渲染 - 使用动态渲染器 */}
+      {layout.slots.map((slot, i) => {
+        const Renderer = getSlotRenderer(slot.slotType);
+        return (
+          <g
+            key={`slot-${slot.slotType}-${i}`}
+            transform={`translate(${slot.x}, ${slot.y})`}
+            onContextMenu={(e) => e.preventDefault()}
+            data-slot-role={slot.role}
+            data-slot-index={'index' in slot ? slot.index : undefined}
+            data-slot-path={JSON.stringify(slot.slotPath)}
+          >
+            <Renderer slot={slot} />
+          </g>
+        );
+      })}
 
-      {/* 流体槽位绘制 */}
+      {/* 兼容旧的 items 字段（向后兼容） */}
+      {layout.items?.map((item, i) => {
+        const Renderer = getSlotRenderer('item');
+        return (
+          <g
+            key={`item-${i}`}
+            transform={`translate(${item.x}, ${item.y})`}
+            onContextMenu={(e) => e.preventDefault()}
+            data-slot-role={item.role}
+            data-slot-index={item.index}
+            data-slot-path={JSON.stringify(item.slotPath)}
+          >
+            <Renderer slot={item} />
+          </g>
+        );
+      })}
+
+      {/* 兼容旧的 fluids 字段（向后兼容） */}
       {layout.fluids?.map((fluid, i) => {
-        const color = getFluidColor(fluid.fluidId);
-        const fillPercent = Math.min(1, fluid.amount / 10000);  // 假设最大10000mb
-        const fillHeight = fluid.height * fillPercent;
-        const emptyHeight = fluid.height - fillHeight;
-
+        const Renderer = getSlotRenderer('fluid');
         return (
           <g
             key={`fluid-${i}`}
             transform={`translate(${fluid.x}, ${fluid.y})`}
             data-slot-role={fluid.role}
             data-slot-path={JSON.stringify(fluid.slotPath)}
-            style={{ cursor: 'pointer' }}
           >
-            {/* 流体槽背景 */}
-            <rect
-              x={0}
-              y={0}
-              width={fluid.width}
-              height={fluid.height}
-              fill="rgba(30,30,35,0.9)"
-              stroke="rgba(255,255,255,0.2)"
-              strokeWidth="1"
-              rx="3"
-            />
-            {/* 流体填充 */}
-            <rect
-              x={1}
-              y={emptyHeight + 1}
-              width={fluid.width - 2}
-              height={fillHeight - 2}
-              fill={color}
-              opacity={0.8}
-              rx="2"
-            />
-            {/* 流体量文字 */}
-            <text
-              x={fluid.width / 2}
-              y={fluid.height + 12}
-              textAnchor="middle"
-              fill="#a1a1aa"
-              fontSize="9"
-              dominantBaseline="hanging"
-            >
-              {fluid.amount >= 1000 ? `${(fluid.amount / 1000).toFixed(1)}B` : `${fluid.amount}mb`}
-            </text>
-            <title>{fluid.fluidId} - {fluid.amount}mb</title>
+            <Renderer slot={fluid} />
           </g>
         );
       })}
