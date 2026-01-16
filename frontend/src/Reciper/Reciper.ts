@@ -256,7 +256,7 @@ registerOnFileLoaded(async (tab) => {
   }
 });
 
-import { registerOnBeforeSave, registerOnTabCreated } from "../Manager";
+import { registerOnBeforeSave, registerOnTabCreated, registerOnFileSaved } from "../Manager";
 import { RecipeNode } from "./RecipeNode";
 
 // 自动为新标签注入当前配置元数据
@@ -269,6 +269,67 @@ registerOnTabCreated((tab) => {
 // 保存前确保元数据是最新的
 registerOnBeforeSave((tab) => {
   if (currentConfig) {
-    tab.metadata["reciper"] = { ...tab.metadata, ...currentConfig };
+    tab.metadata["reciper"] = { ...tab.metadata["reciper"], ...currentConfig };
+  }
+});
+
+// 文件保存后自动导出数据包
+registerOnFileSaved(async (tab) => {
+  if (!currentConfig?.exportPath || !recipesLoaded) return;
+
+  const recipesToExport: any[] = [];
+  const recipeNodes = Object.values(objects).filter(obj => obj.type === "node/recipe") as RecipeNode[];
+
+  for (const node of recipeNodes) {
+    const mode = node.modifyMode || "override";
+    if (mode === "none") continue;
+
+    let exportRecipe: any;
+    if (mode === "delete") {
+      // 写入无效配方以实现“删除”效果
+      exportRecipe = {
+        id: node.recipe.id,
+        type: "minecraft:crafting_shapeless",
+        ingredients: [
+          { "item": "minecraft:air" }
+        ],
+        result: { "id": "minecraft:air", "count": 0 }
+      };
+    } else {
+      exportRecipe = { ...node.recipe };
+      if (mode === "add") {
+        // 增加模式下使用节点 ID 前 6 位生成持久且唯一的 ID
+        const randomSuffix = node.id.substring(0, 6);
+        exportRecipe.id = `test:${randomSuffix}`;
+      }
+      // override 模式下不修改 id，直接使用原 id 覆盖
+    }
+    recipesToExport.push(exportRecipe);
+  }
+
+  if (recipesToExport.length === 0) {
+    console.log("没有需要导出的配方变化");
+    return;
+  }
+
+  try {
+    const response = await fetchWithFolder("/reciper/export", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        exportPath: currentConfig.exportPath,
+        recipes: recipesToExport
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`导出失败: ${response.statusText}`);
+    }
+
+    console.log(`成功导出 ${recipesToExport.length} 个配方到: ${currentConfig.exportPath}`);
+  } catch (err) {
+    console.error("自动导出数据包时出错:", err);
   }
 });

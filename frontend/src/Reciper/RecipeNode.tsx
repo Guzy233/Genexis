@@ -31,7 +31,7 @@ export { calculateRecipeNodeSize } from "./RecipeLayout";
 // ============================================================================
 
 // 配方修改模式
-export type RecipeModifyMode = "override" | "delete" | "add";
+export type RecipeModifyMode = "override" | "delete" | "add" | "none";
 
 // RecipeNode 接口：继承 Node，包含 recipe 和 onCanvas
 export interface RecipeNode extends Node {
@@ -269,7 +269,7 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
 
   const handleModeClick = () => {
     if (modifyMode) {
-      const modes: RecipeModifyMode[] = ["override", "delete", "add"];
+      const modes: RecipeModifyMode[] = ["override", "delete", "add", "none"];
       const currentIndex = modes.indexOf(modifyMode);
       const nextMode = modes[(currentIndex + 1) % modes.length];
       node.modifyMode = nextMode;
@@ -281,12 +281,14 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
     override: "覆盖",
     delete: "删除",
     add: "新增",
+    none: "无",
   };
 
   const modeColors: Record<RecipeModifyMode, string> = {
     override: "#f59e0b",
     delete: "#ef4444",
     add: "#22c55e",
+    none: "#71717a",
   };
 
   return (

@@ -58,7 +58,7 @@ const InitializationModal: React.FC = () => {
 
   useEffect(() => {
     if (exportType === "kubejs") {
-      setExportPath(`/kubejs/data/${datapackName}`);
+      setExportPath(`/kubejs/data/`);
     } else if (exportType === "datapack") {
       setExportPath(`/datapacks/${datapackName}.zip`);
     }
