@@ -1,4 +1,4 @@
-import Manager, { objects } from "../Manager";
+import { objects, managerAdd, managerDeleteId, managerDeleteIdWithEdges } from "../Manager";
 import { Obj, onSetup, idFromEvent } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import React from "react";
@@ -80,7 +80,7 @@ const onContextMenu = (e: MouseEvent) => {
   };
 
   // 添加菜单到对象
-  Manager.add(menu);
+  managerAdd(menu);
 
   // 监听 mousedown 事件（过程式设计）
   const onMenuMouseDown = (e: MouseEvent) => {
@@ -90,7 +90,7 @@ const onContextMenu = (e: MouseEvent) => {
     // 点击菜单外，关闭菜单
     if (!inMenu) {
       setTimeout(() => {
-        Manager.deleteId("context-menu");
+        managerDeleteId("context-menu");
       }, 0);
     }
     window.removeEventListener("mousedown", onMenuMouseDown, true);
@@ -108,7 +108,7 @@ generalItems.push({
   label: "删除",
   icon: "🗑️",
   onClick: (target: Obj) => {
-    Manager.deleteIdWithEdges(target.id);
+    managerDeleteIdWithEdges(target.id);
     saveHistory();
   },
 });

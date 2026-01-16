@@ -1,11 +1,10 @@
 import { registerKeyAction } from "./Keyboard";
 import { onSetup } from "../Globals";
-import Manager, { updateCanvas, getActiveTab } from "../Manager";
+import { updateCanvas, getActiveTab, managerUpdate } from "../Manager";
 import { objects, saveHistory } from "../Manager";
 import { serializeCanvas, deserializeCanvas } from "../Serialization";
 import { screen2Viewport } from "./Camera";
 import { addEdgeRelation } from "../Algorithm";
-import type { NodeRelationGraph } from "../Manager";
 
 // 键盘操作枚举 - 复制粘贴相关
 export const ClipboardAction = {
@@ -98,7 +97,7 @@ const pasteFromClipboard = async (mousePos?: { x: number; y: number }): Promise<
     Object.values(objects).forEach((obj) => {
       if ("selected" in obj) {
         (obj as any).selected = false;
-        Manager.update(obj);
+        managerUpdate(obj);
       }
     });
 

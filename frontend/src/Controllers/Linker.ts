@@ -1,4 +1,4 @@
-import Manager, { objects, getActiveTab } from "../Manager";
+import { objects, getActiveTab, managerDeleteId, managerUpdate, managerAdd, managerUpdateId } from "../Manager";
 import { Edge, idFromEvent, Node, onSetup, Obj } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
@@ -29,7 +29,7 @@ registerSetting({
 const startLinking = (vEdge:Edge,vNode:Node) => {
   // 窗口失去焦点时清理所有临时监听器
   const onBlur = () => {
-    Manager.deleteId(vEdge.id);
+    managerDeleteId(vEdge.id);
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("mouseover", onMouseOver);
@@ -41,7 +41,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
   const onMouseMove = (e: MouseEvent) => {
     vNode.pos.x += e.movementX / viewport.zoom;
     vNode.pos.y += e.movementY / viewport.zoom;
-    Manager.update(vNode);
+    managerUpdate(vNode);
   };
 
   const onMouseOver = (e: MouseEvent) => {
@@ -49,12 +49,12 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
     if (aNodeId) {
       //移入源节点，删除边
       if (aNodeId === vEdge.source.id) {
-        Manager.deleteId(vEdge.id);
+        managerDeleteId(vEdge.id);
       } else {
         // 移入目标节点，更新边的目标节点
         vEdge.target = objects[aNodeId] as Node;
         vEdge.anchorTarget = { type: "auto" };
-        Manager.updateId(vEdge.id);
+        managerUpdateId(vEdge.id);
       }
     }
   };
@@ -64,12 +64,12 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
     if (aNodeId) {
       // 移出源节点，重新创建边
       if (aNodeId === vEdge.source.id) {
-        Manager.add(vEdge);
+        managerAdd(vEdge);
       } else {
         // 移出目标节点，更新边的目标节点
         vEdge.target = vNode;
         vEdge.anchorTarget = { type: "absPos" };
-        Manager.updateId(vEdge.id);
+        managerUpdateId(vEdge.id);
       }
     }
   };
@@ -91,7 +91,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
         } else {
           vEdge.anchorTarget = (objects[aNodeId] as Node).eAncs[0];
         }
-        Manager.updateId(vEdge.id);
+        managerUpdateId(vEdge.id);
         // 更新节点关系
         const activeTab = getActiveTab();
         if (activeTab?.nodeRelations) {
@@ -110,8 +110,8 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
       }
       if (node) {
         vEdge.target = node;
-        Manager.add(node);
-        Manager.update(vEdge);
+        managerAdd(node);
+        managerUpdate(vEdge);
         // 更新节点关系
         const activeTab = getActiveTab();
         if (activeTab?.nodeRelations) {
@@ -119,7 +119,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
         }
         saveHistory();
       } else {
-        Manager.deleteId(vEdge.id);
+        managerDeleteId(vEdge.id);
       }
     }
     window.removeEventListener("mousemove", onMouseMove);

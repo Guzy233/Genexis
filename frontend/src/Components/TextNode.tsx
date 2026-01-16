@@ -7,8 +7,7 @@ import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { ObjectFactories } from "../Controllers/Creator";
 import { activedId } from "../Controllers/Selector";
 import { EditableText } from "./EditableText";
-import { saveHistory } from "../Manager";
-import Manager from "../Manager";
+import { saveHistory, managerUpdate } from "../Manager";
 import {
   registerSerializer,
   serializeAnchors,
@@ -151,7 +150,7 @@ Coms["node/text"] = ({ obj }) => {
         onTextChange={(newText, newSize) => {
           node.text = newText;
           node.size = { x: newSize.width, y: newSize.height };
-          Manager.update(node);
+          managerUpdate(node);
         }}
         onEndEditing={() => {
           saveHistory();

@@ -1,4 +1,4 @@
-import Manager, { objects } from "../Manager";
+import { objects, managerAdd, managerDeleteId, managerDeleteIdWithEdges, managerUpdate } from "../Manager";
 import { Obj, Vec2, onSetup } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { atom } from "jotai";
@@ -30,7 +30,7 @@ export const onMouseDown = (e: MouseEvent) => {
     updater: atom(0),
     points: [screen2Viewport(startPos)],
   };
-  Manager.add(deletionTrail);
+  managerAdd(deletionTrail);
 
   // 阻止默认右键菜单
   const onContextMenu = (e: MouseEvent) => {
@@ -41,7 +41,7 @@ export const onMouseDown = (e: MouseEvent) => {
 
   // 窗口失去焦点时退出删除模式
   const onBlur = () => {
-    Manager.deleteId(deletionTrail.id);
+    managerDeleteId(deletionTrail.id);
     window.removeEventListener("mousemove", onMouseMove, true);
     window.removeEventListener("mouseover", onMouseOver, true);
     window.removeEventListener("contextmenu", onContextMenu, true);
@@ -51,7 +51,7 @@ export const onMouseDown = (e: MouseEvent) => {
   // 鼠标移动时更新轨迹
   const onMouseMove = (e: MouseEvent) => {
     deletionTrail.points.push(screen2Viewport({ x: e.clientX, y: e.clientY }));
-    Manager.update(deletionTrail);
+    managerUpdate(deletionTrail);
   };
 
   // 鼠标移到节点/边上时立即删除
@@ -63,12 +63,12 @@ export const onMouseDown = (e: MouseEvent) => {
     const id = g.getAttribute("data-id");
     if (!id || !(id in objects)) return;
 
-    Manager.deleteIdWithEdges(id);
+    managerDeleteIdWithEdges(id);
   };
 
   const onMouseUp = () => {
     saveHistory();
-    Manager.deleteId(deletionTrail.id);
+    managerDeleteId(deletionTrail.id);
     window.removeEventListener("mousemove", onMouseMove, true);
     window.removeEventListener("mouseover", onMouseOver, true);
     window.removeEventListener("mouseup", onMouseUp, true);

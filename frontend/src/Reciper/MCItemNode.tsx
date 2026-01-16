@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { atom, useAtom } from "jotai";
-import Manager from "../Manager";
+import { managerUpdate } from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { ObjectFactories } from "../Controllers/Creator";
 import {
@@ -267,7 +267,7 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
       onClick: (t: Obj) => {
         const n = t as MCItemNode;
         n.itemIdorTag = "";
-        Manager.update(n);
+        managerUpdate(n);
         saveHistory();
       },
     });

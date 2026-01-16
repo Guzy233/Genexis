@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { atom, getDefaultStore, useAtom } from "jotai";
-import Manager from "../Manager";
+import { managerUpdate } from "../Manager";
 import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
 import { ToolItems, CATEGORY_NODES } from "../TopLayer/ToolBar";
 import { ObjectFactories } from "../Controllers/Creator";
@@ -142,7 +142,7 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
       onClick: (t: Obj) => {
         const n = t as ImageNode;
         n.src = "";
-        Manager.update(n);
+        managerUpdate(n);
         saveHistory();
       },
     });

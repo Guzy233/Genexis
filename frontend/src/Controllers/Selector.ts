@@ -1,4 +1,4 @@
-import Manager, { objects } from "../Manager";
+import { objects, managerUpdateId, managerAdd, managerUpdate, managerDeleteId } from "../Manager";
 import { idFromEvent, Node, onSetup, Obj, Vec2 } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { registerSetting, getSetting } from "../Option";
@@ -52,8 +52,8 @@ export let activedId = "";
 export function active(id: string) {
   const last = activedId;
   activedId = id;
-  if (last) Manager.updateId(last);
-  if (activedId) Manager.updateId(activedId);
+  if (last) managerUpdateId(last);
+  if (activedId) managerUpdateId(activedId);
 }
 
 // ==================== 键盘导航逻辑 ====================
@@ -145,13 +145,13 @@ const handleKeyboardNavigation = (e: KeyboardEvent) => {
     // Shift: 切换为选中状态
     if (!nearestNode.selected) {
       nearestNode.selected = true;
-      Manager.update(nearestNode);
+      managerUpdate(nearestNode);
     }
   } else if (e.ctrlKey) {
     // Ctrl: 切换为未选中状态
     if (nearestNode.selected) {
       nearestNode.selected = false;
-      Manager.update(nearestNode);
+      managerUpdate(nearestNode);
     }
   }
   // 注意：不处理按方向键时已经激活的节点
@@ -179,7 +179,7 @@ const clearSelection = (includeActived: boolean) => {
   Object.values(objects).forEach((obj) => {
     if ("selected" in obj) {
       obj.selected = false;
-      Manager.update(obj);
+      managerUpdate(obj);
     }
   });
   if (includeActived) {
@@ -223,7 +223,7 @@ const handleBoxSelection = (e: MouseEvent) => {
     start: screen2Viewport({ x: e.clientX, y: e.clientY }),
     end: screen2Viewport({ x: e.clientX, y: e.clientY }),
   };
-  Manager.add(selectionBox);
+  managerAdd(selectionBox);
 
   // 记录初始选中状态，用于取消选择
   const initialSelection = new Map<string, boolean>();
@@ -237,7 +237,7 @@ const handleBoxSelection = (e: MouseEvent) => {
   const onMouseMove = (e: MouseEvent) => {
     // 更新框选区域
     selectionBox.end = screen2Viewport({ x: e.clientX, y: e.clientY });
-    Manager.update(selectionBox);
+    managerUpdate(selectionBox);
 
     // 更新框选内的节点状态
     Object.values(objects).forEach((obj) => {
@@ -251,20 +251,20 @@ const handleBoxSelection = (e: MouseEvent) => {
         // 扩展模式：只在框内时选中，不取消
         if (inBox && !node.selected) {
           node.selected = true;
-          Manager.update(obj);
+          managerUpdate(obj);
         }
       } else {
         // 普通模式：根据是否在框内设置选中状态
         if (node.selected !== inBox) {
           node.selected = inBox;
-          Manager.update(obj);
+          managerUpdate(obj);
         }
       }
     });
   };
 
   const onMouseUp = () => {
-    Manager.deleteId(selectionBox.id);
+    managerDeleteId(selectionBox.id);
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
   };

@@ -1,5 +1,5 @@
 import { onSetup } from "../Globals";
-import Manager, { objects, registerOnFileLoaded, updateCanvas } from "../Manager";
+import { objects, registerOnFileLoaded, updateCanvas, managerUpdateAtom } from "../Manager";
 import { openItemListPanel, toggleItemList } from "./ItemListPanel";
 import { openInitializationModal } from "./InitializationModal";
 import { Recipe } from "./RecipePreview";
@@ -67,7 +67,7 @@ export async function initializeReciperApi(config: { gameFolder: string; version
   Object.values(objects).forEach((obj) => {
     if ("contentUpdater" in obj) {
       const recipeNode = obj as RecipeNode
-      Manager.updateAtom(recipeNode.contentUpdater)
+      managerUpdateAtom(recipeNode.contentUpdater)
     }
   })
 }

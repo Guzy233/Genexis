@@ -1,4 +1,4 @@
-import Manager, { objects } from "../Manager";
+import { objects, managerUpdate } from "../Manager";
 import { idFromEvent, Node, onSetup } from "../Globals";
 import { viewport } from "./Camera";
 import { registerSetting } from "../Option";
@@ -41,7 +41,7 @@ export const onClickNode = (e: MouseEvent) => {
     lastY = e.clientY;
     node.pos.x += deltaX;
     node.pos.y += deltaY;
-    Manager.update(node);
+    managerUpdate(node);
   };
 
   const onMouseUp = () => {

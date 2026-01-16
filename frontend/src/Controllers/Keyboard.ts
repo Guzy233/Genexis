@@ -1,7 +1,6 @@
 import { onSetup } from "../Globals";
 import { registerSetting, getSetting, SettingItem } from "../Option";
-import Manager from "../Manager";
-import { objects, saveHistory, undo, redo } from "../Manager";
+import { objects, saveHistory, undo, redo, managerDeleteIdWithEdges, managerUpdate } from "../Manager";
 import { active } from "./Selector";
 
 // 键盘操作枚举
@@ -106,7 +105,7 @@ const executeAction = (action: string): void => {
 
       if (selectedIds.length === 0) return;
 
-      selectedIds.forEach((id) => Manager.deleteIdWithEdges(id));
+      selectedIds.forEach((id) => managerDeleteIdWithEdges(id));
       saveHistory();
       break;
     }
@@ -121,7 +120,7 @@ const executeAction = (action: string): void => {
       objs.forEach((obj) => {
         if (obj.type.startsWith("node/")) {
           (obj as { selected?: boolean }).selected = true;
-          Manager.update(obj);
+          managerUpdate(obj);
         }
       });
       break;

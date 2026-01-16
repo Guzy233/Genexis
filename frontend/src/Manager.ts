@@ -567,57 +567,60 @@ export const getCurrentFilePath = () => {
   return activeTab?.filePath || null;
 };
 
-// Manager 默认导出
-export default {
-  add: (obj: Obj) => {
-    objects[obj.id] = obj;
-    updateCanvas();
-    markAsModified();
-  },
-  updateId: (id: string) => {
-    store.set(objects[id].updater, state++);
-    markAsModified();
-  },
-  update: (obj: Obj) => {
-    store.set(obj.updater, state++);
-    markAsModified();
-  },
-  updateAtom: (atom: PrimitiveAtom<number>) => {
-    store.set(atom, state++)
-  },
-  deleteId: (id: string) => {
-    delete objects[id];
-    updateCanvas();
-    markAsModified();
-  },
-  deleteIdWithEdges: (id: string) => {
-    const obj = objects[id];
-    if (!obj) return;
+// Manager 对象操作方法
+export const managerAdd = (obj: Obj) => {
+  objects[obj.id] = obj;
+  updateCanvas();
+  markAsModified();
+};
 
-    // 如果是节点，找出并删除连接到它的所有边
-    if (obj.type.startsWith("node/")) {
-      const edgesToDelete: string[] = [];
-      Object.values(objects).forEach((other) => {
-        if (other.type.startsWith("edge/")) {
-          const edge = other as unknown as {
-            id: string;
-            source: { id: string };
-            target: { id: string };
-          };
-          if (edge.source.id === id || edge.target.id === id) {
-            edgesToDelete.push(edge.id);
-          }
+export const managerUpdateId = (id: string) => {
+  store.set(objects[id].updater, state++);
+  markAsModified();
+};
+
+export const managerUpdate = (obj: Obj) => {
+  store.set(obj.updater, state++);
+  markAsModified();
+};
+
+export const managerUpdateAtom = (atom: PrimitiveAtom<number>) => {
+  store.set(atom, state++);
+};
+
+export const managerDeleteId = (id: string) => {
+  delete objects[id];
+  updateCanvas();
+  markAsModified();
+};
+
+export const managerDeleteIdWithEdges = (id: string) => {
+  const obj = objects[id];
+  if (!obj) return;
+
+  // 如果是节点，找出并删除连接到它的所有边
+  if (obj.type.startsWith("node/")) {
+    const edgesToDelete: string[] = [];
+    Object.values(objects).forEach((other) => {
+      if (other.type.startsWith("edge/")) {
+        const edge = other as unknown as {
+          id: string;
+          source: { id: string };
+          target: { id: string };
+        };
+        if (edge.source.id === id || edge.target.id === id) {
+          edgesToDelete.push(edge.id);
         }
-      });
-      // 先删除所有连接的边
-      edgesToDelete.forEach((edgeId) => delete objects[edgeId]);
-    }
+      }
+    });
+    // 先删除所有连接的边
+    edgesToDelete.forEach((edgeId) => delete objects[edgeId]);
+  }
 
-    // 删除对象本身
-    delete objects[id];
-    updateCanvas();
-    markAsModified();
-  },
+  // 删除对象本身
+  delete objects[id];
+  updateCanvas();
+  markAsModified();
 };
 
 export function clearTabs() {

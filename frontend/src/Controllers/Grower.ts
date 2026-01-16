@@ -1,4 +1,4 @@
-import Manager, { objects, getActiveTab } from "../Manager";
+import { objects, getActiveTab, managerUpdate, managerAdd, managerDeleteId } from "../Manager";
 import { onSetup, Node, Edge } from "../Globals";
 import { registerSetting } from "../Option";
 import { atom } from "jotai";
@@ -36,10 +36,10 @@ const startGrowMode = (e: KeyboardEvent) => {
 
   // 取消源节点的选中状态
   sourceNode.selected = false;
-  Manager.update(sourceNode);
+  managerUpdate(sourceNode);
 
   // 添加新节点
-  Manager.add(newNode);
+  managerAdd(newNode);
 
   // 更新激活节点为新节点
   active(newNode.id);
@@ -52,13 +52,13 @@ const startGrowMode = (e: KeyboardEvent) => {
   vEdge.source = sourceNode;
   vEdge.target = newNode;
   vEdge.anchorTarget = { type: "auto" };
-  Manager.add(vEdge);
+  managerAdd(vEdge);
 
   // 窗口失去焦点时清理所有临时监听器
   const onBlur = () => {
     // 清理虚拟边
     if (vEdge.id in objects) {
-      Manager.deleteId(vEdge.id);
+      managerDeleteId(vEdge.id);
     }
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("blur", onBlur);
@@ -86,7 +86,7 @@ const startGrowMode = (e: KeyboardEvent) => {
     }
     e.preventDefault();
     e.stopImmediatePropagation();
-    Manager.update(newNode);
+    managerUpdate(newNode);
   };
 
   // Tab 键松开时结束生长模式

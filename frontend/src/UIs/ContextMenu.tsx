@@ -3,7 +3,7 @@ import { Obj, Coms } from "../Globals";
 import { useAtom } from "jotai";
 import { viewport } from "../Controllers/Camera";
 import { ContextMenu, ContextMenuItem } from "../Controllers/ContextMenu";
-import Manager from "../Manager";
+import { managerDeleteId } from "../Manager";
 
 // 右键菜单组件
 Coms["ui/contextMenu"] = ({ obj }) => {
@@ -29,7 +29,7 @@ Coms["ui/contextMenu"] = ({ obj }) => {
   // 处理菜单项点击
   const handleItemClick = (item: ContextMenuItem) => {
     item.onClick(menu.target);
-    Manager.deleteId(menu.id);
+    managerDeleteId(menu.id);
   };
 
   return (

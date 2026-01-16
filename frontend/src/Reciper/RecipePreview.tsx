@@ -8,7 +8,7 @@ import {
   calculateRecipeNodeSize,
 } from "./RecipeNode";
 import { screen2Viewport } from "../Controllers/Camera";
-import Manager, { saveHistory } from "../Manager";
+import { saveHistory, managerAdd } from "../Manager";
 
 // 重导出 Recipe 类型供其他模块使用
 export type { Recipe } from "./RecipeNode";
@@ -78,7 +78,7 @@ export const RecipePreview: React.FC<RecipePreviewProps> = ({
     }
 
     // 添加到画布
-    Manager.add(canvasNode);
+    managerAdd(canvasNode);
     saveHistory();
 
     // 调用回调（如关闭弹窗）

@@ -1,4 +1,4 @@
-import Manager from "../Manager";
+import { managerAdd } from "../Manager";
 import { onSetup, Vec2, Node, Obj } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { getToolForCategory, CATEGORY_NODES } from "../TopLayer/ToolBar";
@@ -39,7 +39,7 @@ export function generateRandomNodes(count: number = 100): void {
     // 随机文本
     node.text = `Node ${i + 1}`;
 
-    Manager.add(node);
+    managerAdd(node);
     nodes.push(node);
   }
 
@@ -54,7 +54,7 @@ export function generateRandomNodes(count: number = 100): void {
 
         if (createEdgeFactory) {
           const edge = createEdgeFactory(node, target, "");
-          Manager.add(edge);
+          managerAdd(edge);
 
           // 记录节点关系
           addEdgeRelation(node.id, target.id);
@@ -90,7 +90,7 @@ const onDblClick = (e: MouseEvent) => {
     screen2Viewport({ x: e.clientX, y: e.clientY })
   );
   if (node) {
-    Manager.add(node);
+    managerAdd(node);
     saveHistory();
   }
 };
@@ -121,7 +121,7 @@ ContextMenuFactories["canvas"] = (_target: Obj, event: MouseEvent): ContextMenuI
           const pos = screen2Viewport({ x: event.clientX, y: event.clientY });
           node.pos = { x: pos.x - node.size.x / 2, y: pos.y - node.size.y / 2 };
           node.selected = true;
-          Manager.add(node);
+          managerAdd(node);
           saveHistory();
         }
       },

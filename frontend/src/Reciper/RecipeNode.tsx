@@ -9,7 +9,7 @@ import {
 import { activedId } from "../Controllers/Selector";
 import { RECIPE_TYPE_NAMES } from "./Reciper";
 import { PrimitiveAtom } from "jotai";
-import Manager, { store } from "../Manager";
+import { managerUpdateAtom } from "../Manager";
 
 // 导入拆分出的组件和类型
 import {
@@ -260,7 +260,7 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
       // 使用统一回写函数
       applySlotPath(recipe, slotPath, newItem);
 
-      Manager.updateAtom(node.contentUpdater);
+      managerUpdateAtom(node.contentUpdater);
     };
 
     el.addEventListener('replace-item', onReplace);
@@ -273,7 +273,7 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
       const currentIndex = modes.indexOf(modifyMode);
       const nextMode = modes[(currentIndex + 1) % modes.length];
       node.modifyMode = nextMode;
-      Manager.updateAtom(node.contentUpdater);
+      managerUpdateAtom(node.contentUpdater);
     }
   };
 

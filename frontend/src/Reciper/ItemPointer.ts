@@ -1,7 +1,7 @@
 import { screen2Viewport } from "../Controllers/Camera";
 import { ObjectFactories } from "../Controllers/Creator";
 import { onSetup, idFromEvent } from "../Globals";
-import Manager from "../Manager";
+import { managerAdd } from "../Manager";
 import { translations } from "./Reciper";
 import { openRecipeModal } from "./RecipeListModal";
 
@@ -78,7 +78,7 @@ export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
       const viewportPos = screen2Viewport({ x: e.clientX, y: e.clientY });
       node.pos = { x: viewportPos.x - 40, y: viewportPos.y - 50 };
       node.itemIdorTag = itemIdorTag;
-      Manager.add(node);
+      managerAdd(node);
     } else {
       const target = e.target as SVGElement;
       const slot = target.closest("[data-slot-role]");
