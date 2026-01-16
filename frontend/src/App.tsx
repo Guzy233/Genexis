@@ -2,7 +2,7 @@ import "./css/App.css";
 import "./css/variables.css";
 import "./css/dark-theme.css";
 import { useAtom } from "jotai";
-import { Coms, Controllers, onSetups, topLayer } from "./Globals";
+import { Coms, onSetups, topLayer } from "./Globals";
 import React, { useEffect } from "react";
 import { objects, canvasUpdater, createNewTab, clearTabs } from "./Manager";
 
@@ -16,6 +16,7 @@ import "./Components/TextNode";
 import "./Components/ImageNode";
 import "./Components/CurveEdge";
 import "./Components/LineEdge";
+import "./Components/UndefinedNode";
 
 import "./UIs/SelectionBox";
 import "./UIs/ContextMenu";
@@ -87,7 +88,7 @@ const App: React.FC = () => {
           <CoordinateSystem />
 
           {sortedObjects.map((obj) => {
-            const Com = Coms[obj.type];
+            const Com = Coms[obj.type] || (obj.type.startsWith("node") ? Coms["node/undefined"] : null);
             if (Com) return <Com obj={obj} key={obj.id} />;
           })}
         </g>

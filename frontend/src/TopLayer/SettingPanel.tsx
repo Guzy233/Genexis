@@ -104,10 +104,18 @@ topLayer.push(() => {
 
     const handleMouseDown = (e: MouseEvent) => {
       if (item.type !== 'mousekey') return;
+
+      // 阻止浏览器默认动作（如侧键前进后退）
       e.preventDefault();
       e.stopPropagation();
 
-      setValue(item.id, e.button);
+      const query =
+        (e.ctrlKey ? "C" : "") +
+        (e.altKey ? "A" : "") +
+        (e.shiftKey ? "S" : "") +
+        "M" + e.button;
+
+      setValue(item.id, query);
       setRecordingId(null);
       forceUpdate();
     };
@@ -242,15 +250,44 @@ topLayer.push(() => {
   };
 
   // 获取鼠标按键名称
-  const getMouseButtonName = (button: number) => {
-    switch (button) {
-      case 0: return "左键";
-      case 1: return "中键";
-      case 2: return "右键";
-      case 3: return "后退键";
-      case 4: return "前进键";
-      default: return `按键 ${button}`;
+  const getMouseButtonName = (value: string | number) => {
+    if (value === undefined || value === null || value === "") return "未绑定";
+    const str = String(value);
+
+    const parts = [];
+    let pos = 0;
+    if (str.startsWith("C")) { parts.push("Ctrl"); pos++; }
+    if (str.startsWith("A", pos)) { parts.push("Alt"); pos++; }
+    if (str.startsWith("S", pos)) { parts.push("Shift"); pos++; }
+
+    const remaining = str.substring(pos);
+    if (remaining.startsWith("M")) {
+      const buttonNum = parseInt(remaining.substring(1));
+      let btnName = "";
+      switch (buttonNum) {
+        case 0: btnName = "左键"; break;
+        case 1: btnName = "中键"; break;
+        case 2: btnName = "右键"; break;
+        case 3: btnName = "后退键 (M3)"; break;
+        case 4: btnName = "前进键 (M4)"; break;
+        default: btnName = `按键 ${buttonNum}`;
+      }
+      parts.push(btnName);
+    } else if (!isNaN(parseInt(str))) {
+      // 兼容旧的纯数字格式
+      switch (parseInt(str)) {
+        case 0: return "左键";
+        case 1: return "中键";
+        case 2: return "右键";
+        case 3: return "后退键";
+        case 4: return "前进键";
+        default: return `按键 ${str}`;
+      }
+    } else {
+      return str;
     }
+
+    return parts.join("+");
   };
 
   if (!visible) return null;
