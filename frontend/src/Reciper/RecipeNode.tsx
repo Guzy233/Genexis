@@ -115,13 +115,27 @@ registerSerializer(
 
 // 设置嵌套对象的值
 const setNestedValue = (obj: any, path: string, value: any) => {
-  (obj as any)[path] = value;
+  if (value === null) {
+    delete (obj as any)[path];
+  } else {
+    (obj as any)[path] = value;
+  }
 };
 
 // 有序合成配方的特殊回写逻辑
 const applyShapedSlot = (recipe: Recipe, row: number, col: number, newItem: any) => {
   if (!recipe.pattern) recipe.pattern = ["   ", "   ", "   "];
   if (!recipe.key) recipe.key = {};
+
+  if (newItem === null) {
+    if (recipe.pattern[row]) {
+      const line = recipe.pattern[row];
+      if (col < line.length) {
+        recipe.pattern[row] = line.substring(0, col) + " " + line.substring(col + 1);
+      }
+    }
+    return;
+  }
 
   // 确保 pattern 有足够的行
   while (recipe.pattern.length <= row) {
@@ -172,10 +186,16 @@ const applySlotPath = (recipe: Recipe, slotPath: SlotPath, newItem: any) => {
     case 'array':
       let arr = (recipe as any)[slotPath.path];
       if (!arr || !Array.isArray(arr)) {
+        if (newItem === null) return;
         arr = [];
         (recipe as any)[slotPath.path] = arr;
       }
-      arr[slotPath.index] = newItem;
+      if (newItem === null) {
+        // 对于数组，设置为空（null）以保持索引，或者如果是末尾则可以考虑缩减
+        arr[slotPath.index] = null;
+      } else {
+        arr[slotPath.index] = newItem;
+      }
       break;
     case 'shaped':
       applyShapedSlot(recipe, slotPath.row, slotPath.col, newItem);
@@ -242,18 +262,20 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
       const role = slot.getAttribute('data-slot-role') as 'input' | 'output';
 
       // 构建新物品对象
-      let newItem: any;
-      if (role === 'output') {
-        // 输出槽位始终使用 id 格式
-        newItem = { id: idorTag.startsWith('#') ? idorTag.substring(1) : idorTag, count: 1 };
-      } else {
-        // 输入槽位需要区分 item 和 tag
-        if (idorTag.startsWith('#')) {
-          // tag 格式 - 去掉 # 前缀
-          newItem = { tag: idorTag.substring(1) };
+      let newItem: any = null;
+      if (idorTag !== "") {
+        if (role === 'output') {
+          // 输出槽位始终使用 id 格式
+          newItem = { id: idorTag.startsWith('#') ? idorTag.substring(1) : idorTag, count: 1 };
         } else {
-          // item 格式
-          newItem = { item: idorTag };
+          // 输入槽位需要区分 item 和 tag
+          if (idorTag.startsWith('#')) {
+            // tag 格式 - 去掉 # 前缀
+            newItem = { tag: idorTag.substring(1) };
+          } else {
+            // item 格式
+            newItem = { item: idorTag };
+          }
         }
       }
 
