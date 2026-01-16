@@ -339,10 +339,10 @@ registerSetting({
   id: "selector.boxSelectButton",
   category: "Selector",
   title: "框选触发键",
-  type: "number",
+  type: "mousekey",
   defaultValue: 1,
   value: 1,
-  description: "1=左键, 2=中键, 0/2=右键(取决于系统)",
+  description: "默认为中键",
 });
 
 // 注册键盘导航设置

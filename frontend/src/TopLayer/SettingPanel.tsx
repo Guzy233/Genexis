@@ -49,13 +49,146 @@ topLayer.push(() => {
   }, []);
 
   const [activeCategory, setActiveCategory] = useState<string>(categories[0]?.name ?? "");
+  const [recordingId, setRecordingId] = useState<string | null>(null);
 
   // 当面板打开且没有选中分类时，默认选中第一个
   useEffect(() => {
     if (visible && (!activeCategory || !categories.find(c => c.name === activeCategory))) {
       setActiveCategory(categories[0]?.name ?? "");
     }
+    if (!visible) setRecordingId(null);
   }, [visible, categories]);
+
+  // 按键/鼠标录制逻辑
+  useEffect(() => {
+    if (!recordingId) return;
+
+    const item = categories.flatMap(c => c.items).find(i => i.id === recordingId);
+    if (!item) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (item.type !== 'key') return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const isModifier = ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key);
+
+      if (!isModifier) {
+        let key = e.key;
+        // 保持与 Keyboard.ts 一致的简写格式：Ctrl=C, Alt=A, Shift=S
+        const query =
+          (e.ctrlKey ? "C" : "") +
+          (e.altKey ? "A" : "") +
+          (e.shiftKey ? "S" : "") +
+          (key === " " ? "Space" : key);
+
+        setValue(item.id, query);
+        setRecordingId(null);
+        forceUpdate();
+      } else {
+        // 更新实时显示
+        forceUpdate();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (item.type !== 'key') return;
+      const isModifier = ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key);
+      if (isModifier && recordingId === item.id) {
+        // 如果松开了修饰键且还没保存（即还没按下普通键），则保存该修饰键
+        setValue(item.id, e.key);
+        setRecordingId(null);
+        forceUpdate();
+      }
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (item.type !== 'mousekey') return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      setValue(item.id, e.button);
+      setRecordingId(null);
+      forceUpdate();
+    };
+
+    // 使用捕获阶段确保拦截所有输入
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
+    window.addEventListener('mousedown', handleMouseDown, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
+      window.removeEventListener('mousedown', handleMouseDown, true);
+    };
+  }, [recordingId]);
+
+  // 格式化按键显示
+  const formatKey = (value: string | number) => {
+    if (value === undefined || value === null || value === "") return "未绑定";
+    const str = String(value);
+
+    // 处理单功能键全称
+    const fullNames: Record<string, string> = {
+      "Control": "Ctrl",
+      "Shift": "Shift",
+      "Alt": "Alt",
+      "Meta": "Win",
+      "Space": "空格"
+    };
+    if (fullNames[str]) return fullNames[str];
+
+    // 处理组合键
+    const parts = [];
+    let pos = 0;
+    if (str.startsWith("C")) { parts.push("Ctrl"); pos++; }
+    if (str.startsWith("A", pos)) { parts.push("Alt"); pos++; }
+    if (str.startsWith("S", pos)) { parts.push("Shift"); pos++; }
+
+    const remaining = str.substring(pos);
+    if (remaining) {
+      parts.push(fullNames[remaining] || remaining.toUpperCase());
+    }
+
+    return parts.join("+");
+  };
+
+  // 格式化正在录制的按键
+  const formatRecordingKey = (e: KeyboardEvent | null) => {
+    if (!e) return "等待输入...";
+    const parts = [];
+    if (e.ctrlKey) parts.push("Ctrl");
+    if (e.altKey) parts.push("Alt");
+    if (e.shiftKey) parts.push("Shift");
+    if (e.metaKey) parts.push("Win");
+
+    const isModifier = ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key);
+    if (!isModifier && e.key) {
+      parts.push(e.key === " " ? "空格" : e.key.toUpperCase());
+    }
+
+    return parts.length > 0 ? parts.join("+") : "等待输入...";
+  };
+
+  // 状态辅助：获取当前录制的实时事件（通过 ref 或闭包其实很难在 React 中实时更新 UI 除非存 state）
+  // 简单起见，我们还是在 keydown 时更新一个特定的 state
+  const [currentKbdEvent, setCurrentKbdEvent] = useState<KeyboardEvent | null>(null);
+
+  // 拦截全局键盘事件来更新 UI
+  useEffect(() => {
+    if (!recordingId) {
+      setCurrentKbdEvent(null);
+      return;
+    }
+    const onKey = (e: KeyboardEvent) => setCurrentKbdEvent(e);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("keyup", onKey, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("keyup", onKey, true);
+    };
+  }, [recordingId]);
 
   // 强制组件重新渲染
   const forceUpdate = () => {
@@ -108,6 +241,18 @@ topLayer.push(() => {
     return editingValues.get(item.id) ?? String(item.value);
   };
 
+  // 获取鼠标按键名称
+  const getMouseButtonName = (button: number) => {
+    switch (button) {
+      case 0: return "左键";
+      case 1: return "中键";
+      case 2: return "右键";
+      case 3: return "后退键";
+      case 4: return "前进键";
+      default: return `按键 ${button}`;
+    }
+  };
+
   if (!visible) return null;
 
   const currentCategory = categories.find(c => c.name === activeCategory);
@@ -152,19 +297,26 @@ topLayer.push(() => {
                       </div>
                       <div className="settings-item-control">
                         {item.type === "key" && (
-                          <input
-                            type="text"
-                            className="settings-item-input"
-                            value={item.value}
-                            readOnly
-                            onClick={() => {
-                              const newKey = prompt(`输入新的按键绑定 (当前: ${item.value}):`);
-                              if (newKey) {
-                                setValue(item.id, newKey);
-                                forceUpdate();
-                              }
-                            }}
-                          />
+                          <button
+                            className={`settings-recorder-btn ${recordingId === item.id ? "recording" : ""}`}
+                            onClick={() => setRecordingId(item.id)}
+                          >
+                            <span className="settings-recorder-value">
+                              {recordingId === item.id ? formatRecordingKey(currentKbdEvent) : formatKey(item.value)}
+                            </span>
+                            {recordingId === item.id && <span className="settings-recorder-hint">录制中...</span>}
+                          </button>
+                        )}
+                        {item.type === "mousekey" && (
+                          <button
+                            className={`settings-recorder-btn ${recordingId === item.id ? "recording" : ""}`}
+                            onClick={() => setRecordingId(item.id)}
+                          >
+                            <span className="settings-recorder-value">
+                              {recordingId === item.id ? "等待点击..." : getMouseButtonName(item.value)}
+                            </span>
+                            {recordingId === item.id && <span className="settings-recorder-hint">录制中...</span>}
+                          </button>
                         )}
                         {item.type === "toggle" && (
                           <div className={`settings-switch ${item.value ? "active" : ""}`}

@@ -10,10 +10,10 @@ registerSetting({
   id: "dragger.key",
   category: "Dragger",
   title: "拖动节点",
-  type: "number",
+  type: "mousekey",
   defaultValue: 0,
   value: 0,
-  // description?: "string",
+  description: "鼠标按键拖动节点，默认为左键",
   onChange: (v) => (draggingKey = v), // 值变化时通知注册者
 });
 
@@ -26,7 +26,7 @@ export const onClickNode = (e: MouseEvent) => {
   let lastX = e.clientX;
   let lastY = e.clientY;
 
-  const originPos = {x:node.pos.x,y:node.pos.y};
+  const originPos = { x: node.pos.x, y: node.pos.y };
 
   const onBlur = () => {
     window.removeEventListener("mousemove", onMouseMove);

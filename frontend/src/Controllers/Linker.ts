@@ -10,23 +10,23 @@ import { saveHistory } from "../Manager";
 import { addEdgeRelation } from "../Algorithm";
 
 // 连接器状态
-let linkingKey = "Space";
+let startButton = 2;
 
 // 注册设置项
 registerSetting({
-  id: "linker.startKey",
+  id: "linker.startButton",
   category: "Linker",
   title: "开始连接",
-  type: "key",
-  defaultValue: "Space",
-  value: "Space",
-  description: "按下此键进入连接模式",
+  type: "mousekey",
+  defaultValue: 2,
+  value: 2,
+  description: "按下此键（鼠标按键）开始从节点拉出连接线",
   onChange: (v) => {
-    linkingKey = v;
+    startButton = v;
   },
 });
 
-const startLinking = (vEdge:Edge,vNode:Node) => {
+const startLinking = (vEdge: Edge, vNode: Node) => {
   // 窗口失去焦点时清理所有临时监听器
   const onBlur = () => {
     managerDeleteId(vEdge.id);
@@ -86,7 +86,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
       if (aNodeId !== vEdge.source.id) {
         //在已有节点上松开鼠标，设置为目标节点
         vEdge.target = objects[aNodeId] as Node;
-        if((objects[aNodeId] as Node).eAncs.length > 1){
+        if ((objects[aNodeId] as Node).eAncs.length > 1) {
           vEdge.anchorTarget = { type: "auto" };
         } else {
           vEdge.anchorTarget = (objects[aNodeId] as Node).eAncs[0];
@@ -103,7 +103,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
       const node = createNodeCentered(
         screen2Viewport({ x: e.clientX, y: e.clientY })
       ) as Node;
-      if(node?.eAncs.length > 1){
+      if (node?.eAncs.length > 1) {
         vEdge.anchorTarget = { type: "auto" };
       } else {
         vEdge.anchorTarget = node?.eAncs[0];
@@ -142,7 +142,7 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
 }
 
 export const onClickNode = (e: MouseEvent) => {
-  if (e.button !== 2) return; // 右键
+  if (e.button !== startButton) return; // 右键
   const id = idFromEvent(e, ".node-group");
   if (!id) return;
 
@@ -159,13 +159,13 @@ export const onClickNode = (e: MouseEvent) => {
   vEdge.target = vNode;
   vEdge.anchorTarget = { type: "absPos" };
 
-  if((objects[id] as Node).aAncs.length > 1){
+  if ((objects[id] as Node).aAncs.length > 1) {
     vEdge.anchorSource = { type: "auto" };
   } else {
     vEdge.anchorSource = (objects[id] as Node).aAncs[0];
   }
 
-  startLinking(vEdge,vNode);
+  startLinking(vEdge, vNode);
 };
 
 onSetup((canvas: SVGGElement) => {

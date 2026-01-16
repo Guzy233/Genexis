@@ -3,7 +3,7 @@
 import { ReadConfig, WriteConfig } from "../wailsjs/go/main/App";
 import { onSetup } from "./Globals";
 
-export type SettingType = "key" | "toggle" | "number" | "string";
+export type SettingType = "key" | "mousekey" | "toggle" | "number" | "string";
 
 export interface SettingItem {
   id: string;
