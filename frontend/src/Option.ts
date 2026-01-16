@@ -45,7 +45,14 @@ export function registerSetting(item: SettingItem): void {
   if (!categories.has(item.category)) {
     categories.set(item.category, { name: item.category, items: [] });
   }
-  categories.get(item.category)!.items.push(item);
+
+  const category = categories.get(item.category)!;
+  const existingIndex = category.items.findIndex(i => i.id === item.id);
+  if (existingIndex !== -1) {
+    category.items[existingIndex] = item;
+  } else {
+    category.items.push(item);
+  }
 }
 
 /**

@@ -1,8 +1,9 @@
 import { onSetup } from "../Globals";
 import { objects, registerOnFileLoaded, updateCanvas, managerUpdateAtom } from "../Manager";
 import { openItemListPanel, toggleItemList } from "./ItemListPanel";
-import { openInitializationModal } from "./InitializationModal";
 import { Recipe } from "./RecipePreview";
+import { registerKeyAction } from "../Controllers/Keyboard";
+import { openInitializationModal } from "./InitializationModal";
 
 export var coords: Record<string, any> = {}
 export var translations: Record<string, string> = {}
@@ -46,7 +47,14 @@ export async function loadRecipes(config?: { gameFolder: string; version: string
   recipesLoaded = true;
 }
 
-export async function initializeReciperApi(config: { gameFolder: string; version: string; datapackName: string; language: string }) {
+export async function initializeReciperApi(
+  config: {
+    gameFolder: string;
+    version: string;
+    datapackName: string;
+    language: string;
+    forceReload?: boolean
+  }) {
   const response = await fetch("reciper/initialize", {
     method: "POST",
     headers: {
@@ -59,7 +67,8 @@ export async function initializeReciperApi(config: { gameFolder: string; version
     throw new Error("初始化失败");
   }
 
-  await loadRecipes(config);
+  const { forceReload, ...rest } = config;
+  await loadRecipes(rest);
   await loadAllTags();
   openItemListPanel();
 
@@ -188,23 +197,28 @@ export const loadAllTags = async () => {
 
 export const getTagItems = (tag: string): string[] => tagItems.get(tag) || [];
 
-let reciperInitialized = false;
-
-const onKeydown = (e: KeyboardEvent) => {
-  if (e.key !== 'e' || !e.ctrlKey)
-    return
-
-  if (!recipesLoaded) {
-    openInitializationModal()
-  } else {
-    toggleItemList()
-  }
-}
-
 
 onSetup((_canvas: SVGGElement) => {
-  window.addEventListener("keydown", onKeydown);
-  return () => window.removeEventListener("keydown", onKeydown);
+  registerKeyAction({
+    action: "reciper.open_item_list",
+    handler: () => {
+      if (!recipesLoaded) {
+        openInitializationModal();
+      } else {
+        toggleItemList();
+      }
+    },
+    settings: {
+      id: "reciper.open_item_list",
+      category: "Keyboard",
+      title: "物品列表",
+      type: "key" as any,
+      defaultValue: "Ce",
+      value: "Ce",
+      description: "打开物品列表面板",
+    }
+  });
+  return () => { };
 });
 
 registerOnFileLoaded(async (tab) => {

@@ -3,23 +3,8 @@ import { registerSetting, getSetting, SettingItem } from "../Option";
 import { objects, saveHistory, undo, redo, managerDeleteIdWithEdges, managerUpdate } from "../Manager";
 import { active } from "./Selector";
 
-// 键盘操作枚举
-export const KeyAction = {
-  DELETE: "DELETE",
-  UNDO: "UNDO",
-  REDO: "REDO",
-  SELECT_ALL: "SELECT_ALL",
-  SHOW_ACTIONS: "SHOW_ACTIONS",
-  EDIT_NODE: "EDIT_NODE",
-  EXIT: "EXIT",
-  SAVE: "SAVE",
-  SAVE_AS: "SAVE_AS",
-  LOAD: "LOAD",
-  NEW_FILE: "NEW_FILE",
-  OPEN_ITEM_LIST: "OPEN_ITEM_LIST",
-} as const;
-
-export type KeyAction = typeof KeyAction[keyof typeof KeyAction];
+// 动作 ID 类型
+export type ActionId = string;
 
 // ==================== 按键动作注册系统 ====================
 // 允许其他控制器向 Keyboard 注册按键动作
@@ -32,17 +17,17 @@ interface KeyActionRegistration {
   settings: Omit<SettingItem, "onChange">;
 }
 
-// 注册的按键动作
-const registeredActions: Map<string, KeyActionRegistration> = new Map();
+// 注册的按键动作处理器：actionId -> handler
+const actionHandlers: Map<string, KeyActionHandler> = new Map();
 
 // 注册按键动作的接口（供其他控制器使用）
 export function registerKeyAction(registration: KeyActionRegistration): void {
-  registeredActions.set(registration.action, registration);
+  actionHandlers.set(registration.action, registration.handler);
 
   // 向 Option 系统转发注册设置项
   registerSetting({
     ...registration.settings,
-    onChange: (v) => updateBinding(registration.action as KeyAction, v),
+    onChange: (v) => updateBinding(registration.action, v),
   });
 }
 
@@ -84,96 +69,10 @@ function updateBinding(action: string, key: string): void {
 
 // ==================== 内置动作处理器 ====================
 
-const executeAction = (action: string): void => {
-  // 首先检查是否是注册的外部动作
-  const registered = registeredActions.get(action);
-  if (registered) {
-    registered.handler();
-    return;
-  }
-
-  // 处理内置动作
-  switch (action) {
-    case KeyAction.DELETE: {
-      active("");
-      const objs = Object.values(objects);
-      const selectedIds = objs
-        .filter(
-          (obj) => "selected" in obj && (obj as { selected?: boolean }).selected
-        )
-        .map((obj) => obj.id);
-
-      if (selectedIds.length === 0) return;
-
-      selectedIds.forEach((id) => managerDeleteIdWithEdges(id));
-      saveHistory();
-      break;
-    }
-    case KeyAction.UNDO:
-      undo();
-      break;
-    case KeyAction.REDO:
-      redo();
-      break;
-    case KeyAction.SELECT_ALL: {
-      const objs = Object.values(objects);
-      objs.forEach((obj) => {
-        if (obj.type.startsWith("node/")) {
-          (obj as { selected?: boolean }).selected = true;
-          managerUpdate(obj);
-        }
-      });
-      break;
-    }
-    case KeyAction.SHOW_ACTIONS:
-      // 切换显示设置面板（由外部处理）
-      break;
-    case KeyAction.EDIT_NODE: {
-      const activedId = (globalThis as { activedId?: string }).activedId;
-      if (activedId) {
-        setTimeout(() => {
-          const nodeGroup = document.querySelector(`[data-id="${activedId}"]`);
-          if (nodeGroup) {
-            const editableTextContainer = nodeGroup.querySelector("g");
-            if (editableTextContainer) {
-              const dblClickEvent = new MouseEvent("dblclick", {
-                bubbles: true,
-                cancelable: true,
-                view: window,
-              });
-              editableTextContainer.dispatchEvent(dblClickEvent);
-            }
-          }
-        }, 0);
-      }
-      break;
-    }
-    case KeyAction.EXIT:
-      console.log("Exit");
-      break;
-    case KeyAction.SAVE:
-      import("../Manager").then(({ saveFile }) => {
-        saveFile();
-      });
-      break;
-    case KeyAction.SAVE_AS:
-      import("../Manager").then(({ saveFileAs }) => {
-        saveFileAs();
-      });
-      break;
-    case KeyAction.LOAD:
-      import("../Manager").then(({ loadFile }) => {
-        loadFile();
-      });
-      break;
-    case KeyAction.NEW_FILE:
-      import("../Manager").then(({ newFile }) => {
-        newFile();
-      });
-      break;
-    case KeyAction.OPEN_ITEM_LIST:
-      // 打开物品列表面板（由外部处理）
-      break;
+const executeAction = (actionId: string): void => {
+  const handler = actionHandlers.get(actionId);
+  if (handler) {
+    handler();
   }
 };
 
@@ -202,20 +101,85 @@ const onKeyPress = (_e: KeyboardEvent): void => {
   // 预留
 };
 
-// ==================== 内置设置项定义 ====================
+// ==================== 内置动作处理器注册 ====================
 
-const builtinSettings: Array<{ id: string; action: string }> = [
-  { id: "keyboard.delete", action: KeyAction.DELETE },
-  { id: "keyboard.undo", action: KeyAction.UNDO },
-  { id: "keyboard.redo", action: KeyAction.REDO },
-  { id: "keyboard.selectAll", action: KeyAction.SELECT_ALL },
-  { id: "keyboard.showActions", action: KeyAction.SHOW_ACTIONS },
-  { id: "keyboard.editNode", action: KeyAction.EDIT_NODE },
-  { id: "keyboard.exit", action: KeyAction.EXIT },
-  { id: "keyboard.save", action: KeyAction.SAVE },
-  { id: "keyboard.saveAs", action: KeyAction.SAVE_AS },
-  { id: "keyboard.load", action: KeyAction.LOAD },
-  { id: "keyboard.newFile", action: KeyAction.NEW_FILE },
+const registerBuiltinActions = () => {
+  actionHandlers.set("keyboard.delete", () => {
+    active("");
+    const objs = Object.values(objects);
+    const selectedIds = objs
+      .filter((obj) => "selected" in obj && (obj as { selected?: boolean }).selected)
+      .map((obj) => obj.id);
+
+    if (selectedIds.length === 0) return;
+    selectedIds.forEach((id) => managerDeleteIdWithEdges(id));
+    saveHistory();
+  });
+
+  actionHandlers.set("keyboard.undo", () => undo());
+  actionHandlers.set("keyboard.redo", () => redo());
+
+  actionHandlers.set("keyboard.selectAll", () => {
+    const objs = Object.values(objects);
+    objs.forEach((obj) => {
+      if (obj.type.startsWith("node/")) {
+        (obj as { selected?: boolean }).selected = true;
+        managerUpdate(obj);
+      }
+    });
+  });
+
+  actionHandlers.set("keyboard.editNode", () => {
+    const activedId = (globalThis as { activedId?: string }).activedId;
+    if (activedId) {
+      setTimeout(() => {
+        const nodeGroup = document.querySelector(`[data-id="${activedId}"]`);
+        if (nodeGroup) {
+          const editableTextContainer = nodeGroup.querySelector("g");
+          if (editableTextContainer) {
+            const dblClickEvent = new MouseEvent("dblclick", {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+            });
+            editableTextContainer.dispatchEvent(dblClickEvent);
+          }
+        }
+      }, 0);
+    }
+  });
+
+  actionHandlers.set("keyboard.exit", () => console.log("Exit"));
+
+  actionHandlers.set("keyboard.save", () => {
+    import("../Manager").then(({ saveFile }) => saveFile());
+  });
+
+  actionHandlers.set("keyboard.saveAs", () => {
+    import("../Manager").then(({ saveFileAs }) => saveFileAs());
+  });
+
+  actionHandlers.set("keyboard.load", () => {
+    import("../Manager").then(({ loadFile }) => loadFile());
+  });
+
+  actionHandlers.set("keyboard.newFile", () => {
+    import("../Manager").then(({ newFile }) => newFile());
+  });
+};
+
+const builtinActionIds = [
+  "keyboard.delete",
+  "keyboard.undo",
+  "keyboard.redo",
+  "keyboard.selectAll",
+  "keyboard.showActions",
+  "keyboard.editNode",
+  "keyboard.exit",
+  "keyboard.save",
+  "keyboard.saveAs",
+  "keyboard.load",
+  "keyboard.newFile",
 ];
 
 // 注册内置设置项
@@ -227,7 +191,7 @@ registerSetting({
   defaultValue: "Delete",
   value: "Delete",
   description: "删除选中的节点",
-  onChange: (v) => updateBinding(KeyAction.DELETE, v),
+  onChange: (v) => updateBinding("keyboard.delete", v),
 });
 
 registerSetting({
@@ -238,7 +202,7 @@ registerSetting({
   defaultValue: "Cz",
   value: "Cz",
   description: "撤销上一步操作",
-  onChange: (v) => updateBinding(KeyAction.UNDO, v),
+  onChange: (v) => updateBinding("keyboard.undo", v),
 });
 
 registerSetting({
@@ -249,7 +213,7 @@ registerSetting({
   defaultValue: "CSZ",
   value: "CSZ",
   description: "重做被撤销的操作",
-  onChange: (v) => updateBinding(KeyAction.REDO, v),
+  onChange: (v) => updateBinding("keyboard.redo", v),
 });
 
 registerSetting({
@@ -260,7 +224,7 @@ registerSetting({
   defaultValue: "Ca",
   value: "Ca",
   description: "选中所有节点",
-  onChange: (v) => updateBinding(KeyAction.SELECT_ALL, v),
+  onChange: (v) => updateBinding("keyboard.selectAll", v),
 });
 
 registerSetting({
@@ -271,7 +235,7 @@ registerSetting({
   defaultValue: "F7",
   value: "F7",
   description: "在控制台显示操作日志",
-  onChange: (v) => updateBinding(KeyAction.SHOW_ACTIONS, v),
+  onChange: (v) => updateBinding("keyboard.showActions", v),
 });
 
 registerSetting({
@@ -282,7 +246,7 @@ registerSetting({
   defaultValue: "Enter",
   value: "Enter",
   description: "进入当前激活节点的编辑模式",
-  onChange: (v) => updateBinding(KeyAction.EDIT_NODE, v),
+  onChange: (v) => updateBinding("keyboard.editNode", v),
 });
 
 registerSetting({
@@ -293,7 +257,7 @@ registerSetting({
   defaultValue: "Escape",
   value: "Escape",
   description: "退出当前状态",
-  onChange: (v) => updateBinding(KeyAction.EXIT, v),
+  onChange: (v) => updateBinding("keyboard.exit", v),
 });
 
 registerSetting({
@@ -304,7 +268,7 @@ registerSetting({
   defaultValue: "Cs",
   value: "Cs",
   description: "保存当前文件",
-  onChange: (v) => updateBinding(KeyAction.SAVE, v),
+  onChange: (v) => updateBinding("keyboard.save", v),
 });
 
 registerSetting({
@@ -315,7 +279,7 @@ registerSetting({
   defaultValue: "CSs",
   value: "CSs",
   description: "另存为新文件",
-  onChange: (v) => updateBinding(KeyAction.SAVE_AS, v),
+  onChange: (v) => updateBinding("keyboard.saveAs", v),
 });
 
 registerSetting({
@@ -326,7 +290,7 @@ registerSetting({
   defaultValue: "Co",
   value: "Co",
   description: "打开文件",
-  onChange: (v) => updateBinding(KeyAction.LOAD, v),
+  onChange: (v) => updateBinding("keyboard.load", v),
 });
 
 registerSetting({
@@ -337,41 +301,27 @@ registerSetting({
   defaultValue: "Cn",
   value: "Cn",
   description: "新建文件",
-  onChange: (v) => updateBinding(KeyAction.NEW_FILE, v),
-});
-
-registerSetting({
-  id: "keyboard.openItemList",
-  category: "Keyboard",
-  title: "物品列表",
-  type: "key",
-  defaultValue: "Ce",
-  value: "Ce",
-  description: "打开物品列表面板",
-  onChange: (v) => updateBinding(KeyAction.OPEN_ITEM_LIST, v),
+  onChange: (v) => updateBinding("keyboard.newFile", v),
 });
 
 // 初始化默认绑定
 const initDefaultBindings = () => {
-  const allSettings = [
-    ...builtinSettings,
-    // 外部注册的动作也会通过 registerKeyAction 自动添加设置项
-    ...Array.from(registeredActions.entries()).map(([action, _]) => ({
-      id: registeredActions.get(action)!.settings.id,
-      action,
-    })),
+  const allActionIds = [
+    ...builtinActionIds,
+    ...Array.from(actionHandlers.keys()),
   ];
 
-  allSettings.forEach(({ id, action }) => {
-    const setting = getSetting(id);
+  allActionIds.forEach((actionId) => {
+    const setting = getSetting(actionId);
     if (setting) {
-      updateBinding(action, setting.value);
+      updateBinding(actionId, setting.value);
     }
   });
 };
 
 // 按照操作器模式注册
 onSetup((_canvas: SVGGElement) => {
+  registerBuiltinActions();
   initDefaultBindings();
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);

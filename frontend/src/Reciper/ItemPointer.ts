@@ -108,11 +108,65 @@ export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
 };
 
 
+import { registerSetting, getSetting } from "../Option";
+
+// 注册设置项
+registerSetting({
+  id: "reciper.ignore_item_op",
+  category: "Interaction",
+  title: "忽略物品操作",
+  type: "key",
+  defaultValue: "S",
+  value: "S",
+  description: "按住此键时忽略物品拖拽或打开配方操作",
+});
+
+registerSetting({
+  id: "reciper.delete_item_slot",
+  category: "Interaction",
+  title: "移除插槽物品",
+  type: "mousekey",
+  defaultValue: "M1",
+  value: "M1",
+  description: "在物品插槽上点击此键以移除物品",
+});
+
+registerSetting({
+  id: "reciper.open_recipe_result",
+  category: "Interaction",
+  title: "打开合成表 (产出)",
+  type: "mousekey",
+  defaultValue: "M3",
+  value: "M3",
+  description: "在物品上点击此键以查看产出该物品的配方",
+});
+
+registerSetting({
+  id: "reciper.open_recipe_usage",
+  category: "Interaction",
+  title: "打开合成表 (用途)",
+  type: "mousekey",
+  defaultValue: "M4",
+  value: "M4",
+  description: "在物品上点击此键以查看该物品的用途配方",
+});
+
+function getMouseQuery(e: MouseEvent) {
+  let query = "";
+  if (e.ctrlKey) query += "C";
+  if (e.altKey) query += "A";
+  if (e.shiftKey) query += "S";
+  query += "M" + e.button;
+  return query;
+}
+
 function onMouseDown(e: MouseEvent) {
   const target = e.target as SVGElement;
   const itemIcon = target.closest(".item-icon");
+  const mouseQuery = getMouseQuery(e);
 
-  if (e.button === 1) { // 中键删除
+  // 1. 处理删除 (默认中键)
+  if (getSetting("reciper.delete_item_slot")?.value === mouseQuery) {
     const slot = target.closest("[data-slot-role]");
     if (slot) {
       e.preventDefault();
@@ -130,16 +184,20 @@ function onMouseDown(e: MouseEvent) {
   const id = itemIcon?.id;
   if (!id) return;
 
-  if (e.shiftKey)
-    return;
+  // 2. 处理忽略操作
+  const ignoreVal = getSetting("reciper.ignore_item_op")?.value;
+  if (ignoreVal === "S" && e.shiftKey) return;
+  if (ignoreVal === "C" && e.ctrlKey) return;
+  if (ignoreVal === "A" && e.altKey) return;
 
   e.stopPropagation()
 
-  if (e.button === 3)
+  // 3. 处理打开配方
+  if (getSetting("reciper.open_recipe_result")?.value === mouseQuery)
     openRecipeModal(id, "result")
-  else if (e.button === 4)
+  else if (getSetting("reciper.open_recipe_usage")?.value === mouseQuery)
     openRecipeModal(id, "usage")
-  else {
+  else if (e.button === 0) { // 左键拖拽
     const tag = (e.target as SVGElement).closest(".item-icon")?.getAttribute("data-tag")
     startDragItem(e, tag ? tag : id)
   }

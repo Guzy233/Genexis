@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { topLayer } from "../Globals";
-import { loadRecipes, loadAllTags, initializeReciperApi } from "./Reciper";
+import { loadRecipes, loadAllTags, initializeReciperApi, currentConfig } from "./Reciper";
 import { openItemListPanel } from "./ItemListPanel";
 import { OpenFolder } from "../../wailsjs/go/main/App";
+import { getActiveTab, getAllTabs } from "../Manager";
 
 let showInitModal = false;
 const listeners = new Set<(show: boolean) => void>();
@@ -19,20 +20,49 @@ export const closeInitializationModal = () => {
 
 const InitializationModal: React.FC = () => {
   const [visible, setVisible] = useState(showInitModal);
-  const [gameFolder, setGameFolder] = useState("");
-  const [version, setVersion] = useState("1.20.1");
-  const [datapackName, setDatapackName] = useState("");
-  const [language, setLanguage] = useState("zh_cn");
+  const [gameFolder, setGameFolder] = useState(currentConfig?.gameFolder || "");
+  const [version, setVersion] = useState(currentConfig?.version || "1.20.1");
+  const [datapackName, setDatapackName] = useState(currentConfig?.datapackName || "");
+  const [language, setLanguage] = useState(currentConfig?.language || "zh_cn");
+  const [forceReload, setForceReload] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const tabs = getAllTabs().filter(t => t.metadata?.reciper);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+
   useEffect(() => {
-    const handler = (show: boolean) => setVisible(show);
+    const handler = (show: boolean) => {
+      setVisible(show);
+      if (show) {
+        // 自动检测当前文件页的配置
+        const activeTab = getActiveTab();
+        const config = activeTab?.metadata?.reciper || currentConfig;
+        if (config) {
+          setGameFolder(config.gameFolder || "");
+          setVersion(config.version || "1.20.1");
+          setDatapackName(config.datapackName || "");
+          setLanguage(config.language || "zh_cn");
+        }
+      }
+    };
     listeners.add(handler);
     return () => {
       listeners.delete(handler);
     };
   }, []);
+
+  const handleApplyTemplate = (tabId: string) => {
+    setSelectedTemplateId(tabId);
+    const templateTab = tabs.find(t => t.id === tabId);
+    if (templateTab?.metadata?.reciper) {
+      const config = templateTab.metadata.reciper;
+      setGameFolder(config.gameFolder || "");
+      setVersion(config.version || "1.20.1");
+      setDatapackName(config.datapackName || "");
+      setLanguage(config.language || "zh_cn");
+    }
+  };
 
   const handleBrowse = async () => {
     try {
@@ -67,6 +97,7 @@ const InitializationModal: React.FC = () => {
         version: version.trim(),
         datapackName: datapackName.trim(),
         language: language,
+        forceReload: forceReload,
       });
       closeInitializationModal();
     } catch (err) {
@@ -127,6 +158,35 @@ const InitializationModal: React.FC = () => {
         {error && (
           <div style={{ color: "#ef4444", fontSize: "14px", background: "rgba(239, 68, 68, 0.1)", padding: "8px 12px", borderRadius: "6px" }}>
             {error}
+          </div>
+        )}
+
+        {tabs.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <label style={{ color: "#a1a1aa", fontSize: "14px" }}>
+              使用模板
+            </label>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => handleApplyTemplate(e.target.value)}
+              style={{
+                background: "rgba(0, 0, 0, 0.2)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "6px",
+                padding: "10px 12px",
+                color: "#e4e4e7",
+                outline: "none",
+                fontSize: "14px",
+                cursor: "pointer",
+              }}
+            >
+              <option value="" style={{ background: "#27272a" }}>-- 选择已打开的文件作为模板 --</option>
+              {tabs.map(tab => (
+                <option key={tab.id} value={tab.id} style={{ background: "#27272a" }}>
+                  {tab.fileName}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -238,6 +298,27 @@ const InitializationModal: React.FC = () => {
             <option value="zh_cn" style={{ background: "#27272a" }}>简体中文 (zh_cn)</option>
             <option value="en_us" style={{ background: "#27272a" }}>English (en_us)</option>
           </select>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
+          <input
+            type="checkbox"
+            id="forceReload"
+            checked={forceReload}
+            onChange={(e) => setForceReload(e.target.checked)}
+            style={{
+              width: "16px",
+              height: "16px",
+              cursor: "pointer",
+              accentColor: "#6366f1",
+            }}
+          />
+          <label
+            htmlFor="forceReload"
+            style={{ color: "#e4e4e7", fontSize: "14px", cursor: "pointer" }}
+          >
+            强制刷新缓存 (Force Reload)
+          </label>
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "8px" }}>
