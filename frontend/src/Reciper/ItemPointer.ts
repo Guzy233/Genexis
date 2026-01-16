@@ -168,7 +168,7 @@ function onMouseDown(e: MouseEvent) {
   // 1. 处理删除 (默认中键)
   if (getSetting("reciper.delete_item_slot")?.value === mouseQuery) {
     const slot = target.closest("[data-slot-role]");
-    if (slot) {
+    if (slot && slot.getAttribute("data-slot-role") !== "output") {
       e.preventDefault();
       e.stopPropagation();
       target.dispatchEvent(

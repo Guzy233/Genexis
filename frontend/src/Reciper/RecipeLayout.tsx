@@ -147,20 +147,19 @@ export const createStandardLayout = (
 
   // 输入物品
   if (gridSize === "single") {
-    if (inputs[0]) {
-      slots.push({
-        slotType: 'item',
-        itemId: inputs[0].itemId,
-        count: inputs[0].count,
-        slotPath: inputs[0].slotPath,
-        x: padding,
-        y: padding,
-        size: slotSize,
-        label: "原料",
-        role: 'input',
-        index: 0
-      });
-    }
+    const input = inputs[0];
+    slots.push({
+      slotType: 'item',
+      itemId: input?.itemId || "",
+      count: input?.count,
+      slotPath: input?.slotPath || { type: 'direct', path: 'unknown' },
+      x: padding,
+      y: padding,
+      size: slotSize,
+      label: "原料",
+      role: 'input',
+      index: 0
+    });
   } else {
     inputs.forEach((info, i) => {
       const x = padding + (i % gridSize.cols) * (slotSize + gap);
@@ -169,7 +168,7 @@ export const createStandardLayout = (
         slotType: 'item',
         itemId: info?.itemId || "",
         count: info?.count,
-        slotPath: info?.slotPath || { type: 'array', path: 'unknown', index: i },
+        slotPath: info?.slotPath || { type: 'direct', path: 'unknown' },
         x,
         y,
         size: slotSize,
@@ -255,14 +254,11 @@ export const parseShaped: RecipeParser = (r) => {
       const char = r.pattern[y]?.[x];
       const val = char ? r.key[char] : null;
       const info = extractItemInfo(val);
-      if (info) {
-        inputs.push({
-          ...info,
-          slotPath: { type: 'shaped', row: y, col: x }
-        });
-      } else {
-        inputs.push(null);
-      }
+      inputs.push({
+        itemId: info?.itemId || "",
+        count: info?.count,
+        slotPath: { type: 'shaped', row: y, col: x }
+      });
     }
   }
   return createStandardLayout(r, inputs, parseOutput(r), { rows, cols });
@@ -272,18 +268,16 @@ export const parseShapeless: RecipeParser = (r) => {
   if (!r.ingredients) return null;
 
   // 无序配方填充至 3x3
-  const paddedInputs: Array<ItemInputInfo | null> = new Array(9).fill(null);
-  r.ingredients.forEach((ing: any, i: number) => {
-    if (i < 9) {
-      const info = extractItemInfo(ing);
-      if (info) {
-        paddedInputs[i] = {
-          ...info,
-          slotPath: { type: 'array', path: 'ingredients', index: i }
-        };
-      }
-    }
-  });
+  const paddedInputs: Array<ItemInputInfo | null> = [];
+  for (let i = 0; i < 9; i++) {
+    const ing = r.ingredients[i];
+    const info = extractItemInfo(ing);
+    paddedInputs.push({
+      itemId: info?.itemId || "",
+      count: info?.count,
+      slotPath: { type: 'array', path: 'ingredients', index: i }
+    });
+  }
   return createStandardLayout(r, paddedInputs, parseOutput(r), { rows: 3, cols: 3 });
 };
 
@@ -292,10 +286,11 @@ export const parseSmelting: RecipeParser = (r) => {
   const inputPath = r.ingredient ? 'ingredient' : 'input';
   const info = extractItemInfo(inputSource);
 
-  const input: ItemInputInfo | null = info ? {
-    ...info,
+  const input: ItemInputInfo = {
+    itemId: info?.itemId || "",
+    count: info?.count,
     slotPath: { type: 'direct', path: inputPath }
-  } : null;
+  };
 
   return createStandardLayout(r, [input], parseOutput(r), "single");
 };
@@ -335,21 +330,27 @@ export const parseArcFurnace: RecipeParser = (r) => {
   const items: Array<ItemInputInfo | null> = new Array(6).fill(null);
   const rawAdditives = Array.isArray(r.additives) ? r.additives.flat(2) : [];
 
-  rawAdditives.slice(0, 2).forEach((a: any, i: number) => {
-    const info = extractItemInfo(a);
-    if (info) {
-      items[i] = {
-        ...info,
-        slotPath: { type: 'array', path: 'additives', index: i }
-      };
-    }
-  });
+  for (let i = 0; i < 2; i++) {
+    const info = extractItemInfo(rawAdditives[i]);
+    items[i] = {
+      itemId: info?.itemId || "",
+      count: info?.count,
+      slotPath: { type: 'array', path: 'additives', index: i }
+    };
+  }
 
   const inputInfo = extractItemInfo(r.input);
-  if (inputInfo) {
-    items[2] = {
-      ...inputInfo,
-      slotPath: { type: 'direct', path: 'input' }
+  items[2] = {
+    itemId: inputInfo?.itemId || "",
+    count: inputInfo?.count,
+    slotPath: { type: 'direct', path: 'input' }
+  };
+
+  // 其余填充默认路径占位
+  for (let i = 3; i < 6; i++) {
+    items[i] = {
+      itemId: "",
+      slotPath: { type: 'direct', path: 'unknown' }
     };
   }
 
@@ -361,28 +362,28 @@ export const parseIEAlloy: RecipeParser = (r) => {
   const i1Info = extractItemInfo(r.input1);
 
   const inputs: Array<ItemInputInfo | null> = [
-    i0Info ? { ...i0Info, slotPath: { type: 'direct', path: 'input0' } } : null,
-    i1Info ? { ...i1Info, slotPath: { type: 'direct', path: 'input1' } } : null
+    { itemId: i0Info?.itemId || "", count: i0Info?.count, slotPath: { type: 'direct', path: 'input0' } },
+    { itemId: i1Info?.itemId || "", count: i1Info?.count, slotPath: { type: 'direct', path: 'input1' } }
   ];
 
   return createStandardLayout(r, inputs, parseOutput(r), { rows: 1, cols: 2 });
 };
 
 export const parseEnderIOAlloySmelting: RecipeParser = (r) => {
-  if (!r.inputs || !Array.isArray(r.inputs)) return null;
+  const rawInputs = Array.isArray(r.inputs) ? r.inputs : [];
+  const inputs: Array<ItemInputInfo | null> = [];
 
-  const inputs: Array<ItemInputInfo | null> = r.inputs.map((ing: any, i: number) => {
-    const info = extractItemInfo(ing);
-    if (info) {
-      return {
-        ...info,
-        slotPath: { type: 'array', path: 'inputs', index: i }
-      };
-    }
-    return null;
-  });
+  // EnderIO Alloy Smelter has 3 slots
+  for (let i = 0; i < 3; i++) {
+    const info = extractItemInfo(rawInputs[i]);
+    inputs.push({
+      itemId: info?.itemId || "",
+      count: info?.count,
+      slotPath: { type: 'array', path: 'inputs', index: i }
+    });
+  }
 
-  return createStandardLayout(r, inputs, parseOutput(r), { rows: inputs.length, cols: 1 });
+  return createStandardLayout(r, inputs, parseOutput(r), { rows: 3, cols: 1 });
 };
 
 export const parseAdvancedAEReaction: RecipeParser = (r) => {
