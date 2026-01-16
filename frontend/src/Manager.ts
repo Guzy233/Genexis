@@ -114,17 +114,12 @@ export const getActiveTab = () => activeTab;
 // 获取所有打开的标签
 export const getAllTabs = () => [...openTabs];
 
-// 设置当前标签的修改状态
-export const setTabModified = (modified: boolean) => {
-  if (activeTab && activeTab.isModified !== modified) {
-    activeTab.isModified = modified;
-    updateTabs();
-  }
-};
-
 // 标记当前文件为已修改
 const markAsModified = () => {
-  setTabModified(true);
+  if (activeTab && !activeTab.isModified) {
+    activeTab.isModified = true;
+    updateTabs();
+  }
 };
 
 // ==================== 撤销/重做系统 ====================
@@ -175,7 +170,7 @@ export const undo = (): boolean => {
 
   const result = restoreHistory(activeTab, activeTab.history.currentIndex - 1);
   if (result) {
-    setTabModified(true);
+    markAsModified();
   }
   return result;
 };
@@ -186,7 +181,7 @@ export const redo = (): boolean => {
 
   const result = restoreHistory(activeTab, activeTab.history.currentIndex + 1);
   if (result) {
-    setTabModified(true);
+    markAsModified();
   }
   return result;
 };
@@ -435,7 +430,7 @@ export const saveFile = async (saveAs: boolean = false): Promise<boolean> => {
   // 更新标签信息
   activeTab.filePath = savedPath;
   activeTab.fileName = getFilenameFromPath(savedPath);
-  setTabModified(false);
+  activeTab.isModified = false;
   updateTabs();
 
   onFileSavedHooks.forEach(hook => {
@@ -511,7 +506,7 @@ export const loadFile = async (): Promise<boolean> => {
     activeTab.objects = { ...objects };
     activeTab.nodeRelations = nodeRelations;
     activeTab.metadata = data.metadata || {};
-    setTabModified(false);
+    activeTab.isModified = false;
     // 重置历史
     activeTab.history.history = [];
     activeTab.history.currentIndex = -1;
@@ -523,7 +518,7 @@ export const loadFile = async (): Promise<boolean> => {
     newTab.objects = { ...objects };
     newTab.nodeRelations = nodeRelations;
     newTab.metadata = data.metadata || {};
-    setTabModified(false);
+    newTab.isModified = false;
     // 重置历史
     newTab.history.history = [];
     newTab.history.currentIndex = -1;
