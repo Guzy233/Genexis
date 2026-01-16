@@ -253,7 +253,12 @@ const SlotRenderers: Record<string, SlotRenderer<any>> = {
     const emptyHeight = slot.height - fillHeight;
 
     return (
-      <g style={{ cursor: 'pointer' }}>
+      <g
+        style={{ cursor: 'pointer' }}
+        data-type="fluid"
+        data-id={slot.fluidId}
+        data-amount={slot.amount}
+      >
         <rect
           x={0}
           y={0}
@@ -304,7 +309,13 @@ const SlotRenderers: Record<string, SlotRenderer<any>> = {
     };
 
     return (
-      <g style={{ cursor: 'pointer' }}>
+      <g
+        style={{ cursor: 'pointer' }}
+        data-type="chemical"
+        data-id={slot.chemicalId}
+        data-amount={slot.amount}
+        data-chemicaltype={slot.chemicalType}
+      >
         <rect
           x={0}
           y={0}

@@ -249,7 +249,6 @@ topLayer.push(() => {
   );
 });
 
-// 监听打开物品列表面板事件
 export const toggleItemList = () => {
   showItemListPanel ? closeItemListPanel() : openItemListPanel();
 };

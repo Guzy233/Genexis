@@ -27,7 +27,7 @@ export interface MCItemIconProps {
  * MC物品图标展示组件
  * 只传入itemId即可显示对应的物品图标
  */
-export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64, tag }) => {
+export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64 }) => {
   // 获取物品坐标信息
   const itemData = coords[itemId];
   if (!itemData) {
@@ -68,9 +68,6 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64, tag }
         href={atlasUrl}
         x={-x}
         y={-y}
-        className="item-icon"
-        id={itemId}
-        data-tag={tag}
       />
     </svg>
   );
@@ -82,7 +79,6 @@ export const MCItemIcon: React.FC<MCItemIconProps> = ({ itemId, size = 64, tag }
 
 // SVG 物品格子组件 Props
 export interface SVGItemSlotProps {
-  // info: { itemId: string; count?: number } | null;
   itemIdorTag: string
   count?: number
   size?: number;          // 格子大小，默认 40
@@ -154,7 +150,12 @@ export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
           strokeWidth="1"
           rx="4"
         />
-        <g transform={`translate(${(size - iconSize) / 2}, ${(size - iconSize) / 2})`}>
+        <g
+          transform={`translate(${(size - iconSize) / 2}, ${(size - iconSize) / 2})`}
+          data-type="item"
+          data-count={count}
+          data-id={itemIdorTag}
+        >
           <MCItemIcon itemId={current} size={iconSize} tag={isTag ? itemIdorTag : undefined} />
         </g>
         {count > 1 && (
@@ -199,14 +200,14 @@ export interface MCItemNode extends Node {
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
 
 // 工厂函数：创建新的MC物品节点
-export const createMCItemNode = (): MCItemNode => {
+export const createMCItemNode = (info?: any): MCItemNode => {
   return {
     id: crypto.randomUUID(),
-    type: "node/mcitem",
+    type: "node/mc/item",
     updater: atom(0),
     pos: { x: 0, y: 0 },
     size: { x: 80, y: 80 },
-    itemIdorTag: "actuallyadditions:advanced_coil",
+    itemIdorTag: info?.id || "actuallyadditions:advanced_coil",
     spriteSize: { width: 64, height: 64 },
     selected: false,
     eAncs: anchors_default,
@@ -215,11 +216,11 @@ export const createMCItemNode = (): MCItemNode => {
 };
 
 // 注册对象工厂
-ObjectFactories["node/mcitem"] = createMCItemNode;
+ObjectFactories["node/mc/item"] = createMCItemNode;
 
 // 注册序列化函数
 registerSerializer(
-  "node/mcitem",
+  "node/mc/item",
   (obj: Obj) => {
     const node = obj as MCItemNode;
     return {
@@ -277,7 +278,7 @@ ContextMenuFactories["node"] = (target: Obj): ContextMenuItem[] => {
 };
 
 // MC物品节点组件 - 简化版：只显示图标和中文名称，无边框和ID输入
-Coms["node/mcitem"] = ({ obj }) => {
+Coms["node/mc/item"] = ({ obj }) => {
   useAtom(obj.updater);
   const node = obj as MCItemNode;
 

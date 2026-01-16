@@ -5,6 +5,9 @@ import { Recipe } from "./RecipePreview";
 import { registerKeyAction } from "../Controllers/Keyboard";
 import { openInitializationModal } from "./InitializationModal";
 
+import "./MCFluidNode";
+import "./MCChemicalNode"
+
 export var coords: Record<string, any> = {}
 export var translations: Record<string, string> = {}
 export var recipesLoaded = false;

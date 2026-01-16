@@ -1,17 +1,24 @@
 import { screen2Viewport } from "../Controllers/Camera";
 import { ObjectFactories } from "../Controllers/Creator";
-import { onSetup, idFromEvent } from "../Globals";
+import { onSetup, idFromEvent, Node } from "../Globals";
 import { managerAdd } from "../Manager";
 import { translations } from "./Reciper";
 import { openRecipeModal } from "./RecipeListModal";
 
 // 拖拽放置物品到画布的过程式逻辑
-export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
+// export interface DragInfo {
+//   type: string;
+//   id: string;
+//   amount?: number;
+//   [key: string]: any;
+// }
+
+export const startDragItem = (e: MouseEvent, info: any) => {
   e.preventDefault();
   e.stopPropagation();
 
-  // 获取物品的中文名称
-  const itemName = translations[itemIdorTag] || itemIdorTag;
+  // 获取物品的名称
+  const itemName = translations[info.id] || info.id;
 
   // 创建临时拖拽元素
   const dragElement = document.createElement("div");
@@ -38,6 +45,19 @@ export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
   nameLabel.style.whiteSpace = "nowrap";
   nameLabel.textContent = itemName;
   previewContainer.appendChild(nameLabel);
+
+  // 如果有数量，显示数量
+  if (info.amount && info.amount > 1) {
+    const amountLabel = document.createElement("span");
+    amountLabel.style.fontSize = "10px";
+    amountLabel.style.color = "#a1a1aa";
+    if (info.type === 'item') {
+      amountLabel.textContent = `x${info.amount}`;
+    } else {
+      amountLabel.textContent = info.amount >= 1000 ? `${(info.amount / 1000).toFixed(1)}B` : `${info.amount}mb`;
+    }
+    previewContainer.appendChild(amountLabel);
+  }
 
   dragElement.appendChild(previewContainer);
   document.body.appendChild(dragElement);
@@ -73,12 +93,14 @@ export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
     document.body.removeChild(dragElement);
 
     if (e.target instanceof SVGRectElement && e.target.id === "background") {
-      // 创建MC物品节点
-      const node = ObjectFactories["node/mcitem"]() as any;
       const viewportPos = screen2Viewport({ x: e.clientX, y: e.clientY });
-      node.pos = { x: viewportPos.x - 40, y: viewportPos.y - 50 };
-      node.itemIdorTag = itemIdorTag;
-      managerAdd(node);
+
+      // let node: any;
+      let node = ObjectFactories["node/mc/" + info.type](info) as Node;
+      node.pos = viewportPos
+      if (node) {
+        managerAdd(node);
+      }
     } else {
       const target = e.target as SVGElement;
       const slot = target.closest("[data-slot-role]");
@@ -87,7 +109,7 @@ export const startDragItem = (e: MouseEvent, itemIdorTag: string) => {
       target.dispatchEvent(
         new CustomEvent("replace-item", {
           bubbles: true,
-          detail: { x: e.clientX, y: e.clientY, idorTag: itemIdorTag }
+          detail: { idorTag: info.id, type: info.type, amount: info.amount }
         }))
     }
   };
@@ -162,10 +184,10 @@ function getMouseQuery(e: MouseEvent) {
 
 function onMouseDown(e: MouseEvent) {
   const target = e.target as SVGElement;
-  const itemIcon = target.closest(".item-icon");
+  const source = target.closest("[data-type]") as SVGElement;
   const mouseQuery = getMouseQuery(e);
 
-  // 1. 处理删除 (默认中键)
+  // 1. 处理删除 (只有物品插槽可以删除)
   if (getSetting("reciper.delete_item_slot")?.value === mouseQuery) {
     const slot = target.closest("[data-slot-role]");
     if (slot && slot.getAttribute("data-slot-role") !== "output") {
@@ -181,8 +203,9 @@ function onMouseDown(e: MouseEvent) {
     return;
   }
 
-  const id = itemIcon?.id;
-  if (!id) return;
+  if (!source) return;
+
+  const info = source.dataset
 
   // 2. 处理忽略操作
   const ignoreVal = getSetting("reciper.ignore_item_op")?.value;
@@ -192,14 +215,13 @@ function onMouseDown(e: MouseEvent) {
 
   e.stopPropagation()
 
-  // 3. 处理打开配方
+  // 3. 处理打开配方 (目前主要支持物品, 未来可扩展流体和化学品)
   if (getSetting("reciper.open_recipe_result")?.value === mouseQuery)
-    openRecipeModal(id, "result")
+    openRecipeModal(info?.id!, "result")
   else if (getSetting("reciper.open_recipe_usage")?.value === mouseQuery)
-    openRecipeModal(id, "usage")
+    openRecipeModal(info?.id!, "usage")
   else if (e.button === 0) { // 左键拖拽
-    const tag = (e.target as SVGElement).closest(".item-icon")?.getAttribute("data-tag")
-    startDragItem(e, tag ? tag : id)
+    startDragItem(e, info)
   }
 }
 
