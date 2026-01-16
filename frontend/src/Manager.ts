@@ -376,7 +376,6 @@ export const loadDataFromFile = async (): Promise<{
     console.log("开始加载文件...");
 
     const result = await LoadFile();
-    console.log("加载结果:", result);
 
     if (!result) {
       console.log("加载被取消");

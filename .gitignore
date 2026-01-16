@@ -4,3 +4,5 @@ frontend/dist
 CLAUDE.md
 wailsjs
 files
+plugins
+.vscode
