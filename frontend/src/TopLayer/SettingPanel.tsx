@@ -48,6 +48,15 @@ topLayer.push(() => {
     });
   }, []);
 
+  const [activeCategory, setActiveCategory] = useState<string>(categories[0]?.name ?? "");
+
+  // 当面板打开且没有选中分类时，默认选中第一个
+  useEffect(() => {
+    if (visible && (!activeCategory || !categories.find(c => c.name === activeCategory))) {
+      setActiveCategory(categories[0]?.name ?? "");
+    }
+  }, [visible, categories]);
+
   // 强制组件重新渲染
   const forceUpdate = () => {
     updateCounter(prev => prev + 1);
@@ -101,6 +110,8 @@ topLayer.push(() => {
 
   if (!visible) return null;
 
+  const currentCategory = categories.find(c => c.name === activeCategory);
+
   return (
     <>
       {/* 背景遮罩 */}
@@ -111,72 +122,88 @@ topLayer.push(() => {
       {/* 设置面板 */}
       <div className="settings-panel visible">
         <div className="settings-header">
-          <span>设置</span>
+          <span className="settings-title">设置</span>
           <button className="settings-close" onClick={() => closeSettingsPanel()}>×</button>
         </div>
-        <div className="settings-content">
-          {categories.map((cat) => (
-            <div key={cat.name} className="settings-category">
-              <h3 className="settings-category-title">{cat.name}</h3>
-              {cat.items.map((item) => (
-                <div key={item.id} className="settings-item">
-                  <label className="settings-item-label">
-                    <span className="settings-item-title">{item.title}</span>
-                    {item.type === "key" && (
-                      <input
-                        type="text"
-                        className="settings-item-input"
-                        value={item.value}
-                        readOnly
-                        onClick={() => {
-                          const newKey = prompt(`输入新的按键绑定 (当前: ${item.value}):`);
-                          if (newKey) {
-                            setValue(item.id, newKey);
-                            forceUpdate();
-                          }
-                        }}
-                      />
-                    )}
-                    {item.type === "toggle" && (
-                      <input
-                        type="checkbox"
-                        className="settings-item-input"
-                        checked={item.value}
-                        onChange={(e) => {
-                          setValue(item.id, e.target.checked);
-                          forceUpdate();
-                        }}
-                      />
-                    )}
-                    {item.type === "number" && (
-                      <input
-                        type="number"
-                        className="settings-item-input"
-                        value={getDisplayValue(item)}
-                        step={0.05}
-                        min={0}
-                        max={10}
-                        onChange={(e) => handleNumberInputChange(item.id, e.target.value)}
-                        onBlur={() => handleNumberBlur(item)}
-                      />
-                    )}
-                    {item.type === "string" && (
-                      <input
-                        type="text"
-                        className="settings-item-input"
-                        value={getDisplayValue(item)}
-                        onChange={(e) => handleStringInputChange(item.id, e.target.value)}
-                        onBlur={() => handleStringBlur(item)}
-                      />
-                    )}
-                  </label>
-                  {item.description && (
-                    <span className="settings-item-desc">{item.description}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
+        <div className="settings-body">
+          <div className="settings-sidebar">
+            {categories.map((cat) => (
+              <div
+                key={cat.name}
+                className={`settings-sidebar-item ${activeCategory === cat.name ? "active" : ""}`}
+                onClick={() => setActiveCategory(cat.name)}
+              >
+                {cat.name}
+              </div>
+            ))}
+          </div>
+          <div className="settings-content">
+            {currentCategory && (
+              <div className="settings-category-group">
+                <h3 className="settings-category-header">{currentCategory.name}</h3>
+                {currentCategory.items.map((item) => (
+                  <div key={item.id} className="settings-item">
+                    <div className="settings-item-main">
+                      <div className="settings-item-info">
+                        <span className="settings-item-title">{item.title}</span>
+                        {item.description && (
+                          <span className="settings-item-desc">{item.description}</span>
+                        )}
+                      </div>
+                      <div className="settings-item-control">
+                        {item.type === "key" && (
+                          <input
+                            type="text"
+                            className="settings-item-input"
+                            value={item.value}
+                            readOnly
+                            onClick={() => {
+                              const newKey = prompt(`输入新的按键绑定 (当前: ${item.value}):`);
+                              if (newKey) {
+                                setValue(item.id, newKey);
+                                forceUpdate();
+                              }
+                            }}
+                          />
+                        )}
+                        {item.type === "toggle" && (
+                          <div className={`settings-switch ${item.value ? "active" : ""}`}
+                            onClick={() => {
+                              setValue(item.id, !item.value);
+                              forceUpdate();
+                            }}
+                          >
+                            <div className="settings-switch-thumb" />
+                          </div>
+                        )}
+                        {item.type === "number" && (
+                          <input
+                            type="number"
+                            className="settings-item-input"
+                            value={getDisplayValue(item)}
+                            step={0.05}
+                            min={0}
+                            max={10}
+                            onChange={(e) => handleNumberInputChange(item.id, e.target.value)}
+                            onBlur={() => handleNumberBlur(item)}
+                          />
+                        )}
+                        {item.type === "string" && (
+                          <input
+                            type="text"
+                            className="settings-item-input"
+                            value={getDisplayValue(item)}
+                            onChange={(e) => handleStringInputChange(item.id, e.target.value)}
+                            onBlur={() => handleStringBlur(item)}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
