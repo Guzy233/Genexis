@@ -2,7 +2,7 @@ import "./css/App.css";
 import "./css/variables.css";
 import "./css/dark-theme.css";
 import { useAtom } from "jotai";
-import { Coms, Controllers, topLayer } from "./Globals";
+import { Coms, Controllers, onSetups, topLayer } from "./Globals";
 import React, { useEffect } from "react";
 import { objects, canvasUpdater, createNewTab, clearTabs } from "./Manager";
 
@@ -57,9 +57,11 @@ const App: React.FC = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     createNewTab();
-    Controllers.map((controller) => controller.Begin(canvas));
+
+    const cleanups = onSetups.map((setup) => setup(canvas));
+
     return () => {
-      Controllers.map((controller) => controller.End(canvas));
+      cleanups.forEach((cleanup) => cleanup?.());
       clearTabs();
     };
   }, []);

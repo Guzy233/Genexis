@@ -1,4 +1,4 @@
-import { Controllers, idFromEvent } from "../Globals";
+import { onSetup, idFromEvent } from "../Globals";
 import { registerSetting } from "../Option";
 
 // ==================== Viewport 相关 ====================
@@ -188,14 +188,12 @@ function updateViewport() {
   }
 }
 
-Controllers.push({
-  Begin: (_canvas: SVGGElement) => {
-    canvas=_canvas;
-    _canvas.addEventListener("mousedown", onMouseDown);
-    _canvas.addEventListener("wheel", onWheel, { passive: false });
-  },
-  End: (canvas: SVGGElement) => {
-    canvas.removeEventListener("mousedown", onMouseDown);
-    canvas.removeEventListener("wheel", onWheel);
-  },
+onSetup((_canvas: SVGGElement) => {
+  canvas = _canvas;
+  _canvas.addEventListener("mousedown", onMouseDown);
+  _canvas.addEventListener("wheel", onWheel, { passive: false });
+  return () => {
+    _canvas.removeEventListener("mousedown", onMouseDown);
+    _canvas.removeEventListener("wheel", onWheel);
+  };
 });

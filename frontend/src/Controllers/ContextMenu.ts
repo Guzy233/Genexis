@@ -1,5 +1,5 @@
 import Manager, { objects } from "../Manager";
-import { Obj, Controllers, idFromEvent } from "../Globals";
+import { Obj, onSetup, idFromEvent } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import React from "react";
 import { atom } from "jotai";
@@ -97,13 +97,9 @@ const onContextMenu = (e: MouseEvent) => {
   };
   window.addEventListener("mousedown", onMenuMouseDown, true);
 };
-Controllers.push({
-  Begin: (canvas: SVGGElement) => {
-    canvas.addEventListener("contextmenu", onContextMenu);
-  },
-  End: (canvas: SVGGElement) => {
-    canvas.removeEventListener("contextmenu", onContextMenu);
-  },
+onSetup((canvas: SVGGElement) => {
+  canvas.addEventListener("contextmenu", onContextMenu);
+  return () => canvas.removeEventListener("contextmenu", onContextMenu);
 });
 
 // 注册删除选项

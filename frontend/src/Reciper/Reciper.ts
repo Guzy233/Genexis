@@ -1,4 +1,4 @@
-import { Controllers } from "../Globals";
+import { onSetup } from "../Globals";
 import Manager, { objects, registerOnFileLoaded, updateCanvas } from "../Manager";
 import { openItemListPanel, toggleItemList } from "./ItemListPanel";
 import { openInitializationModal } from "./InitializationModal";
@@ -202,14 +202,9 @@ const onKeydown = (e: KeyboardEvent) => {
 }
 
 
-Controllers.push({
-  Begin: (_canvas: SVGGElement) => {
-    window.addEventListener("keydown", onKeydown)
-
-  },
-  End: (_canvas: SVGGElement) => {
-    window.removeEventListener("keydown", onKeydown)
-  },
+onSetup((_canvas: SVGGElement) => {
+  window.addEventListener("keydown", onKeydown);
+  return () => window.removeEventListener("keydown", onKeydown);
 });
 
 registerOnFileLoaded(async (tab) => {

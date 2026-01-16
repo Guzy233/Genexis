@@ -75,3 +75,11 @@ export const Controllers: {
   Begin: (canvas: SVGGElement) => any;
   End: (canvas: SVGGElement) => any;
 }[] = [];
+
+// 新的 onSetup 注册系统
+export type SetupFn = (canvas: SVGGElement) => () => void;
+export const onSetups: SetupFn[] = [];
+
+export function onSetup(setupFn: SetupFn) {
+  onSetups.push(setupFn);
+}

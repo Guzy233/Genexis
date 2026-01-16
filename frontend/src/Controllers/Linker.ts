@@ -1,5 +1,5 @@
 import Manager, { objects, mgrUpdateRelationsFromEdge } from "../Manager";
-import { Edge, idFromEvent, Node, Controllers, Obj } from "../Globals";
+import { Edge, idFromEvent, Node, onSetup, Obj } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
@@ -161,9 +161,9 @@ export const onClickNode = (e: MouseEvent) => {
   startLinking(vEdge,vNode);
 };
 
-Controllers.push({
-  Begin: (canvas: SVGGElement) => canvas.addEventListener("mousedown", onClickNode),
-  End: (canvas: SVGGElement) => canvas.removeEventListener("mousedown", onClickNode),
+onSetup((canvas: SVGGElement) => {
+  canvas.addEventListener("mousedown", onClickNode);
+  return () => canvas.removeEventListener("mousedown", onClickNode);
 });
 
 // ==================== 右键菜单注册 ====================

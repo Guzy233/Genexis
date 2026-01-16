@@ -1,5 +1,5 @@
 import Manager, { objects, mgrUpdateRelationsFromEdge, mgrCalculateChildPosition } from "../Manager";
-import { Controllers, Node, Edge } from "../Globals";
+import { onSetup, Node, Edge } from "../Globals";
 import { registerSetting } from "../Option";
 import { atom } from "jotai";
 import { viewport } from "./Camera";
@@ -154,11 +154,7 @@ registerSetting({
 
 // ==================== 注册控制器 ====================
 
-Controllers.push({
-  Begin: (_canvas: SVGGElement) => {
-    window.addEventListener("keydown", onKeyDown);
-  },
-  End: (_canvas: SVGGElement) => {
-    window.removeEventListener("keydown", onKeyDown);
-  },
+onSetup((_canvas: SVGGElement) => {
+  window.addEventListener("keydown", onKeyDown);
+  return () => window.removeEventListener("keydown", onKeyDown);
 });

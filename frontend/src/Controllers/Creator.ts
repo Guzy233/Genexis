@@ -1,5 +1,5 @@
 import Manager from "../Manager";
-import { Controllers, Vec2, Node, Obj } from "../Globals";
+import { onSetup, Vec2, Node, Obj } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { getToolForCategory, CATEGORY_NODES } from "../TopLayer/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
@@ -95,9 +95,9 @@ const onDblClick = (e: MouseEvent) => {
   }
 };
 
-Controllers.push({
-  Begin: (canvas: SVGGElement) => canvas.addEventListener("dblclick", onDblClick),
-  End: (canvas: SVGGElement) => canvas.removeEventListener("dblclick", onDblClick),
+onSetup((canvas: SVGGElement) => {
+  canvas.addEventListener("dblclick", onDblClick);
+  return () => canvas.removeEventListener("dblclick", onDblClick);
 });
 
 // ==================== 右键菜单注册 ====================

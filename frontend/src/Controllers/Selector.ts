@@ -1,5 +1,5 @@
 import Manager, { objects } from "../Manager";
-import { idFromEvent, Node, Controllers, Obj, Vec2 } from "../Globals";
+import { idFromEvent, Node, onSetup, Obj, Vec2 } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { registerSetting, getSetting } from "../Option";
 import { atom } from "jotai";
@@ -400,13 +400,11 @@ registerSetting({
 
 // ==================== 注册控制器 ====================
 
-Controllers.push({
-  Begin: (canvas: SVGGElement) => {
-    canvas.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("keydown", handleKeyboardNavigation);
-  },
-  End: (canvas: SVGGElement) => {
+onSetup((canvas: SVGGElement) => {
+  canvas.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("keydown", handleKeyboardNavigation);
+  return () => {
     canvas.removeEventListener("mousedown", onMouseDown);
     window.removeEventListener("keydown", handleKeyboardNavigation);
-  },
+  };
 });

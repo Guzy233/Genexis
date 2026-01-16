@@ -1,5 +1,5 @@
 import Manager, { objects } from "../Manager";
-import { Obj, Controllers, Vec2 } from "../Globals";
+import { Obj, Vec2, onSetup } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { atom } from "jotai";
 import { saveHistory } from "../Manager";
@@ -85,7 +85,7 @@ export const onMouseDown = (e: MouseEvent) => {
   window.addEventListener("contextmenu", onContextMenu, true);
 };
 
-Controllers.push({
-  Begin: (canvas: SVGGElement) => canvas.addEventListener("mousedown", onMouseDown),
-  End: (canvas: SVGGElement) => canvas.removeEventListener("mousedown", onMouseDown),
+onSetup((canvas: SVGGElement) => {
+  canvas.addEventListener("mousedown", onMouseDown);
+  return () => canvas.removeEventListener("mousedown", onMouseDown);
 });

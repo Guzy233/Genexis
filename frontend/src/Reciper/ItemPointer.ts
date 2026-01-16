@@ -1,6 +1,6 @@
 import { screen2Viewport } from "../Controllers/Camera";
 import { ObjectFactories } from "../Controllers/Creator";
-import { Controllers, idFromEvent } from "../Globals";
+import { onSetup, idFromEvent } from "../Globals";
 import Manager from "../Manager";
 import { translations } from "./Reciper";
 import { openRecipeModal } from "./RecipeListModal";
@@ -145,11 +145,7 @@ function onMouseDown(e: MouseEvent) {
   }
 }
 
-Controllers.push({
-  Begin: () => {
-    window.addEventListener("mousedown", onMouseDown, true)
-  },
-  End: () => {
-    window.removeEventListener("mousedown", onMouseDown, true)
-  },
+onSetup(() => {
+  window.addEventListener("mousedown", onMouseDown, true);
+  return () => window.removeEventListener("mousedown", onMouseDown, true);
 });

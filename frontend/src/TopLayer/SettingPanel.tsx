@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Controllers, topLayer } from "../Globals";
+import { onSetup, topLayer } from "../Globals";
 import { getSettingsByCategory, setValue, SettingItem } from "../Option";
 
 // 设置面板状态管理
@@ -12,13 +12,9 @@ export const openSettingsPanel = () => {
   settingsPanelSubscribers.forEach((cb) => cb(true));
 };
 
-Controllers.push({
-  Begin: () => {
-    window.addEventListener("open-settings", openSettingsPanel);
-  },
-  End: () => {
-    window.removeEventListener("open-settings", openSettingsPanel);
-  },
+onSetup(() => {
+  window.addEventListener("open-settings", openSettingsPanel);
+  return () => window.removeEventListener("open-settings", openSettingsPanel);
 });
 
 

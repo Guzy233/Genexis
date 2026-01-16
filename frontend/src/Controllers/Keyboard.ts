@@ -1,4 +1,4 @@
-import { Controllers } from "../Globals";
+import { onSetup } from "../Globals";
 import { registerSetting, getSetting } from "../Option";
 import Manager, { updateCanvas } from "../Manager";
 import { objects, saveHistory, undo, redo, mgrAddEdgeRelation } from "../Manager";
@@ -517,19 +517,17 @@ const initDefaultBindings = () => {
 };
 
 // 按照操作器模式注册
-Controllers.push({
-  Begin: (canvas: SVGGElement) => {
-    initDefaultBindings();
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("keypress", onKeyPress);
-    // 追踪鼠标位置，用于粘贴功能
-    window.addEventListener("mousemove", updateMousePosition);
-  },
-  End: (canvas: SVGGElement) => {
+onSetup((_canvas: SVGGElement) => {
+  initDefaultBindings();
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("keypress", onKeyPress);
+  // 追踪鼠标位置，用于粘贴功能
+  window.addEventListener("mousemove", updateMousePosition);
+  return () => {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("keypress", onKeyPress);
     window.removeEventListener("mousemove", updateMousePosition);
-  },
+  };
 });
