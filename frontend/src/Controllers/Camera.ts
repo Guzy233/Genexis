@@ -177,23 +177,58 @@ const onWheel = (e: WheelEvent) => {
 
 let canvas: SVGGElement | null = null;
 
+let gridPattern: SVGPatternElement | null = null;
+let gridPath: SVGPathElement | null = null;
+
 function updateViewport() {
   if (canvas) {
     const transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
     canvas.style.transform = transform;
     canvas.style.transformOrigin = "0 0";
+
+    // 更新适应性网格
+    if (!gridPattern) gridPattern = document.getElementById("grid") as any;
+    if (gridPattern && !gridPath) gridPath = gridPattern.querySelector("path");
+
+    if (gridPattern && gridPath) {
+      const baseGridSize = 25;
+      let worldGridSize = baseGridSize;
+
+      // 保持视觉网格大小在 20px 到 200px 之间
+      if (viewport.zoom > 0) {
+        while (worldGridSize * viewport.zoom < 20) worldGridSize *= 10;
+        while (worldGridSize * viewport.zoom > 200) worldGridSize /= 10;
+      }
+
+      const visualGridSize = worldGridSize * viewport.zoom;
+
+      gridPattern.setAttribute("width", visualGridSize.toString());
+      gridPattern.setAttribute("height", visualGridSize.toString());
+      gridPath.setAttribute("d", `M ${visualGridSize} 0 L 0 0 0 ${visualGridSize}`);
+
+      // 偏移网格以对齐世界坐标原点
+      const offsetX = viewport.x % visualGridSize;
+      const offsetY = viewport.y % visualGridSize;
+      gridPattern.setAttribute("patternTransform", `translate(${offsetX}, ${offsetY})`);
+    }
   } else {
     canvas = document.querySelector("#canvas");
-    updateViewport();
+    if (canvas) updateViewport();
   }
 }
 
 onSetup((_canvas: SVGGElement) => {
   canvas = _canvas;
-  _canvas.addEventListener("mousedown", onMouseDown);
-  _canvas.addEventListener("wheel", onWheel, { passive: false });
+  const svg = _canvas.ownerSVGElement;
+  if (svg) {
+    // 将监听器移动到全局 SVG，以便在背景上点击也能平移
+    svg.addEventListener("mousedown", onMouseDown);
+    svg.addEventListener("wheel", onWheel, { passive: false });
+  }
   return () => {
-    _canvas.removeEventListener("mousedown", onMouseDown);
-    _canvas.removeEventListener("wheel", onWheel);
+    if (svg) {
+      svg.removeEventListener("mousedown", onMouseDown);
+      svg.removeEventListener("wheel", onWheel);
+    }
   };
 });

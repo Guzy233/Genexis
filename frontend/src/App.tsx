@@ -75,16 +75,13 @@ const App: React.FC = () => {
       onContextMenuCapture={(e) => e.preventDefault()}
     >
       <svg width="100%" height="100%" className="mindmap-svg">
+        <rect
+          width="100%"
+          height="100%"
+          fill="url(#grid)"
+          id="background"
+        />
         <g ref={canvasRef} id="canvas">
-          <rect
-            x={-50000}
-            y={-50000}
-            width="100000"
-            height="100000"
-            fill="url(#grid)"
-            id="background"
-          />
-
           <CoordinateSystem />
 
           {sortedObjects.map((obj) => {

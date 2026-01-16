@@ -28,7 +28,7 @@ topLayer.push(() => {
           <path
             d="M 25 0 L 0 0 0 25"
             fill="none"
-            stroke="rgba(255,255,255,0.03)"
+            stroke="rgba(255,255,255,0.15)"
             strokeWidth="0.5"
           />
         </pattern>
