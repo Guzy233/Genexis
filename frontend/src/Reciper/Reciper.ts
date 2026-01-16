@@ -8,7 +8,7 @@ import { openInitializationModal } from "./InitializationModal";
 export var coords: Record<string, any> = {}
 export var translations: Record<string, string> = {}
 export var recipesLoaded = false;
-export var currentConfig: { gameFolder: string; version: string; datapackName: string; language: string } | null = null;
+export var currentConfig: { gameFolder: string; version: string; datapackName: string; language: string; exportPath?: string; exportType?: "kubejs" | "datapack" | "custom" } | null = null;
 export var atlasUrl: string = "";
 
 export async function fetchWithFolder(url: string, init?: RequestInit) {
@@ -35,7 +35,7 @@ async function getAtlas() {
   atlasUrl = URL.createObjectURL(blob);
 }
 
-export async function loadRecipes(config?: { gameFolder: string; version: string; datapackName: string; language: string }) {
+export async function loadRecipes(config?: { gameFolder: string; version: string; datapackName: string; language: string; exportPath?: string; exportType?: "kubejs" | "datapack" | "custom" }) {
   if (config) {
     currentConfig = config;
   }
@@ -53,6 +53,8 @@ export async function initializeReciperApi(
     version: string;
     datapackName: string;
     language: string;
+    exportPath?: string;
+    exportType?: "kubejs" | "datapack" | "custom";
     forceReload?: boolean
   }) {
   const response = await fetch("reciper/initialize", {

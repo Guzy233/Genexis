@@ -23,6 +23,8 @@ const InitializationModal: React.FC = () => {
   const [gameFolder, setGameFolder] = useState(currentConfig?.gameFolder || "");
   const [version, setVersion] = useState(currentConfig?.version || "1.20.1");
   const [datapackName, setDatapackName] = useState(currentConfig?.datapackName || "");
+  const [exportType, setExportType] = useState<"kubejs" | "datapack" | "custom">(currentConfig?.exportType || "kubejs");
+  const [exportPath, setExportPath] = useState(currentConfig?.exportPath || "");
   const [language, setLanguage] = useState(currentConfig?.language || "zh_cn");
   const [forceReload, setForceReload] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,6 +44,8 @@ const InitializationModal: React.FC = () => {
           setGameFolder(config.gameFolder || "");
           setVersion(config.version || "1.20.1");
           setDatapackName(config.datapackName || "");
+          setExportType(config.exportType || "kubejs");
+          setExportPath(config.exportPath || "");
           setLanguage(config.language || "zh_cn");
         }
       }
@@ -52,6 +56,14 @@ const InitializationModal: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (exportType === "kubejs") {
+      setExportPath(`/kubejs/data/${datapackName}`);
+    } else if (exportType === "datapack") {
+      setExportPath(`/datapacks/${datapackName}.zip`);
+    }
+  }, [datapackName, exportType]);
+
   const handleApplyTemplate = (tabId: string) => {
     setSelectedTemplateId(tabId);
     const templateTab = tabs.find(t => t.id === tabId);
@@ -60,6 +72,8 @@ const InitializationModal: React.FC = () => {
       setGameFolder(config.gameFolder || "");
       setVersion(config.version || "1.20.1");
       setDatapackName(config.datapackName || "");
+      setExportType(config.exportType || "kubejs");
+      setExportPath(config.exportPath || "");
       setLanguage(config.language || "zh_cn");
     }
   };
@@ -96,6 +110,8 @@ const InitializationModal: React.FC = () => {
         gameFolder: gameFolder.trim(),
         version: version.trim(),
         datapackName: datapackName.trim(),
+        exportType: exportType,
+        exportPath: exportPath.trim(),
         language: language,
         forceReload: forceReload,
       });
@@ -275,6 +291,50 @@ const InitializationModal: React.FC = () => {
               fontSize: "14px",
             }}
           />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <label style={{ color: "#a1a1aa", fontSize: "14px" }}>
+            自动导出路径
+          </label>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <select
+              value={exportType}
+              onChange={(e) => setExportType(e.target.value as any)}
+              style={{
+                background: "rgba(0, 0, 0, 0.2)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "6px",
+                padding: "10px 12px",
+                color: "#e4e4e7",
+                outline: "none",
+                fontSize: "14px",
+                cursor: "pointer",
+                width: "120px",
+              }}
+            >
+              <option value="kubejs" style={{ background: "#27272a" }}>KubeJS</option>
+              <option value="datapack" style={{ background: "#27272a" }}>Datapack</option>
+              <option value="custom" style={{ background: "#27272a" }}>自定义</option>
+            </select>
+            <input
+              type="text"
+              value={exportPath}
+              disabled={exportType !== "custom"}
+              onChange={(e) => setExportPath(e.target.value)}
+              placeholder="例如: /kubejs/data/packname"
+              style={{
+                background: exportType === "custom" ? "rgba(0, 0, 0, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "6px",
+                padding: "10px 12px",
+                color: exportType === "custom" ? "#e4e4e7" : "#a1a1aa",
+                outline: "none",
+                fontSize: "14px",
+                flex: 1,
+              }}
+            />
+          </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
