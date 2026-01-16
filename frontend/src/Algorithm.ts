@@ -1,17 +1,7 @@
 import { Vec2, Node, Obj } from "./Globals";
+import type { NodeRelationGraph } from "./Manager";
 
-// ==================== 类型定义 ====================
-
-/**
- * 节点关系图
- * 存储所有节点之间的连接关系
- */
-export interface NodeRelationGraph {
-  // 上游（父）节点映射：nodeId -> Set<parentIds>
-  upstream: Map<string, Set<string>>;
-  // 下游（子）节点映射：nodeId -> Set<childIds>
-  downstream: Map<string, Set<string>>;
-}
+// ==================== 节点关系图创建 ====================
 
 /**
  * 创建新的空关系图
@@ -235,60 +225,6 @@ export const rebuildRelationGraph = (
   }
 
   return graph;
-};
-
-// ==================== 布局算法 ====================
-
-/**
- * 计算新节点的位置
- * @param graph 关系图
- * @param objects 对象集合
- * @param parentId 父节点ID（上游节点）
- * @param defaultPos 默认位置（没有父节点时使用）
- * @returns 新节点的位置
- */
-export const calculateChildPosition = (
-  graph: NodeRelationGraph,
-  objects: Record<string, Obj>,
-  parentId: string | null,
-  defaultPos: Vec2
-): Vec2 => {
-  if (!parentId) {
-    return defaultPos;
-  }
-
-  const parentNode = objects[parentId] as Node;
-  if (!parentNode) {
-    return defaultPos;
-  }
-
-  // 获取父节点的所有下游节点
-  const children = getDownstream(graph, parentId);
-
-  if (children.size > 0) {
-    // 有子节点，找到最后一个子节点
-    const childArray = Array.from(children);
-    const lastChildId = childArray[childArray.length - 1];
-    const lastChild = objects[lastChildId] as Node;
-
-    if (lastChild) {
-      // 计算父节点到最后一个子节点的偏移
-      const dx = lastChild.pos.x - parentNode.pos.x;
-      const dy = lastChild.pos.y - parentNode.pos.y;
-
-      // 在最后一个子节点的基础上继续偏移
-      return {
-        x: lastChild.pos.x + dx,
-        y: lastChild.pos.y + dy,
-      };
-    }
-  }
-
-  // 没有子节点，默认向右300个单位
-  return {
-    x: parentNode.pos.x + 300,
-    y: parentNode.pos.y,
-  };
 };
 
 /**

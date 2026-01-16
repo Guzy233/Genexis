@@ -5,8 +5,8 @@ import {
   tabsUpdater,
   getAllTabs,
   getActiveTab,
-  switchTab,
-  closeTab,
+  switchTabById,
+  closeTabById,
 } from "../Manager";
 
 interface FileTab {
@@ -28,7 +28,7 @@ topLayer.push(() => {
   // 处理标签点击
   const handleTabClick = (tabId: string) => {
     if (tabId !== activeTab?.id) {
-      switchTab(tabId);
+      switchTabById(tabId);
       forceUpdate(Math.random());
     }
   };
@@ -36,7 +36,7 @@ topLayer.push(() => {
   // 处理关闭按钮点击
   const handleCloseClick = async (e: React.MouseEvent, tabId: string) => {
     e.stopPropagation();
-    await closeTab(tabId);
+    await closeTabById(tabId);
     forceUpdate(Math.random());
   };
 

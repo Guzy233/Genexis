@@ -1,9 +1,11 @@
 import { registerKeyAction } from "./Keyboard";
 import { onSetup } from "../Globals";
-import Manager, { updateCanvas } from "../Manager";
-import { objects, saveHistory, mgrAddEdgeRelation } from "../Manager";
+import Manager, { updateCanvas, getActiveTab } from "../Manager";
+import { objects, saveHistory } from "../Manager";
 import { serializeCanvas, deserializeCanvas } from "../Serialization";
 import { screen2Viewport } from "./Camera";
+import { addEdgeRelation } from "../Algorithm";
+import type { NodeRelationGraph } from "../Manager";
 
 // 键盘操作枚举 - 复制粘贴相关
 export const ClipboardAction = {
@@ -144,11 +146,14 @@ const pasteFromClipboard = async (mousePos?: { x: number; y: number }): Promise<
     deserializeCanvas(clipboardData, objects);
 
     // 记录节点关系
-    clipboardData.objects
-      .filter((obj) => obj.type.startsWith("edge/"))
-      .forEach((edgeData: any) => {
-        mgrAddEdgeRelation(edgeData.sourceId, edgeData.targetId);
-      });
+    const activeTab = getActiveTab();
+    if (activeTab?.nodeRelations) {
+      clipboardData.objects
+        .filter((obj) => obj.type.startsWith("edge/"))
+        .forEach((edgeData: any) => {
+          addEdgeRelation(activeTab.nodeRelations, edgeData.sourceId, edgeData.targetId);
+        });
+    }
 
     saveHistory();
     updateCanvas();

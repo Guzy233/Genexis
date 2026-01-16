@@ -1,4 +1,4 @@
-import Manager, { objects, mgrUpdateRelationsFromEdge } from "../Manager";
+import Manager, { objects, getActiveTab } from "../Manager";
 import { Edge, idFromEvent, Node, onSetup, Obj } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
@@ -7,6 +7,7 @@ import { createNodeCentered, ObjectFactories } from "./Creator";
 import { getToolForCategory, CATEGORY_EDGES } from "../TopLayer/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
 import { saveHistory } from "../Manager";
+import { addEdgeRelation } from "../Algorithm";
 
 // 连接器状态
 let linkingKey = "Space";
@@ -92,7 +93,10 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
         }
         Manager.updateId(vEdge.id);
         // 更新节点关系
-        mgrUpdateRelationsFromEdge(vEdge.id);
+        const activeTab = getActiveTab();
+        if (activeTab?.nodeRelations) {
+          addEdgeRelation(activeTab.nodeRelations, vEdge.source.id, vEdge.target.id);
+        }
         saveHistory();
       }
     } else {
@@ -109,7 +113,10 @@ const startLinking = (vEdge:Edge,vNode:Node) => {
         Manager.add(node);
         Manager.update(vEdge);
         // 更新节点关系
-        mgrUpdateRelationsFromEdge(vEdge.id);
+        const activeTab = getActiveTab();
+        if (activeTab?.nodeRelations) {
+          addEdgeRelation(activeTab.nodeRelations, vEdge.source.id, vEdge.target.id);
+        }
         saveHistory();
       } else {
         Manager.deleteId(vEdge.id);

@@ -1,24 +1,24 @@
-import { atom, getDefaultStore } from "jotai";
-import { Obj as Obj } from "./Globals";
+import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
+import { Obj } from "./Globals";
 import {
   serializeCanvas,
   deserializeCanvas,
   SerializedCanvas,
 } from "./Serialization";
 import { SaveFile, SaveFileDirect, LoadFile } from "../wailsjs/go/main/App";
-import {
-  NodeRelationGraph,
-  createRelationGraph,
-  addEdgeRelation,
-  removeEdgeRelation,
-  clearNodeRelations,
-  updateRelationsFromEdge,
-  calculateChildPosition,
-  serializeRelationGraph,
-  deserializeRelationGraph,
-  rebuildRelationGraph,
-} from "./Algorithm";
-import { PrimitiveAtom } from "jotai";
+
+// ==================== 节点关系类型定义 ====================
+
+/**
+ * 节点关系图
+ * 存储所有节点之间的连接关系
+ */
+export interface NodeRelationGraph {
+  // 上游（父）节点映射：nodeId -> Set<parentIds>
+  upstream: Map<string, Set<string>>;
+  // 下游（子）节点映射：nodeId -> Set<childIds>
+  downstream: Map<string, Set<string>>;
+}
 
 export const objects: Record<string, Obj> = {};
 export const store = getDefaultStore();
@@ -53,14 +53,14 @@ export interface FileTab {
   nodeRelations: NodeRelationGraph; // 该文件的节点关系图
   isModified: boolean; // 是否有未保存的修改
   history: FileHistory; // 该文件的撤销/重做历史
-  metadata: Record<string, any>; // 元数据（如游戏配置）
+  metadata: Record<string, any>; // 元数据
 }
 
 // 打开的标签列表
 const openTabs: FileTab[] = [];
 
-// 当前激活的标签 ID
-let activeTabId: string | null = null;
+// 当前激活的标签（直接存储引用）
+let activeTab: FileTab | null = null;
 
 // 标签状态更新器（用于触发 UI 更新）
 export const tabsUpdater = atom(0);
@@ -109,18 +109,15 @@ const createNewHistory = (): FileHistory => ({
 });
 
 // 获取当前激活的标签
-export const getActiveTab = () => {
-  return openTabs.find((tab) => tab.id === activeTabId) || null;
-};
+export const getActiveTab = () => activeTab;
 
 // 获取所有打开的标签
 export const getAllTabs = () => [...openTabs];
 
 // 设置当前标签的修改状态
 export const setTabModified = (modified: boolean) => {
-  const currentTab = getActiveTab();
-  if (currentTab && currentTab.isModified !== modified) {
-    currentTab.isModified = modified;
+  if (activeTab && activeTab.isModified !== modified) {
+    activeTab.isModified = modified;
     updateTabs();
   }
 };
@@ -134,7 +131,6 @@ const markAsModified = () => {
 
 // 保存当前状态到历史记录
 export const saveHistory = (): void => {
-  const activeTab = getActiveTab();
   if (!activeTab) return;
 
   const { history, currentIndex } = activeTab.history;
@@ -143,7 +139,6 @@ export const saveHistory = (): void => {
   if (currentIndex < history.length - 1) {
     history.splice(currentIndex + 1);
   }
-
 
   const snapshot = serializeCanvas(objects);
   history.push(snapshot);
@@ -176,7 +171,6 @@ const restoreHistory = (tab: FileTab, index: number): boolean => {
 
 // 撤销
 export const undo = (): boolean => {
-  const activeTab = getActiveTab();
   if (!activeTab) return false;
 
   const result = restoreHistory(activeTab, activeTab.history.currentIndex - 1);
@@ -188,7 +182,6 @@ export const undo = (): boolean => {
 
 // 重做
 export const redo = (): boolean => {
-  const activeTab = getActiveTab();
   if (!activeTab) return false;
 
   const result = restoreHistory(activeTab, activeTab.history.currentIndex + 1);
@@ -200,37 +193,28 @@ export const redo = (): boolean => {
 
 // 是否有撤销历史
 export const canUndo = (): boolean => {
-  const activeTab = getActiveTab();
-  if (!activeTab) return false;
-  return activeTab.history.currentIndex > 0;
+  return activeTab ? activeTab.history.currentIndex > 0 : false;
 };
 
 // 是否有重做历史
 export const canRedo = (): boolean => {
-  const activeTab = getActiveTab();
-  if (!activeTab) return false;
-  return activeTab.history.currentIndex < activeTab.history.history.length - 1;
+  return activeTab ? activeTab.history.currentIndex < activeTab.history.history.length - 1 : false;
 };
 
 // ==================== 标签管理 ====================
 
 // 切换到指定标签
-export const switchTab = (tabId: string) => {
-  const targetTab = openTabs.find((tab) => tab.id === tabId);
-  if (!targetTab) return false;
-
-  // 保存当前标签的 objects 和 nodeRelations 状态
-  const currentTab = getActiveTab();
-  if (currentTab) {
-    currentTab.objects = { ...objects };
-    // nodeRelations 已经是引用，不需要额外保存
+export const switchTab = (tab: FileTab) => {
+  // 保存当前标签的 objects 状态
+  if (activeTab) {
+    activeTab.objects = { ...objects };
   }
 
   // 切换到目标标签
-  activeTabId = tabId;
+  activeTab = tab;
 
   // 恢复目标标签的 objects
-  Object.assign(objects, targetTab.objects);
+  Object.assign(objects, tab.objects);
 
   // 确保 objects 中的对象正确连接（处理边引用）
   Object.values(objects).forEach((obj: any) => {
@@ -242,28 +226,27 @@ export const switchTab = (tabId: string) => {
 
   updateCanvas();
   updateTabs();
-  onFileLoadedHooks.forEach(hook => hook(targetTab));
+  onFileLoadedHooks.forEach(hook => hook(tab));
   return true;
 };
 
+// 按 ID 切换标签（兼容旧接口）
+export const switchTabById = (tabId: string) => {
+  const targetTab = openTabs.find((tab) => tab.id === tabId);
+  if (!targetTab) return false;
+  return switchTab(targetTab);
+};
 
 // 关闭标签
-export const closeTab = async (tabId: string) => {
-  const tabIndex = openTabs.findIndex((tab) => tab.id === tabId);
+export const closeTab = async (tab: FileTab) => {
+  const tabIndex = openTabs.findIndex((t) => t.id === tab.id);
   if (tabIndex === -1) return false;
-
-  const tab = openTabs[tabIndex];
 
   // 检查是否有未保存的修改
   if (tab.isModified) {
-    // 如果关闭的是当前标签，需要先切换过去以保存数据
-    const wasActive = tabId === activeTabId;
-    if (wasActive) {
-      // 保存当前标签的 objects 快照
-      tab.objects = { ...objects };
-    } else {
-      // 切换到该标签以便保存
-      switchTab(tabId);
+    // 如果关闭的不是当前标签，先切换过去
+    if (activeTab !== tab) {
+      switchTab(tab);
     }
 
     // 弹出确认对话框
@@ -274,32 +257,23 @@ export const closeTab = async (tabId: string) => {
       // 用户选择保存
       const saved = await saveFile(false);
       if (!saved) {
-        // 保存失败或取消，不关闭标签
-        if (!wasActive) {
-          // 恢复原来的激活标签
-          const currentActive = getActiveTab();
-          if (currentActive && currentActive.id !== tabId) {
-            switchTab(currentActive.id);
-          }
-        }
         return false;
       }
     }
-    // 用户点击取消，放弃更改，继续关闭
   }
 
   // 移除标签
   openTabs.splice(tabIndex, 1);
 
   // 如果关闭的是当前标签，切换到其他标签
-  if (tabId === activeTabId) {
+  if (activeTab === tab) {
     if (openTabs.length > 0) {
       // 切换到相邻标签
       const newIndex = Math.min(tabIndex, openTabs.length - 1);
-      switchTab(openTabs[newIndex].id);
+      switchTab(openTabs[newIndex]);
       updateCanvas();
     } else {
-      activeTabId = null;
+      activeTab = null;
       Object.keys(objects).forEach((key) => {
         delete objects[key];
       });
@@ -312,6 +286,13 @@ export const closeTab = async (tabId: string) => {
   return true;
 };
 
+// 按 ID 关闭标签（兼容旧接口）
+export const closeTabById = async (tabId: string) => {
+  const tab = openTabs.find((t) => t.id === tabId);
+  if (!tab) return false;
+  return closeTab(tab);
+};
+
 // 创建新标签
 export const createNewTab = () => {
   const newTab: FileTab = {
@@ -319,13 +300,16 @@ export const createNewTab = () => {
     filePath: null,
     fileName: "未命名",
     objects: {},
-    nodeRelations: createRelationGraph(),
+    nodeRelations: {
+      upstream: new Map(),
+      downstream: new Map(),
+    },
     isModified: false,
     history: createNewHistory(),
     metadata: {},
   };
   openTabs.push(newTab);
-  activeTabId = newTab.id;
+  activeTab = newTab;
 
   onTabCreatedHooks.forEach(hook => hook(newTab));
 
@@ -421,11 +405,12 @@ export const loadDataFromFile = async (): Promise<{
 
 // 保存当前文件
 export const saveFile = async (saveAs: boolean = false): Promise<boolean> => {
-  const activeTab = getActiveTab();
   if (!activeTab) return false;
 
   // 保存前触发钩子
-  onBeforeSaveHooks.forEach(hook => hook(activeTab));
+  onBeforeSaveHooks.forEach(hook => {
+    if (activeTab) hook(activeTab);
+  });
 
   // 序列化画布数据
   const canvasData = serializeCanvas(objects);
@@ -453,7 +438,9 @@ export const saveFile = async (saveAs: boolean = false): Promise<boolean> => {
   setTabModified(false);
   updateTabs();
 
-  onFileSavedHooks.forEach(hook => hook(activeTab));
+  onFileSavedHooks.forEach(hook => {
+    if (activeTab) hook(activeTab);
+  });
   return true;
 };
 
@@ -472,7 +459,7 @@ export const loadFile = async (): Promise<boolean> => {
   // 检查文件是否已经打开
   const existingTab = openTabs.find((tab) => tab.filePath === filePath);
   if (existingTab) {
-    switchTab(existingTab.id);
+    switchTab(existingTab);
     return true;
   }
 
@@ -488,13 +475,31 @@ export const loadFile = async (): Promise<boolean> => {
   deserializeCanvas(data, objects);
 
   // 重建节点关系图
-  const nodeRelations = rebuildRelationGraph(objects);
+  const nodeRelations: NodeRelationGraph = {
+    upstream: new Map(),
+    downstream: new Map(),
+  };
+
+  // 遍历所有边，重建关系
+  Object.values(objects).forEach((obj) => {
+    if (obj.type.startsWith("edge/")) {
+      const edge = obj as unknown as { source: { id: string }; target: { id: string } };
+      if (edge.source && edge.target) {
+        const downstream = nodeRelations.downstream.get(edge.source.id) || new Set<string>();
+        downstream.add(edge.target.id);
+        nodeRelations.downstream.set(edge.source.id, downstream);
+
+        const upstream = nodeRelations.upstream.get(edge.target.id) || new Set<string>();
+        upstream.add(edge.source.id);
+        nodeRelations.upstream.set(edge.target.id, upstream);
+      }
+    }
+  });
 
   // 创建新标签或更新当前标签
   const fileName = getFilenameFromPath(filePath);
 
   // 如果当前标签是空的（未命名且无内容），则替换它
-  const activeTab = getActiveTab();
   if (
     activeTab &&
     !activeTab.filePath &&
@@ -528,9 +533,8 @@ export const loadFile = async (): Promise<boolean> => {
   updateCanvas();
   updateTabs();
 
-  const finalTab = getActiveTab();
-  if (finalTab) {
-    onFileLoadedHooks.forEach(hook => hook(finalTab));
+  if (activeTab) {
+    onFileLoadedHooks.forEach(hook => hook(activeTab!));
   }
 
   return true;
@@ -538,14 +542,12 @@ export const loadFile = async (): Promise<boolean> => {
 
 // 检查是否有未保存的更改
 export const hasUnsavedChanges = (): boolean => {
-  const activeTab = getActiveTab();
   return activeTab ? activeTab.isModified : Object.keys(objects).length > 0;
 };
 
 // 新建文件
 export const newFile = async (): Promise<boolean> => {
   // 保存当前标签的 objects 快照到标签中
-  const activeTab = getActiveTab();
   if (activeTab) {
     activeTab.objects = { ...objects };
   }
@@ -567,78 +569,7 @@ export const newFile = async (): Promise<boolean> => {
 // ==================== 导出接口 ====================
 
 export const getCurrentFilePath = () => {
-  const activeTab = getActiveTab();
   return activeTab?.filePath || null;
-};
-
-// ==================== 节点关系管理（转发函数） ====================
-
-/**
- * 获取当前标签的关系图
- */
-const getCurrentRelationGraph = (): NodeRelationGraph | null => {
-  const activeTab = getActiveTab();
-  return activeTab?.nodeRelations || null;
-};
-
-/**
- * 添加边的关系记录
- */
-export const mgrAddEdgeRelation = (
-  sourceId: string,
-  targetId: string
-): void => {
-  const graph = getCurrentRelationGraph();
-  if (graph) {
-    addEdgeRelation(graph, sourceId, targetId);
-  }
-};
-
-/**
- * 移除边的关系记录
- */
-export const mgrRemoveEdgeRelation = (
-  sourceId: string,
-  targetId: string
-): void => {
-  const graph = getCurrentRelationGraph();
-  if (graph) {
-    removeEdgeRelation(graph, sourceId, targetId);
-  }
-};
-
-/**
- * 清除节点的关系记录
- */
-export const mgrClearNodeRelations = (nodeId: string): void => {
-  const graph = getCurrentRelationGraph();
-  if (graph) {
-    clearNodeRelations(graph, nodeId);
-  }
-};
-
-/**
- * 根据边更新节点关系
- */
-export const mgrUpdateRelationsFromEdge = (edgeId: string): void => {
-  const graph = getCurrentRelationGraph();
-  if (graph) {
-    updateRelationsFromEdge(graph, objects, edgeId);
-  }
-};
-
-/**
- * 计算子节点位置
- */
-export const mgrCalculateChildPosition = (
-  parentId: string | null,
-  defaultPos: { x: number; y: number }
-): { x: number; y: number } => {
-  const graph = getCurrentRelationGraph();
-  if (graph) {
-    return calculateChildPosition(graph, objects, parentId, defaultPos);
-  }
-  return defaultPos;
 };
 
 // Manager 默认导出
@@ -668,11 +599,6 @@ export default {
     const obj = objects[id];
     if (!obj) return;
 
-    // 如果是节点，清理关系记录
-    if (obj.type.startsWith("node/")) {
-      mgrClearNodeRelations(id);
-    }
-
     // 如果是节点，找出并删除连接到它的所有边
     if (obj.type.startsWith("node/")) {
       const edgesToDelete: string[] = [];
@@ -701,5 +627,5 @@ export default {
 
 export function clearTabs() {
   openTabs.length = 0;
-  activeTabId = null;
+  activeTab = null;
 }
