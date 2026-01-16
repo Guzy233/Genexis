@@ -21,6 +21,7 @@ import "./UIs/SelectionBox";
 import "./UIs/ContextMenu";
 import "./UIs/DeletionTrail";
 
+import "./Controllers/Clipboard";
 import "./Controllers/Keyboard";
 import "./Controllers/Creator";
 import "./Controllers/ContextMenu";

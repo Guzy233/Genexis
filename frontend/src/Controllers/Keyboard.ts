@@ -1,15 +1,11 @@
 import { onSetup } from "../Globals";
-import { registerSetting, getSetting } from "../Option";
-import Manager, { updateCanvas } from "../Manager";
-import { objects, saveHistory, undo, redo, mgrAddEdgeRelation } from "../Manager";
-import { serializeCanvas, deserializeCanvas, SerializedCanvas } from "../Serialization";
-import { screen2Viewport } from "./Camera";
-import { active, activedId } from "./Selector";
+import { registerSetting, getSetting, SettingItem } from "../Option";
+import Manager from "../Manager";
+import { objects, saveHistory, undo, redo } from "../Manager";
+import { active } from "./Selector";
 
 // 键盘操作枚举
 export const KeyAction = {
-  COPY: "COPY",
-  PASTE: "PASTE",
   DELETE: "DELETE",
   UNDO: "UNDO",
   REDO: "REDO",
@@ -26,39 +22,56 @@ export const KeyAction = {
 
 export type KeyAction = typeof KeyAction[keyof typeof KeyAction];
 
-// ==================== 鼠标位置追踪 ====================
-// 用于粘贴时获取鼠标位置
-let lastMousePosition: { x: number; y: number } | null = null;
+// ==================== 按键动作注册系统 ====================
+// 允许其他控制器向 Keyboard 注册按键动作
 
-const updateMousePosition = (e: MouseEvent) => {
-  lastMousePosition = { x: e.clientX, y: e.clientY };
-};
+type KeyActionHandler = () => void;
+
+interface KeyActionRegistration {
+  action: string;
+  handler: KeyActionHandler;
+  settings: Omit<SettingItem, "onChange">;
+}
+
+// 注册的按键动作
+const registeredActions: Map<string, KeyActionRegistration> = new Map();
+
+// 注册按键动作的接口（供其他控制器使用）
+export function registerKeyAction(registration: KeyActionRegistration): void {
+  registeredActions.set(registration.action, registration);
+
+  // 向 Option 系统转发注册设置项
+  registerSetting({
+    ...registration.settings,
+    onChange: (v) => updateBinding(registration.action as KeyAction, v),
+  });
+}
 
 // ==================== 按键映射 ====================
 // 动态按键映射
-const keyMap = new Map<string, KeyAction>();
+const keyMap = new Map<string, string>();
 
-// 按键查询字符串到 KeyAction 的映射
-const actionToKey = new Map<KeyAction, string>();
+// 按键查询字符串到动作的映射
+const actionToKey = new Map<string, string>();
 
 /**
  * 根据按键查询字符串查找对应的操作
  */
-function findAction(query: string): KeyAction | undefined {
+function findAction(query: string): string | undefined {
   return keyMap.get(query);
 }
 
 /**
  * 根据操作获取当前绑定的按键
  */
-export function getBinding(action: KeyAction): string | undefined {
+export function getBinding(action: string): string | undefined {
   return actionToKey.get(action);
 }
 
 /**
  * 更新按键绑定
  */
-function updateBinding(action: KeyAction, key: string): void {
+function updateBinding(action: string, key: string): void {
   // 移除旧的绑定
   const oldKey = actionToKey.get(action);
   if (oldKey) {
@@ -70,180 +83,21 @@ function updateBinding(action: KeyAction, key: string): void {
   actionToKey.set(action, key);
 }
 
-// 键盘事件处理
-const onKeyDown = (e: KeyboardEvent): void => {
-  // e.preventDefault();
-  if (e.repeat) return;
+// ==================== 内置动作处理器 ====================
 
-  const query =
-    (e.ctrlKey && e.key !== "Control" ? "C" : "") +
-    (e.altKey && e.key !== "Alt" ? "A" : "") +
-    (e.shiftKey && e.key !== "Shift" ? "S" : "") +
-    e.key;
-
-  const action = findAction(query);
-  if (action) {
-    executeAction(action);
+const executeAction = (action: string): void => {
+  // 首先检查是否是注册的外部动作
+  const registered = registeredActions.get(action);
+  if (registered) {
+    registered.handler();
+    return;
   }
-};
 
-// 剪贴板数据
-interface ClipboardData {
-  version: number;
-  objects: any[];
-  center: { x: number; y: number }; // 节点的重心
-}
-
-// 复制到剪贴板
-const copyToClipboard = async (): Promise<boolean> => {
-  // 找出所有选中的节点
-  const objs = Object.values(objects);
-  const selectedNodes = objs.filter(
-    (obj) => obj.type.startsWith("node/") && (obj as any).selected
-  );
-
-  if (selectedNodes.length === 0) return false;
-
-  const selectedNodeIds = new Set(selectedNodes.map((obj) => obj.id));
-
-  // 找出所有内部连接的边（两个端点都在选中节点中）
-  const internalEdges = objs.filter((obj) => {
-    if (!obj.type.startsWith("edge/")) return false;
-    const edge = obj as any;
-    return selectedNodeIds.has(edge.source?.id) && selectedNodeIds.has(edge.target?.id);
-  });
-
-  // 计算选中节点的重心
-  let centerX = 0, centerY = 0;
-  selectedNodes.forEach((node: any) => {
-    centerX += node.pos.x + node.size.x / 2;
-    centerY += node.pos.y + node.size.y / 2;
-  });
-  centerX /= selectedNodes.length;
-  centerY /= selectedNodes.length;
-
-  // 序列化数据
-  const serializer = serializeCanvas({
-    ...Object.fromEntries(selectedNodes.map((n) => [n.id, n])),
-    ...Object.fromEntries(internalEdges.map((e) => [e.id, e])),
-  });
-
-  // 准备剪贴板数据
-  const clipboardData: ClipboardData = {
-    version: serializer.version,
-    objects: serializer.objects,
-    center: { x: centerX, y: centerY },
-  };
-
-  try {
-    // 写入系统剪贴板
-    await navigator.clipboard.writeText(JSON.stringify(clipboardData));
-    return true;
-  } catch (error) {
-    console.error("Failed to copy to clipboard:", error);
-    return false;
-  }
-};
-
-// 从剪贴板粘贴
-const pasteFromClipboard = async (mousePos?: { x: number; y: number }): Promise<boolean> => {
-  try {
-    // 从系统剪贴板读取
-    const clipboardText = await navigator.clipboard.readText();
-    const clipboardData: ClipboardData = JSON.parse(clipboardText);
-
-    if (!clipboardData.objects || clipboardData.objects.length === 0) {
-      return false;
-    }
-
-    // 清除所有选中状态
-    Object.values(objects).forEach((obj) => {
-      if ("selected" in obj) {
-        (obj as any).selected = false;
-        Manager.update(obj);
-      }
-    });
-
-    // 计算粘贴位置（如果有鼠标位置则使用鼠标位置，否则使用原重心位置）
-    let targetX = clipboardData.center.x;
-    let targetY = clipboardData.center.y;
-
-    if (mousePos) {
-      const viewportPos = screen2Viewport(mousePos);
-      targetX = viewportPos.x;
-      targetY = viewportPos.y;
-    }
-
-    // 计算偏移量
-    const offsetX = targetX - clipboardData.center.x;
-    const offsetY = targetY - clipboardData.center.y;
-
-    // 先为所有节点生成新的 ID 并修改位置
-    const idMap = new Map<string, string>(); // 旧 ID -> 新 ID 映射
-    clipboardData.objects
-      .filter((obj) => obj.type.startsWith("node/"))
-      .forEach((nodeData: any) => {
-        const newId = crypto.randomUUID();
-        idMap.set(nodeData.id, newId);
-        nodeData.id = newId;
-        nodeData.pos.x += offsetX;
-        nodeData.pos.y += offsetY;
-        nodeData.selected = true;
-      });
-
-    // 为所有边生成新的 ID 和更新 sourceId/targetId
-    clipboardData.objects
-      .filter((obj) => obj.type.startsWith("edge/"))
-      .forEach((edgeData: any) => {
-        edgeData.id = crypto.randomUUID();
-        const newSourceId = idMap.get(edgeData.sourceId);
-        const newTargetId = idMap.get(edgeData.targetId);
-        if (newSourceId && newTargetId) {
-          edgeData.sourceId = newSourceId;
-          edgeData.targetId = newTargetId;
-        }
-      });
-
-    // 使用 deserializeCanvas 来处理依赖关系
-    deserializeCanvas(clipboardData, objects);
-
-    // 记录节点关系
-    clipboardData.objects
-      .filter((obj) => obj.type.startsWith("edge/"))
-      .forEach((edgeData: any) => {
-        mgrAddEdgeRelation(edgeData.sourceId, edgeData.targetId);
-      });
-
-    saveHistory();
-    updateCanvas();
-    return true;
-  } catch (error) {
-    console.error("Failed to paste from clipboard:", error);
-    return false;
-  }
-};
-
-const executeAction = (action: KeyAction): void => {
+  // 处理内置动作
   switch (action) {
-    case KeyAction.COPY:
-      copyToClipboard().then((success) => {
-        if (success) {
-          console.log("Copied to clipboard");
-        }
-      });
-      break;
-    case KeyAction.PASTE:
-      pasteFromClipboard(lastMousePosition || undefined).then((success) => {
-        if (success) {
-          console.log("Pasted from clipboard");
-        }
-      });
-      break;
     case KeyAction.DELETE: {
       active("");
-      // 删除选中的节点及其连接的边
       const objs = Object.values(objects);
-      // 找出选中的对象ID
       const selectedIds = objs
         .filter(
           (obj) => "selected" in obj && (obj as { selected?: boolean }).selected
@@ -252,9 +106,7 @@ const executeAction = (action: KeyAction): void => {
 
       if (selectedIds.length === 0) return;
 
-      // 使用 deleteIdWithEdges 删除（会自动处理连接的边）
       selectedIds.forEach((id) => Manager.deleteIdWithEdges(id));
-      // 删除完成，保存历史
       saveHistory();
       break;
     }
@@ -265,7 +117,6 @@ const executeAction = (action: KeyAction): void => {
       redo();
       break;
     case KeyAction.SELECT_ALL: {
-      // 选中所有节点
       const objs = Object.values(objects);
       objs.forEach((obj) => {
         if (obj.type.startsWith("node/")) {
@@ -279,13 +130,11 @@ const executeAction = (action: KeyAction): void => {
       // 切换显示设置面板（由外部处理）
       break;
     case KeyAction.EDIT_NODE: {
-      // 进入激活节点的编辑模式
       const activedId = (globalThis as { activedId?: string }).activedId;
       if (activedId) {
         setTimeout(() => {
           const nodeGroup = document.querySelector(`[data-id="${activedId}"]`);
           if (nodeGroup) {
-            // 查找 node-group 下的 g 元素（EditableText 的容器）
             const editableTextContainer = nodeGroup.querySelector("g");
             if (editableTextContainer) {
               const dblClickEvent = new MouseEvent("dblclick", {
@@ -323,6 +172,26 @@ const executeAction = (action: KeyAction): void => {
         newFile();
       });
       break;
+    case KeyAction.OPEN_ITEM_LIST:
+      // 打开物品列表面板（由外部处理）
+      break;
+  }
+};
+
+// ==================== 键盘事件处理 ====================
+
+const onKeyDown = (e: KeyboardEvent): void => {
+  if (e.repeat) return;
+
+  const query =
+    (e.ctrlKey && e.key !== "Control" ? "C" : "") +
+    (e.altKey && e.key !== "Alt" ? "A" : "") +
+    (e.shiftKey && e.key !== "Shift" ? "S" : "") +
+    e.key;
+
+  const action = findAction(query);
+  if (action) {
+    executeAction(action);
   }
 };
 
@@ -334,29 +203,23 @@ const onKeyPress = (_e: KeyboardEvent): void => {
   // 预留
 };
 
-// 注册键盘相关设置项
-registerSetting({
-  id: "keyboard.copy",
-  category: "Keyboard",
-  title: "复制",
-  type: "key",
-  defaultValue: "Cc",
-  value: "Cc",
-  description: "复制选中的节点",
-  onChange: (v) => updateBinding(KeyAction.COPY, v),
-});
+// ==================== 内置设置项定义 ====================
 
-registerSetting({
-  id: "keyboard.paste",
-  category: "Keyboard",
-  title: "粘贴",
-  type: "key",
-  defaultValue: "Cv",
-  value: "Cv",
-  description: "粘贴剪贴板内容",
-  onChange: (v) => updateBinding(KeyAction.PASTE, v),
-});
+const builtinSettings: Array<{ id: string; action: string }> = [
+  { id: "keyboard.delete", action: KeyAction.DELETE },
+  { id: "keyboard.undo", action: KeyAction.UNDO },
+  { id: "keyboard.redo", action: KeyAction.REDO },
+  { id: "keyboard.selectAll", action: KeyAction.SELECT_ALL },
+  { id: "keyboard.showActions", action: KeyAction.SHOW_ACTIONS },
+  { id: "keyboard.editNode", action: KeyAction.EDIT_NODE },
+  { id: "keyboard.exit", action: KeyAction.EXIT },
+  { id: "keyboard.save", action: KeyAction.SAVE },
+  { id: "keyboard.saveAs", action: KeyAction.SAVE_AS },
+  { id: "keyboard.load", action: KeyAction.LOAD },
+  { id: "keyboard.newFile", action: KeyAction.NEW_FILE },
+];
 
+// 注册内置设置项
 registerSetting({
   id: "keyboard.delete",
   category: "Keyboard",
@@ -491,24 +354,16 @@ registerSetting({
 
 // 初始化默认绑定
 const initDefaultBindings = () => {
-  const categories = [
-    { id: "keyboard.copy", action: KeyAction.COPY },
-    { id: "keyboard.paste", action: KeyAction.PASTE },
-    { id: "keyboard.delete", action: KeyAction.DELETE },
-    { id: "keyboard.undo", action: KeyAction.UNDO },
-    { id: "keyboard.redo", action: KeyAction.REDO },
-    { id: "keyboard.selectAll", action: KeyAction.SELECT_ALL },
-    { id: "keyboard.showActions", action: KeyAction.SHOW_ACTIONS },
-    { id: "keyboard.editNode", action: KeyAction.EDIT_NODE },
-    { id: "keyboard.exit", action: KeyAction.EXIT },
-    { id: "keyboard.save", action: KeyAction.SAVE },
-    { id: "keyboard.saveAs", action: KeyAction.SAVE_AS },
-    { id: "keyboard.load", action: KeyAction.LOAD },
-    { id: "keyboard.newFile", action: KeyAction.NEW_FILE },
-    { id: "keyboard.openItemList", action: KeyAction.OPEN_ITEM_LIST },
+  const allSettings = [
+    ...builtinSettings,
+    // 外部注册的动作也会通过 registerKeyAction 自动添加设置项
+    ...Array.from(registeredActions.entries()).map(([action, _]) => ({
+      id: registeredActions.get(action)!.settings.id,
+      action,
+    })),
   ];
 
-  categories.forEach(({ id, action }) => {
+  allSettings.forEach(({ id, action }) => {
     const setting = getSetting(id);
     if (setting) {
       updateBinding(action, setting.value);
@@ -522,12 +377,10 @@ onSetup((_canvas: SVGGElement) => {
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("keypress", onKeyPress);
-  // 追踪鼠标位置，用于粘贴功能
-  window.addEventListener("mousemove", updateMousePosition);
+
   return () => {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("keypress", onKeyPress);
-    window.removeEventListener("mousemove", updateMousePosition);
   };
 });
