@@ -1,15 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
-	ctx context.Context
+	ctx     context.Context
+	configDir string
 }
 
 func NewApp() *App {
@@ -18,6 +21,56 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+
+	// 获取配置文件目录（使用用户数据目录）
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		configDir = os.TempDir()
+	}
+	a.configDir = filepath.Join(configDir, "MindGraph3")
+
+	// 确保配置目录存在
+	os.MkdirAll(a.configDir, 0755)
+}
+
+// GetConfigPath 获取配置文件路径
+func (a *App) GetConfigPath() string {
+	return filepath.Join(a.configDir, "config.json")
+}
+
+// ReadConfig 读取配置文件
+func (a *App) ReadConfig() (string, error) {
+	configPath := a.GetConfigPath()
+
+	// 如果文件不存在，返回空对象
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		emptyConfig := make(map[string]interface{})
+		data, _ := json.Marshal(emptyConfig)
+		return string(data), nil
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
+// WriteConfig 写入配置文件
+func (a *App) WriteConfig(configData string) error {
+	configPath := a.GetConfigPath()
+
+	// 确保目录存在
+	os.MkdirAll(a.configDir, 0755)
+
+	// 格式化 JSON
+	var prettyJSON bytes.Buffer
+	if err := json.Indent(&prettyJSON, []byte(configData), "", "  "); err != nil {
+		return err
+	}
+
+	return os.WriteFile(configPath, prettyJSON.Bytes(), 0644)
 }
 
 // 窗口控制方法
