@@ -1,9 +1,7 @@
 import { Recipe, registerRender as registerRenderer, SlotDisplayBase, SlotRendererProps } from "../RecipeSlot";
-import { RecipeLayout, extractItemInfo } from "../RecipeLayout";
-import { SlotDisplay, ItemSlotDisplay } from "../RecipeSlot";
-import { RecipeClassBase, SlotMark, MarkedSlotDisplay } from "./RecipeClass";
+import { SlotDisplay, ItemSlotDisplay, SlotMark } from "../RecipeSlot";
+import { RecipeClassBase, registerClassFactory, RecipeLayout, extractItemInfo } from "./RecipeClass";
 import { Node } from "../../Globals";
-import { registerClassFactory } from "./RecipeClass";
 import { atom, useAtom } from "jotai";
 import { ObjectFactories } from "../../Controllers/Creator";
 import { activedId } from "../../Controllers/Selector";
@@ -409,8 +407,7 @@ export class MetallurgicInfusing extends RecipeClassBase {
     return this.padding + this.slotSize + this.padding;
   }
 
-  generateLayout(): RecipeLayout & { markedSlots: MarkedSlotDisplay[] } {
-    const markedSlots: MarkedSlotDisplay[] = [];
+  generateLayout(): RecipeLayout {
     const slots: SlotDisplay[] = [];
 
     // ========== 化学品输入槽位 (灌注类型) ==========
@@ -429,12 +426,9 @@ export class MetallurgicInfusing extends RecipeClassBase {
         y: this.padding,
         width: this.chemicalWidth,
         height: this.chemicalHeight,
-        role: 'input',
-        slotPath: { type: 'direct', path: 'chemical_input' },
         mark: 'inputChemical'
       };
 
-      markedSlots.push(chemicalSlot);
       slots.push(chemicalSlot);
     }
 
@@ -450,7 +444,7 @@ export class MetallurgicInfusing extends RecipeClassBase {
       itemCount = itemInfo.count || (itemInput?.count as number) || 1;
     }
 
-    const itemInputSlot: ItemSlotDisplay & { mark: SlotMark } = {
+    const itemInputSlot: ItemSlotDisplay = {
       slotType: 'item',
       itemId,
       count: itemCount,
@@ -458,13 +452,10 @@ export class MetallurgicInfusing extends RecipeClassBase {
       y: this.padding,
       size: this.slotSize,
       label: "原料",
-      role: 'input',
       index: 0,
-      slotPath: { type: 'direct', path: 'item_input' },
       mark: 'input1'
     };
 
-    markedSlots.push(itemInputSlot);
     slots.push(itemInputSlot);
 
     // ========== 输出物品槽位 ==========
@@ -489,13 +480,10 @@ export class MetallurgicInfusing extends RecipeClassBase {
       y: this.padding,
       size: this.slotSize,
       label: "结果",
-      role: 'output',
       index: 0,
-      slotPath: { type: 'direct', path: this.recipe.result ? 'result' : 'output' },
       mark: 'outputItem'
     };
 
-    markedSlots.push(outputSlot);
     slots.push(outputSlot);
 
     // ========== 箭头 ==========
@@ -521,7 +509,6 @@ export class MetallurgicInfusing extends RecipeClassBase {
       width: this.width,
       height: this.height,
       slots,
-      markedSlots,
       arrow,
       extraInfos: [],
       actionButton

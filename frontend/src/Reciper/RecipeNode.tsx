@@ -14,23 +14,19 @@ import { managerUpdateAtom } from "../Manager";
 // 导入拆分出的组件和类型
 import {
   Recipe,
-  SlotPath,
   getSlotRenderer,
+  SlotMark,
 } from "./RecipeSlot";
-import {
-  getRecipeLayout,
-  calculateRecipeNodeSize,
-  RecipeLayout,
-} from "./RecipeLayout";
 import {
   createRecipeClass,
   RecipeClassBase,
-  SlotMark,
+  calculateRecipeNodeSize,
+  RecipeLayout,
 } from "./Classes/RecipeClass";
 
-// 重新导出 Recipe 类型以保持兼容性
+// 重新导出类型以保持兼容性
 export type { Recipe } from "./RecipeSlot";
-export { calculateRecipeNodeSize } from "./RecipeLayout";
+export { calculateRecipeNodeSize } from "./Classes/RecipeClass";
 // ============================================================================
 // 类型定义
 // ============================================================================
@@ -114,102 +110,6 @@ registerSerializer(
   }
 );
 
-// ============================================================================
-// 回写工具函数
-// ============================================================================
-
-// 设置嵌套对象的值
-const setNestedValue = (obj: any, path: string, value: any) => {
-  if (value === null) {
-    delete (obj as any)[path];
-  } else {
-    (obj as any)[path] = value;
-  }
-};
-
-// 有序合成配方的特殊回写逻辑
-const applyShapedSlot = (recipe: Recipe, row: number, col: number, newItem: any) => {
-  if (!recipe.pattern) recipe.pattern = ["   ", "   ", "   "];
-  if (!recipe.key) recipe.key = {};
-
-  if (newItem === null) {
-    if (recipe.pattern[row]) {
-      const line = recipe.pattern[row];
-      if (col < line.length) {
-        recipe.pattern[row] = line.substring(0, col) + " " + line.substring(col + 1);
-      }
-    }
-    return;
-  }
-
-  // 确保 pattern 有足够的行
-  while (recipe.pattern.length <= row) {
-    recipe.pattern.push("   ");
-  }
-
-  let currentPattern = recipe.pattern[row] || "   ";
-  // 确保行有足够的列
-  while (currentPattern.length <= col) {
-    currentPattern += " ";
-  }
-  const currentChar = currentPattern[col];
-
-  // 检查该字符在 pattern 中是否被多处使用
-  const charUsageCount = currentChar && currentChar !== ' '
-    ? recipe.pattern.join('').split(currentChar).length - 1
-    : 0;
-
-  if (currentChar && currentChar !== ' ' && charUsageCount > 1) {
-    // 该字符被多处使用，需要分配新字符
-    const usedChars = new Set(Object.keys(recipe.key));
-    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const newChar = possible.split("").find(c => !usedChars.has(c)) || currentChar;
-
-    // 更新 pattern 中该位置的字符
-    recipe.pattern[row] = currentPattern.substring(0, col) + newChar + currentPattern.substring(col + 1);
-    recipe.key[newChar] = newItem;
-  } else {
-    // 该字符只被使用一次，或是空格（新槽位）
-    if (!currentChar || currentChar === ' ') {
-      const usedChars = new Set(Object.keys(recipe.key));
-      const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-      const newChar = possible.split("").find(c => !usedChars.has(c)) || "A";
-      recipe.pattern[row] = currentPattern.substring(0, col) + newChar + currentPattern.substring(col + 1);
-      recipe.key[newChar] = newItem;
-    } else {
-      recipe.key[currentChar] = newItem;
-    }
-  }
-};
-
-// 统一回写函数
-const applySlotPath = (recipe: Recipe, slotPath: SlotPath, newItem: any) => {
-  switch (slotPath.type) {
-    case 'direct':
-      setNestedValue(recipe, slotPath.path, newItem);
-      break;
-    case 'array':
-      let arr = (recipe as any)[slotPath.path];
-      if (!arr || !Array.isArray(arr)) {
-        if (newItem === null) return;
-        arr = [];
-        (recipe as any)[slotPath.path] = arr;
-      }
-      if (newItem === null) {
-        // 对于数组，设置为空（null）以保持索引，或者如果是末尾则可以考虑缩减
-        arr[slotPath.index] = null;
-      } else {
-        arr[slotPath.index] = newItem;
-      }
-      break;
-    case 'shaped':
-      applyShapedSlot(recipe, slotPath.row, slotPath.col, newItem);
-      break;
-    case 'custom':
-      slotPath.writer(recipe, newItem);
-      break;
-  }
-};
 
 // ============================================================================
 // SVG 配方内容渲染组件
@@ -228,9 +128,9 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
   useAtom(node.contentUpdater);
   const { recipe, onCanvas, modifyMode } = node;
 
-  // 尝试使用新的RecipeClass系统
+  // 使用新的RecipeClass系统
   const recipeClass = createRecipeClass(recipe);
-  const layout = recipeClass ? recipeClass.getLayout() : getRecipeLayout(recipe);
+  const layout = recipeClass?.getLayout();
 
   if (!layout) {
     return (
@@ -253,69 +153,23 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
       const customEvent = e as CustomEvent;
       const info = customEvent.detail; // 新格式: 完整的info对象 {type, id, amount, ...}
       const target = e.target as HTMLElement;
-      const slot = target.closest('[data-slot-role]');
+      const slot = target.closest('[data-slot-mark]');
       if (!slot) return;
 
-      // ========== 尝试使用新的 RecipeClass 系统 ==========
       if (recipeClass) {
-        // 获取槽位的mark
-        const markAttr = slot.getAttribute('data-slot-mark');
-        if (markAttr) {
+        // 获取槽位的mark (新系统的唯一标识)
+        const mark = slot.getAttribute('data-slot-mark') as SlotMark;
+        if (mark) {
           try {
-            recipeClass.replaceByMark(markAttr as SlotMark, info);
+            recipeClass.replaceByMark(mark, info);
             // 更新recipe引用 (RecipeClass内部已修改)
             node.recipe = recipeClass.getRecipe();
             managerUpdateAtom(node.contentUpdater);
-            return;
           } catch (err) {
-            console.warn('RecipeClass替换失败,回退到旧逻辑:', err);
+            console.error('RecipeClass替换失败:', err);
           }
         }
       }
-
-      // ========== 回退: 使用旧的 Path-based 系统 ==========
-      // 从 data 属性获取 slotPath
-      const slotPathAttr = slot.getAttribute('data-slot-path');
-      if (!slotPathAttr) return;
-
-      let slotPath: SlotPath;
-      try {
-        slotPath = JSON.parse(slotPathAttr);
-      } catch {
-        return;
-      }
-
-      const role = slot.getAttribute('data-slot-role') as 'input' | 'output';
-
-      // 兼容旧格式: 如果detail中有idorTag则使用,否则从info中提取
-      let idorTag = (customEvent.detail as any).idorTag;
-      if (idorTag === undefined && info && info.id) {
-        // 新格式: 从info中提取
-        idorTag = info.id;
-      }
-
-      // 构建新物品对象
-      let newItem: any = null;
-      if (idorTag !== "" && idorTag !== undefined) {
-        if (role === 'output') {
-          // 输出槽位始终使用 id 格式
-          newItem = { id: idorTag.startsWith('#') ? idorTag.substring(1) : idorTag, count: 1 };
-        } else {
-          // 输入槽位需要区分 item 和 tag
-          if (idorTag.startsWith('#')) {
-            // tag 格式 - 去掉 # 前缀
-            newItem = { tag: idorTag.substring(1) };
-          } else {
-            // item 格式
-            newItem = { item: idorTag };
-          }
-        }
-      }
-
-      // 使用统一回写函数
-      applySlotPath(recipe, slotPath, newItem);
-
-      managerUpdateAtom(node.contentUpdater);
     };
 
     el.addEventListener('replace-item', onReplace);
@@ -363,19 +217,13 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
       {/* 统一槽位渲染 - 使用动态渲染器 */}
       {layout.slots.map((slot, i) => {
         const Renderer = getSlotRenderer(slot.slotType);
-        // 检查是否有markedSlots (使用RecipeClass时会有)
-        const markedSlots = (layout as any).markedSlots;
-        const mark = markedSlots && markedSlots[i] ? markedSlots[i].mark : undefined;
 
         return (
           <g
-            key={`slot-${slot.slotType}-${i}`}
+            key={`slot-${i}`}
             transform={`translate(${slot.x}, ${slot.y})`}
             onContextMenu={(e) => e.preventDefault()}
-            data-slot-role={slot.role}
-            data-slot-index={'index' in slot ? slot.index : undefined}
-            data-slot-path={JSON.stringify(slot.slotPath)}
-            data-slot-mark={mark}
+            data-slot-mark={slot.mark}
           >
             <Renderer slot={slot} />
           </g>

@@ -10,6 +10,16 @@ export type ItemOrTag =
   | { item?: string; tag?: string; id?: string; count?: number }
   | string;
 
+export type SlotMark =
+  | `input${number}`      // input1, input2, input3...
+  | `emptySlot`           // 空槽位 (无序合成中未填充的槽位)
+  | `outputItem`          // 物品输出
+  | `outputFluid`         // 流体输出
+  | `inputFluid`          // 流体输入
+  | `inputChemical`       // 化学品输入
+  | `outputChemical`      // 化学品输出
+  | string;               // 其他自定义标记
+
 export interface Recipe {
   type: string;
   ingredients?: ItemOrTag[];
@@ -28,22 +38,6 @@ export interface Recipe {
   [key: string]: any;
 }
 
-// ==================== 槽位路径定义 ====================
-
-// 槽位路径类型 - 描述如何访问和修改配方中的某个槽位
-export type SlotPath =
-  | { type: 'direct'; path: string }                                    // 直接路径，如 "ingredient", "input", "result"
-  | { type: 'array'; path: string; index: number }                      // 数组索引，如 "ingredients[0]"
-  | { type: 'shaped'; row: number; col: number }                        // 有序合成特殊处理
-  | { type: 'custom'; writer: (recipe: Recipe, newItem: any) => void }; // 自定义写入器
-
-// 输入项信息（解析阶段使用）
-export interface ItemInputInfo {
-  itemId: string;
-  count?: number;
-  slotPath: SlotPath;
-}
-
 // ==================== 通用槽位系统 ====================
 
 // 槽位基础接口 - 所有槽位必须实现
@@ -51,8 +45,7 @@ export interface SlotDisplayBase {
   slotType: string;        // 槽位类型标识符
   x: number;
   y: number;
-  role: 'input' | 'output';
-  slotPath: SlotPath;
+  mark: SlotMark;
   label?: string;
 }
 

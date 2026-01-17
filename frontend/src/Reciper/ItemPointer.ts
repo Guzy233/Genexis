@@ -103,7 +103,7 @@ export const startDragItem = (e: MouseEvent, info: any) => {
       }
     } else {
       const target = e.target as SVGElement;
-      const slot = target.closest("[data-slot-role]");
+      const slot = target.closest("[data-slot-mark]");
       if (!slot) return;
 
       target.dispatchEvent(
@@ -189,8 +189,9 @@ function onMouseDown(e: MouseEvent) {
 
   // 1. 处理删除 (只有物品插槽可以删除)
   if (getSetting("reciper.delete_item_slot")?.value === mouseQuery) {
-    const slot = target.closest("[data-slot-role]");
-    if (slot && slot.getAttribute("data-slot-role") !== "output") {
+    const slot = target.closest("[data-slot-mark]");
+    const mark = slot?.getAttribute("data-slot-mark");
+    if (slot && mark && !mark.startsWith("output")) {
       e.preventDefault();
       e.stopPropagation();
       target.dispatchEvent(
