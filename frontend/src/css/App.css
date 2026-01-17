@@ -382,7 +382,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   overflow: hidden;
-  width: 224px;
+  width: 240px;
 }
 
 .item-list {
@@ -392,6 +392,7 @@ body {
   padding: 8px;
   max-height: calc(100vh - 200px);
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
@@ -425,6 +426,7 @@ body {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
+  box-sizing: border-box;
 }
 
 .item-slot:hover {

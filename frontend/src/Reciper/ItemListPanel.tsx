@@ -173,6 +173,7 @@ topLayer.push(() => {
           onScroll={handleScroll}
           style={{
             overflowY: "auto",
+            overflowX: "hidden",
             maxHeight: "60vh",
             userSelect: "none",
             WebkitUserSelect: "none",
