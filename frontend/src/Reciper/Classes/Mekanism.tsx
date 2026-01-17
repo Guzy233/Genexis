@@ -510,7 +510,6 @@ export class MetallurgicInfusing extends RecipeClassBase {
       height: this.height,
       slots,
       arrow,
-      extraInfos: [],
       actionButton
     };
   }

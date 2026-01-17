@@ -4,23 +4,11 @@ import { Recipe, SlotDisplay, ItemSlotDisplay, SlotMark } from "../RecipeSlot";
 // 布局核心类型定义
 // ============================================================================
 
-export interface ExtraInfoDisplay {
-  icon: string;
-  text: string;
-  color: string;
-  label: string;
-  x: number;
-  y: number;
-}
-
 export interface RecipeLayout {
   width: number;
   height: number;
   slots: SlotDisplay[];       // 统一的槽位数组
-  // 保留旧字段以保持兼容性
-  items?: ItemSlotDisplay[];
   arrow?: { x: number; y: number; text: string; fontSize?: number };
-  extraInfos: ExtraInfoDisplay[];
   actionButton?: { x: number; y: number; width: number; height: number };
   background?: {
     url?: string;
@@ -61,21 +49,7 @@ export const extractItemInfo = (
 };
 
 
-// 获取额外信息列表
-export const getExtraInfoItems = (recipe: Recipe) => {
-  const items: Array<{ icon: string; text: string; color: string; label: string }> = [];
-  if (recipe.experience !== undefined) items.push({ icon: "✦", text: `${recipe.experience} XP`, color: "#fbbf24", label: "经验" });
-  const time = recipe.cookingtime ?? recipe.time ?? recipe.duration ?? recipe.processingTime;
-  if (time !== undefined) {
-    const seconds = typeof time === "number" ? Math.round((time / 20) * 10) / 10 : time;
-    items.push({ icon: "⏱", text: `${seconds}s`, color: "#f97316", label: "耗时" });
-  }
-  const energyVal = typeof recipe.energy === "object" ? (recipe.energy.amount ?? recipe.energy.energy ?? recipe.energy.value) : (recipe.energy ?? recipe.physics?.energy);
-  if (energyVal !== undefined) items.push({ icon: "⚡", text: `${energyVal} FE`, color: "#ef4444", label: "能量" });
-  const tempVal = recipe.temperature ?? recipe.heat ?? recipe.physics?.temperature;
-  if (tempVal !== undefined) items.push({ icon: "🌡", text: `${tempVal}°C`, color: "#dc2626", label: "温度" });
-  return items;
-};
+
 
 // ============================================================================
 // 配方类基类
@@ -142,9 +116,7 @@ export class ShapelessRecipeClass extends RecipeClassBase {
 
   get height(): number {
     const inputHeight = this.slotSize * this.gridRows + this.gap * (this.gridRows - 1);
-    const extraInfoItems = getExtraInfoItems(this.recipe);
-    const showAtBottom = extraInfoItems.length > 0;
-    return inputHeight + (showAtBottom ? 32 : 0) + this.padding * 2;
+    return inputHeight + this.padding * 2;
   }
 
   generateLayout(): RecipeLayout {
@@ -227,17 +199,6 @@ export class ShapelessRecipeClass extends RecipeClassBase {
       fontSize: 20
     };
 
-    // 额外信息
-    const extraInfoItems = getExtraInfoItems(this.recipe);
-    const extraInfos: ExtraInfoDisplay[] = [];
-
-    if (extraInfoItems.length > 0) {
-      const startY = this.padding + inputHeight + 4 + 6;
-      extraInfoItems.forEach((item, idx) => {
-        extraInfos.push({ ...item, x: this.padding + 12 + idx * 85, y: startY + 8 });
-      });
-    }
-
     // 操作按钮
     const actionButton = {
       x: this.width - this.padding - this.slotSize,
@@ -251,7 +212,6 @@ export class ShapelessRecipeClass extends RecipeClassBase {
       height: this.height,
       slots,
       arrow,
-      extraInfos,
       actionButton
     };
   }
@@ -352,9 +312,7 @@ export class ShapedRecipeClass extends RecipeClassBase {
 
   get height(): number {
     const inputHeight = this.slotSize * this.gridRows + this.gap * (this.gridRows - 1);
-    const extraInfoItems = getExtraInfoItems(this.recipe);
-    const showAtBottom = extraInfoItems.length > 0;
-    return inputHeight + (showAtBottom ? 32 : 0) + this.padding * 2;
+    return inputHeight + this.padding * 2;
   }
 
   generateLayout(): RecipeLayout {
@@ -438,15 +396,6 @@ export class ShapedRecipeClass extends RecipeClassBase {
       fontSize: 20
     };
 
-    const extraInfoItems = getExtraInfoItems(this.recipe);
-    const extraInfos: ExtraInfoDisplay[] = [];
-
-    if (extraInfoItems.length > 0) {
-      const startY = this.padding + inputHeight + 4 + 6;
-      extraInfoItems.forEach((item, idx) => {
-        extraInfos.push({ ...item, x: this.padding + 12 + idx * 85, y: startY + 8 });
-      });
-    }
 
     const actionButton = {
       x: this.width - this.padding - this.slotSize,
@@ -460,7 +409,6 @@ export class ShapedRecipeClass extends RecipeClassBase {
       height: this.height,
       slots,
       arrow,
-      extraInfos,
       actionButton
     };
   }
@@ -586,7 +534,9 @@ export class SmeltingRecipeClass extends RecipeClassBase {
   }
 
   get height(): number {
-    return this.padding + this.slotSize + this.padding + 24;
+    const time = this.recipe.cookingtime ?? this.recipe.time ?? this.recipe.duration;
+    const hasExtra = this.recipe.experience !== undefined || time !== undefined;
+    return this.padding + this.slotSize + this.padding + (hasExtra ? 24 : 0);
   }
 
   generateLayout(): RecipeLayout {
@@ -627,15 +577,6 @@ export class SmeltingRecipeClass extends RecipeClassBase {
       fontSize: 20
     };
 
-    const extraInfoItems = getExtraInfoItems(this.recipe);
-    const extraInfos: ExtraInfoDisplay[] = [];
-    if (extraInfoItems.length > 0) {
-      const startY = this.padding + this.slotSize + 16;
-      extraInfoItems.forEach((item, idx) => {
-        extraInfos.push({ ...item, x: this.padding + idx * 80, y: startY });
-      });
-    }
-
     const actionButton = {
       x: this.width - this.padding - this.slotSize,
       y: this.padding,
@@ -643,7 +584,7 @@ export class SmeltingRecipeClass extends RecipeClassBase {
       height: 24
     };
 
-    return { width: this.width, height: this.height, slots, arrow, extraInfos, actionButton };
+    return { width: this.width, height: this.height, slots, arrow, actionButton };
   }
 
   replaceByMark(mark: SlotMark, info: any): void {

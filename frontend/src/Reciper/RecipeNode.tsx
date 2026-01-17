@@ -244,23 +244,6 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
         </text>
       )}
 
-      {/* 额外信息 */}
-      {layout.extraInfos.map((info, idx) => (
-        <g key={idx} transform={`translate(${info.x}, ${info.y})`}>
-          <text
-            x={0}
-            y={0}
-            fill="#a1a1aa"
-            fontSize="10"
-            textAnchor={info.x > layout.width / 2 ? "middle" : "start"}
-            dominantBaseline="middle"
-          >
-            <tspan fill={info.color}>{info.icon}</tspan> {info.text}
-          </text>
-          <title>{info.label}</title>
-        </g>
-      ))}
-
       {/* 操作按钮 */}
       {layout.actionButton && (
         <g transform={`translate(${layout.actionButton.x}, ${layout.actionButton.y})`}>
