@@ -109,7 +109,7 @@ export const startDragItem = (e: MouseEvent, info: any) => {
       target.dispatchEvent(
         new CustomEvent("replace-item", {
           bubbles: true,
-          detail: { idorTag: info.id, type: info.type, amount: info.amount }
+          detail: info
         }))
     }
   };
