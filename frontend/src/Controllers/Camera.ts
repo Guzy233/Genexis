@@ -44,6 +44,19 @@ registerSetting({
   onChange: (v) => { wheelSensitivity = Math.max(0.1, Math.min(3, v)); },
 });
 
+let draggingKey: number = 0;
+
+registerSetting({
+  id: "camera.dragKey",
+  category: "Camera",
+  title: "拖动视角",
+  type: "mousekey",
+  defaultValue: 0,
+  value: 0,
+  description: "鼠标按键拖动视角，默认为左键",
+  onChange: (v) => (draggingKey = v),
+});
+
 export const screen2Viewport = (point: {
   x: number;
   y: number;
@@ -66,8 +79,8 @@ export const viewport2Screen = (point: {
 
 // 开始拖动视角
 const onMouseDown = (e: MouseEvent) => {
-  // 只响应左键
-  if (e.button !== 0) return;
+  // 只响应配置的按键
+  if (e.button !== draggingKey) return;
 
   // 点击到节点时不移动视角
   if (idFromEvent(e, ".node-group")) return;

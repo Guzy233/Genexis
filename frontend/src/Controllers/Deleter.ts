@@ -2,7 +2,21 @@ import { objects, managerAdd, managerDeleteId, managerDeleteIdWithEdges, manager
 import { Obj, Vec2, onSetup } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { atom } from "jotai";
+import { registerSetting } from "../Option";
 import { saveHistory } from "../Manager";
+
+let deletionKey: number = 2;
+
+registerSetting({
+  id: "deleter.key",
+  category: "Deleter",
+  title: "删除模式",
+  type: "mousekey",
+  defaultValue: 2,
+  value: 2,
+  description: "鼠标按键进入删除模式，默认为右键",
+  onChange: (v) => (deletionKey = v),
+});
 
 // 删除轨迹接口
 interface DeletionTrail extends Obj {
@@ -11,7 +25,7 @@ interface DeletionTrail extends Obj {
 
 // 右键按下时进入删除模式
 export const onMouseDown = (e: MouseEvent) => {
-  if (e.button !== 2) return; // 只响应右键
+  if (e.button !== deletionKey) return; // 使用配置的按键
 
   // 在空白处按下才进入删除模式
   const target = e.target as HTMLElement;
@@ -86,6 +100,7 @@ export const onMouseDown = (e: MouseEvent) => {
 };
 
 onSetup((canvas: SVGGElement) => {
-  canvas.addEventListener("mousedown", onMouseDown);
-  return () => canvas.removeEventListener("mousedown", onMouseDown);
+  const background = document.querySelector("#background") as SVGRectElement
+  background.addEventListener("mousedown", onMouseDown);
+  return () => background.removeEventListener("mousedown", onMouseDown);
 });
