@@ -789,16 +789,17 @@ export class GenericMultiSlotRecipeClass extends RecipeClassBase {
 
 export function createRecipeClass(recipe: Recipe): RecipeClassBase | null {
   const type = recipe.type || "";
-  if (recipe.pattern && recipe.key) return new ShapedRecipeClass(recipe);
 
-  // 1. 已知特定类型
-  if (type.includes('shapeless') || (recipe.ingredients && Array.isArray(recipe.ingredients) && recipe.ingredients.length > 1)) return new ShapelessRecipeClass(recipe);
-
-  // 2. 插件注册的工厂
+  // 1. 插件注册的工厂 (最高优先级)
   for (const factory of factories) {
     const result = factory(recipe);
     if (result) return result;
   }
+
+  if (recipe.pattern && recipe.key) return new ShapedRecipeClass(recipe);
+
+  // 2. 已知特定类型
+  if (type.includes('shapeless') || (recipe.ingredients && Array.isArray(recipe.ingredients) && recipe.ingredients.length > 1)) return new ShapelessRecipeClass(recipe);
 
   // 3. 多槽位/数组配方检测 (inputs, results 等数组)
   const isMultiInput = Array.isArray(recipe.inputs) || Array.isArray(recipe.ingredients) || Array.isArray(recipe.additives);

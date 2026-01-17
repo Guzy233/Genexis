@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { topLayer } from "../Globals";
 import { RecipePreview, Recipe } from "./RecipePreview";
 import { MCItemIcon } from "./MCItemNode";
-import { RECIPE_TYPE_NAMES, fetchRecipes as fetchRecipesApi } from "./Reciper";
+import { RECIPE_TYPE_NAMES, fetchRecipes as fetchRecipesApi, getRecipeTypeName } from "./Reciper";
 
 // ============================================================================
 // 配方预览包装器 - 追踪屏幕位置
@@ -72,10 +72,7 @@ export const closeRecipeModal = () => {
 
 
 
-// 获取配方类型显示名称
-const getRecipeTypeName = (type: string): string => {
-  return RECIPE_TYPE_NAMES[type] || type.replace("minecraft:", "");
-};
+// getRecipeTypeName 现在从 Reciper 导入
 
 // 标签栏每页最多显示的标签数量
 const TABS_PER_PAGE = 8;
@@ -447,156 +444,191 @@ topLayer.push(() => {
           </div>
         )}
 
-        {/* 页码显示 */}
+        {/* 页码与总数概要 */}
         <div
-          className="recipe-modal-page-info"
           style={{
             position: "absolute",
-            top: "12px",
-            right: "20px",
+            top: "16px",
+            right: "24px",
             fontSize: "12px",
             color: "#71717a",
             fontWeight: "500",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
           }}
         >
-          {totalPages > 0 && `${currentPage + 1} / ${totalPages}`}
+          {recipes.length > 0 && (
+            <>
+              <span style={{ color: "#6366f1" }}>{recipes.length}</span> 个配方
+              {totalPages > 1 && (
+                <span style={{ marginLeft: "8px", borderLeft: "1px solid #3f3f46", paddingLeft: "8px" }}>
+                  页码: {currentPage + 1} / {totalPages}
+                </span>
+              )}
+            </>
+          )}
         </div>
 
-        {/* 当前配方名称 */}
+        {/* 当前配方类型名称 */}
         {selectedType && (
           <div
             className="recipe-modal-type-title"
             style={{
-              padding: "4px 24px",
-              fontSize: "14px",
+              padding: "10px 24px",
+              fontSize: "15px",
               fontWeight: "600",
-              color: "#a5b4fc",
+              color: "#e4e4e7",
               letterSpacing: "0.5px",
-              borderLeft: "3px solid #6366f1",
-              marginLeft: "20px",
-              marginTop: "8px",
-              background: "linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%)",
+              borderLeft: "4px solid #6366f1",
+              marginLeft: "24px",
+              marginTop: "20px",
+              background: "linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, transparent 100%)",
+              borderRadius: "0 4px 4px 0",
+              textShadow: "0 2px 4px rgba(0,0,0,0.3)"
             }}
           >
             {getRecipeTypeName(selectedType)}
           </div>
         )}
 
-        {/* 配方列表 */}
+        {/* 配方列表主体 */}
         <div
           className="recipe-modal-body"
           onWheel={handleWheel}
           style={{
-            padding: "16px 20px",
+            padding: "20px 24px",
+            flex: 1,
+            overflowY: "auto",
             display: "flex",
             flexDirection: "column",
-            alignItems: "center",
-            minHeight: `${recipesPerPage * 80 + (recipesPerPage - 1) * 12 + 240}px`, // 3个配方高度 + 间距 + 上下padding
+            gap: "20px",
+            minHeight: "450px",
+            maxHeight: "75vh",
+            scrollbarWidth: "none",
           }}
         >
           {loading ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "40px 20px",
-                color: "#71717a",
-                fontSize: "14px",
-                minHeight: "240px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              加载中...
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", color: "#71717a" }}>
+              <div className="loading-spinner"></div>
+              <span>加载配方数据中...</span>
             </div>
           ) : error ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "40px 20px",
-                color: "#ef4444",
-                fontSize: "14px",
-                minHeight: "240px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {error}
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#ef4444", fontSize: "14px" }}>
+              <div style={{ background: "rgba(239, 68, 68, 0.1)", padding: "16px 24px", borderRadius: "8px", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
+                ⚠️ {error}
+              </div>
             </div>
           ) : recipes.length === 0 ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "40px 20px",
-                color: "#71717a",
-                fontSize: "14px",
-                minHeight: "320px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {recipeType === "result" ? "暂无合成配方" : "暂无用途"}
-            </div>
-          ) : displayRecipes.length === 0 ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "40px 20px",
-                color: "#71717a",
-                fontSize: "14px",
-                minHeight: "240px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              该类型暂无配方
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#71717a", fontSize: "14px", fontStyle: "italic" }}>
+              {recipeType === "result" ? "暂无合成方式" : "暂无用途信息"}
             </div>
           ) : (
-            <div
-              className="recipe-list"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "12px",
-                width: "100%",
-                flex: 1,
-              }}
-            >
-              {displayRecipes.map((recipe, index) => (
-                <RecipePreviewWrapper
-                  key={`${selectedType}-${currentPage}-${index}`}
-                  recipe={recipe}
-                  onAddedToCanvas={() => closeRecipeModal()}
-                />
-              ))}
-            </div>
+            <>
+              <div
+                className="recipe-list"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "24px",
+                  width: "100%",
+                }}
+              >
+                {displayRecipes.map((recipe, index) => (
+                  <div
+                    key={`${selectedType}-${currentPage}-${index}`}
+                    style={{
+                      padding: "16px",
+                      background: "rgba(255, 255, 255, 0.03)",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(255, 255, 255, 0.05)",
+                      transition: "all 0.3s ease",
+                      animation: `fadeInUp 0.3s ease forwards ${index * 0.05}s`,
+                      opacity: 0,
+                      transform: "translateY(10px)",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                      e.currentTarget.style.borderColor = "rgba(99, 102, 241, 0.3)";
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+                      e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)";
+                      e.currentTarget.style.transform = "translateY(0)";
+                    }}
+                  >
+                    <RecipePreviewWrapper
+                      recipe={recipe}
+                      onAddedToCanvas={() => closeRecipeModal()}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* 分页控制点 */}
+              {totalPages > 1 && (
+                <div style={{ display: "flex", justifyContent: "center", gap: "8px", padding: "10px 0" }}>
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <div
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      style={{
+                        width: i === currentPage ? "20px" : "8px",
+                        height: "8px",
+                        borderRadius: "4px",
+                        background: i === currentPage ? "#6366f1" : "rgba(255, 255, 255, 0.2)",
+                        cursor: "pointer",
+                        transition: "all 0.3s ease"
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* 全局样式 */}
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { 
+          from { opacity: 0; transform: scale(0.98) translateY(15px); } 
+          to { opacity: 1; transform: scale(1) translateY(0); } 
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .loading-spinner {
+          width: 30px;
+          height: 30px;
+          border: 3px solid rgba(99, 102, 241, 0.1);
+          border-top-color: #6366f1;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
         }
 
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95) translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
+        .recipe-modal-backdrop {
+          backdrop-filter: blur(12px) saturate(180%);
+          background-color: rgba(9, 9, 11, 0.6);
         }
 
-        /* 选中标签的凹角平滑连接效果 */
+        .recipe-modal-content {
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+          background: rgba(24, 24, 27, 0.95) !important;
+          max-width: 800px !important;
+          width: 90% !important;
+          max-height: 90vh;
+        }
+
+        .recipe-modal-body::-webkit-scrollbar { display: none; }
+
         .recipe-type-tab.active::before,
         .recipe-type-tab.active::after {
           content: "";
@@ -605,41 +637,20 @@ topLayer.push(() => {
           width: 12px;
           height: 12px;
           pointer-events: none;
-          display: block !important;
         }
 
         .recipe-type-tab.active::before {
           left: -12px;
-          border-bottom-right-radius: 12px;
-          box-shadow: 5px 5px 0 5px rgba(30, 30, 35, 0.98);
-          clip-path: inset(0 0 0 0 round 0 0 12px 0);
+          background: radial-gradient(circle at 0% 0%, transparent 12px, rgba(24, 24, 27, 0.95) 12.5px);
         }
 
         .recipe-type-tab.active::after {
           right: -12px;
-          border-bottom-left-radius: 12px;
-          box-shadow: -5px 5px 0 5px rgba(30, 30, 35, 0.98);
-          clip-path: inset(0 0 0 0 round 0 12px 0 0);
-        }
-        
-        /* 改进 Clip Path 以获得更完美的凹角 */
-        .recipe-type-tab.active::before {
-          left: -12px;
-          width: 12px;
-          height: 12px;
-          background: radial-gradient(circle at 0 0, transparent 12px, rgba(30, 30, 35, 0.98) 12.5px);
-        }
-        
-        .recipe-type-tab.active::after {
-          right: -12px;
-          width: 12px;
-          height: 12px;
-          background: radial-gradient(circle at 100% 0, transparent 12px, rgba(30, 30, 35, 0.98) 12.5px);
+          background: radial-gradient(circle at 100% 0%, transparent 12px, rgba(24, 24, 27, 0.95) 12.5px);
         }
 
         .recipe-type-tab:not(.active):hover {
-          background: rgba(60, 60, 68, 0.9) !important;
-          color: #e4e4e7 !important;
+          background: rgba(255, 255, 255, 0.05) !important;
           transform: translateY(-2px);
         }
       `}</style>

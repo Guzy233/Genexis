@@ -38,7 +38,10 @@ export const RecipePreview: React.FC<RecipePreviewProps> = ({
       updater: atom(0),
       contentUpdater: atom(0),
       pos: { x: 0, y: 0 },
-      size: { x: 0, y: 0 }, // 尺寸由内容决定
+      size: (() => {
+        const s = calculateRecipeNodeSize(recipe);
+        return { x: s.width, y: s.height };
+      })(),
       selected: false,
       eAncs: [],
       aAncs: [],

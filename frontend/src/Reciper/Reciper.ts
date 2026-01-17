@@ -10,6 +10,7 @@ import "./MCFluidNode";
 import "./Classes/Mekanism";
 import "./Classes/Ae2";
 import "./Classes/IntegratedDynamics";
+import "./Classes/Avaritia";
 
 export var coords: Record<string, any> = {}
 export var translations: Record<string, string> = {}
@@ -122,6 +123,28 @@ export async function fetchExistingRecipes(): Promise<Recipe[]> {
 
 import { RECIPE_TYPE_NAMES } from "./Constants";
 export { RECIPE_TYPE_NAMES };
+
+// 获取配方类型的中文名称
+export const getRecipeTypeName = (type: string): string => {
+  if (RECIPE_TYPE_NAMES[type]) {
+    return RECIPE_TYPE_NAMES[type];
+  }
+
+  // 尝试模糊匹配
+  const lowerType = type.toLowerCase();
+  if (lowerType.includes('shaped')) return '有序合成';
+  if (lowerType.includes('shapeless')) return '无序合成';
+  if (lowerType.includes('smelting')) return '熔炼';
+  if (lowerType.includes('blasting')) return '高炉冶炼';
+  if (lowerType.includes('crushing')) return '粉碎';
+  if (lowerType.includes('mixing')) return '搅拌';
+  if (lowerType.includes('pressing')) return '压制';
+  if (lowerType.includes('infusing')) return '灌注';
+
+  // 返回原始类型（去掉命名空间前缀）
+  const shortType = type.split(':').pop() || type;
+  return shortType.replace(/_/g, ' ');
+};
 
 // 从后端获取配方数据
 export async function fetchRecipes(itemId: string, type: "result" | "usage"): Promise<Recipe[]> {
