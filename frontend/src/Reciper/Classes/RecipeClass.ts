@@ -1,6 +1,6 @@
-import { Recipe } from "./RecipeSlot";
-import { RecipeLayout, ExtraInfoDisplay, getExtraInfoItems } from "./RecipeLayout";
-import { SlotDisplay, ItemSlotDisplay } from "./RecipeSlot";
+import { Recipe } from "../RecipeSlot";
+import { RecipeLayout, ExtraInfoDisplay, getExtraInfoItems } from "../RecipeLayout";
+import { SlotDisplay, ItemSlotDisplay } from "../RecipeSlot";
 
 /**
  * 新的配方类系统
@@ -623,26 +623,23 @@ export class ShapedRecipeClass extends RecipeClassBase {
         return char;
       }
     }
-
     // 实在没有了,返回 #
     return "#";
   }
 }
 
+export type RecipeClassDetector = (recipe: Recipe) => RecipeClassBase | null;
 
-// ============================================================================
-// 配方类工厂
-// ============================================================================
+const factories: RecipeClassDetector[] = [];
+
+export function registerClassFactory(detector: RecipeClassDetector): void {
+  factories.push(detector);
+}
 
 export function createRecipeClass(recipe: Recipe): RecipeClassBase | null {
   const type = recipe.type || "";
 
-  // 有序合成 - 优先检测(因为有pattern和key特征)
-  if (type.includes('shaped') && recipe.pattern && recipe.key) {
-    return new ShapedRecipeClass(recipe);
-  }
-
-  // 也可以通过结构判断
+  // ========== 原版和通用配方 (内置) ==========
   if (recipe.pattern && recipe.key) {
     return new ShapedRecipeClass(recipe);
   }
@@ -652,7 +649,10 @@ export function createRecipeClass(recipe: Recipe): RecipeClassBase | null {
     return new ShapelessRecipeClass(recipe);
   }
 
-  // TODO: 添加更多配方类型
+  for (const factory of factories) {
+    const result = factory(recipe);
+    if (result) return result;
+  }
 
   return null;
 }

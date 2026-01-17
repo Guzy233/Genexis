@@ -6,7 +6,14 @@ import { registerKeyAction } from "../Controllers/Keyboard";
 import { openInitializationModal } from "./InitializationModal";
 
 import "./MCFluidNode";
-import "./MCChemicalNode"
+// import "./MCChemicalNode";
+
+// 导入模组配方类以触发自动注册
+import "./Classes/Mekanism";
+// TODO: 添加其他模组
+// import "./RecipeClass_ImmersiveEngineering";
+// import "./RecipeClass_EnderIO";
+
 
 export var coords: Record<string, any> = {}
 export var translations: Record<string, string> = {}

@@ -26,7 +26,7 @@ import {
   createRecipeClass,
   RecipeClassBase,
   SlotMark,
-} from "./RecipeClass";
+} from "./Classes/RecipeClass";
 
 // 重新导出 Recipe 类型以保持兼容性
 export type { Recipe } from "./RecipeSlot";
@@ -257,7 +257,6 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
       if (!slot) return;
 
       // ========== 尝试使用新的 RecipeClass 系统 ==========
-      // const recipeClass = createRecipeClass(recipe);
       if (recipeClass) {
         // 获取槽位的mark
         const markAttr = slot.getAttribute('data-slot-mark');
