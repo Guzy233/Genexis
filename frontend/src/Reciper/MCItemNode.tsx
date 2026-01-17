@@ -156,7 +156,7 @@ export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
           data-count={count || 1}
           data-id={itemIdorTag}
         >
-          <MCItemIcon itemId={current} size={iconSize} tag={isTag ? itemIdorTag : undefined} />
+          <MCItemIcon itemId={current} size={iconSize} />
         </g>
         {count > 1 && (
           <>

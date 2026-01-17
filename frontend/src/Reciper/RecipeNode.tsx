@@ -156,28 +156,23 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
       const slot = target.closest('[data-slot-mark]');
       if (!slot) return;
 
-      // 标准化 info 对象
       const info = { ...rawInfo };
-      // 兼容 count 和 amount 两个字段
       const val = rawInfo.amount ?? rawInfo.count;
       if (val !== undefined) {
         info.amount = typeof val === 'string' ? parseInt(val) : val;
       }
 
       if (recipeClass) {
-        // 获取槽位的mark (新系统的唯一标识)
         const mark = slot.getAttribute('data-slot-mark') as SlotMark;
-        if (mark) {
-          try {
-            recipeClass.replaceByMark(mark, info);
-            node.recipe = recipeClass.getRecipe();
-            managerUpdateAtom(node.contentUpdater);
-            node.size.x = recipeClass.width
-            node.size.y = recipeClass.height
-            managerUpdate(node)
-          } catch (err) {
-            console.error('RecipeClass替换失败:', err);
-          }
+        try {
+          recipeClass.replaceByMark(mark, info);
+          node.recipe = recipeClass.getRecipe();
+          node.size.x = recipeClass.width
+          node.size.y = recipeClass.height
+          managerUpdate(node)
+          managerUpdateAtom(node.contentUpdater);
+        } catch (err) {
+          console.error('RecipeClass替换失败:', err);
         }
       }
     };

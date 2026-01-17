@@ -354,7 +354,7 @@ export class ShapedRecipeClass extends RecipeClassBase {
           }
         }
 
-        const mark: SlotMark = hasItem ? `input_${row}_${col}` : 'emptySlot';
+        const mark: SlotMark = `input_${row}_${col}` as SlotMark;
         const linearIndex = row * this.gridCols + col;
 
         const slot: ItemSlotDisplay = {
@@ -437,28 +437,10 @@ export class ShapedRecipeClass extends RecipeClassBase {
     const key = this.recipe.key;
 
     const posMatch = mark.match(/^input_(\d+)_(\d+)$/);
-    if (!posMatch && mark !== 'emptySlot') return;
+    if (!posMatch) return;
 
-    let row = 0, col = 0, positionFound = false;
-
-    if (posMatch) {
-      row = parseInt(posMatch[1]);
-      col = parseInt(posMatch[2]);
-      positionFound = true;
-    } else if (mark === 'emptySlot') {
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 3; c++) {
-          const char = pattern[r]?.[c] || ' ';
-          if (char === ' ') {
-            row = r; col = c; positionFound = true; break;
-          }
-        }
-        if (positionFound) break;
-      }
-      if (!positionFound) return;
-    }
-
-    if (!positionFound) return;
+    const row = parseInt(posMatch[1]);
+    const col = parseInt(posMatch[2]);
 
     while (pattern.length <= row) pattern.push("   ");
     let currentPattern = pattern[row] || "   ";
@@ -510,7 +492,7 @@ export class ShapedRecipeClass extends RecipeClassBase {
   private allocateChar(): string {
     const key = this.recipe.key || {};
     const usedChars = new Set(Object.keys(key));
-    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for (const char of possible) {
       if (!usedChars.has(char)) return char;
     }
@@ -772,14 +754,6 @@ export class GenericMultiSlotRecipeClass extends RecipeClassBase {
       return;
     }
   }
-}
-
-function parseOutput(recipe: Recipe): { itemId: string; count: number } | null {
-  const outSource = recipe.result || recipe.output || (Array.isArray(recipe.results) ? recipe.results[0] : null);
-  if (!outSource) return null;
-  const info = extractItemInfo(outSource);
-  if (!info) return null;
-  return { itemId: info.itemId, count: info.count || 1 };
 }
 
 export function createRecipeClass(recipe: Recipe): RecipeClassBase | null {
