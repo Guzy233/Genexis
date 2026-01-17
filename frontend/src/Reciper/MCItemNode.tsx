@@ -100,6 +100,11 @@ export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
   const isTag = itemIdorTag?.startsWith('#');
   const items = isTag ? getTagItems(itemIdorTag) : [itemIdorTag]
 
+  // 当标签或物品改变时，重置索引，防止索引越界或停留在错误的位置
+  useEffect(() => {
+    setIdx(0);
+  }, [itemIdorTag]);
+
   useEffect(() => {
     if (items.length <= 1) return;
     const intv = setInterval(() => setIdx((i) => (i + 1) % items.length), 1000);

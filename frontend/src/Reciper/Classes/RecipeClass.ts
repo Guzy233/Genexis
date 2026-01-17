@@ -335,11 +335,12 @@ export class ShapedRecipeClass extends RecipeClassBase {
     const slots: SlotDisplay[] = [];
 
     for (let row = 0; row < this.gridRows; row++) {
+      const rowStr = (pattern[row] || "").padEnd(3, " ");
       for (let col = 0; col < this.gridCols; col++) {
         const x = this.padding + col * (this.slotSize + this.gap);
         const y = this.padding + row * (this.slotSize + this.gap);
 
-        const char = pattern[row]?.[col] || ' ';
+        const char = rowStr[col];
         const ingredient = char !== ' ' ? key[char] : null;
         const hasItem = ingredient !== undefined && ingredient !== null;
 
@@ -491,7 +492,15 @@ export class ShapedRecipeClass extends RecipeClassBase {
 
   private allocateChar(): string {
     const key = this.recipe.key || {};
+    const pattern = this.recipe.pattern || [];
     const usedChars = new Set(Object.keys(key));
+    // 同时检查 pattern 中已使用的字符，防止冲突
+    pattern.forEach(row => {
+      for (const char of row) {
+        if (char !== ' ') usedChars.add(char);
+      }
+    });
+
     const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for (const char of possible) {
       if (!usedChars.has(char)) return char;

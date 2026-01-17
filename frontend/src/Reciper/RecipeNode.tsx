@@ -150,6 +150,7 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
     if (!el) return;
 
     const onReplace = (e: Event) => {
+      e.stopPropagation()
       const customEvent = e as CustomEvent;
       const rawInfo = customEvent.detail;
       const target = e.target as HTMLElement;
