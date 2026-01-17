@@ -52,8 +52,8 @@ export let activedId = "";
 export function active(id: string) {
   const last = activedId;
   activedId = id;
-  if (last) managerUpdateId(last);
-  if (activedId) managerUpdateId(activedId);
+  if (last && objects[last]) managerUpdateId(last);
+  if (activedId && objects[activedId]) managerUpdateId(activedId);
 }
 
 // ==================== 键盘导航逻辑 ====================

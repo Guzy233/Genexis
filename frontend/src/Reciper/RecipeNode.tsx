@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { atom, useAtom } from "jotai";
-import { Obj, Anchor, anchors_rect, Node, Coms } from "../Globals";
+import { Obj, Anchor, anchors_rect, Node, Coms, topLayer } from "../Globals";
 import {
   registerSerializer,
   serializeAnchors,
@@ -9,7 +9,7 @@ import {
 import { activedId } from "../Controllers/Selector";
 import { RECIPE_TYPE_NAMES } from "./Reciper";
 import { PrimitiveAtom } from "jotai";
-import { managerUpdate, managerUpdateAtom } from "../Manager";
+import { managerUpdate, managerUpdateAtom, saveHistory } from "../Manager";
 
 // 导入拆分出的组件和类型
 import {
@@ -311,6 +311,116 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
 });
 
 // ============================================================================
+// 简易配方编辑器
+// ============================================================================
+
+let openRecipeEditor: ((node: RecipeNode) => void) | null = null;
+
+topLayer.push(() => {
+  const [editingNode, setEditingNode] = useState<RecipeNode | null>(null);
+  const [jsonText, setJsonText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    openRecipeEditor = (node: RecipeNode) => {
+      setEditingNode(node);
+      setJsonText(JSON.stringify(node.recipe, null, 2));
+      setError(null);
+    };
+    return () => { openRecipeEditor = null; };
+  }, []);
+
+  const handleSave = () => {
+    if (!editingNode) return;
+    try {
+      const newRecipe = JSON.parse(jsonText);
+      editingNode.recipe = newRecipe;
+      managerUpdate(editingNode);
+      managerUpdateAtom(editingNode.contentUpdater);
+      saveHistory();
+      setEditingNode(null);
+    } catch (e: any) {
+      setError("JSON 格式错误: " + e.message);
+    }
+  };
+
+  if (!editingNode) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', zIndex: 10000,
+        backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease'
+      }}
+      onClick={() => setEditingNode(null)}
+    >
+      <div
+        style={{
+          backgroundColor: '#18181b', padding: '24px', borderRadius: '12px',
+          width: '600px', maxWidth: '90%', maxHeight: '85%', display: 'flex',
+          flexDirection: 'column', gap: '16px', border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)', animation: 'scaleIn 0.2s ease'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, color: '#f4f4f5', fontSize: '18px' }}>编辑配方原始数据</h3>
+          <span style={{ color: '#71717a', fontSize: '12px' }}>ID: {editingNode.id}</span>
+        </div>
+
+        <textarea
+          style={{
+            flex: 1, backgroundColor: '#09090b', color: '#e4e4e7',
+            border: '1px solid #27272a', borderRadius: '8px', padding: '12px',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            fontSize: '13px', minHeight: '350px', resize: 'none', outline: 'none',
+            lineHeight: '1.6'
+          }}
+          value={jsonText}
+          onChange={e => setJsonText(e.target.value)}
+          spellCheck={false}
+        />
+
+        {error && (
+          <div style={{ color: '#ef4444', fontSize: '12px', padding: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '4px' }}>
+            ⚠️ {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          <button
+            style={{
+              padding: '8px 20px', borderRadius: '6px', border: '1px solid #27272a',
+              backgroundColor: 'transparent', color: '#e4e4e7', cursor: 'pointer',
+              fontSize: '14px', transition: 'all 0.2s'
+            }}
+            onClick={() => setEditingNode(null)}
+          >
+            取消
+          </button>
+          <button
+            style={{
+              padding: '8px 20px', borderRadius: '6px', border: 'none',
+              backgroundColor: '#6366f1', color: '#fff', cursor: 'pointer',
+              fontSize: '14px', fontWeight: '500', transition: 'all 0.2s'
+            }}
+            onClick={handleSave}
+          >
+            保存更改
+          </button>
+        </div>
+      </div>
+      <style>{`
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+`}</style>
+    </div>
+  );
+});
+
+// ============================================================================
 // 画布节点组件
 // ============================================================================
 
@@ -349,6 +459,10 @@ Coms["node/recipe"] = ({ obj }) => {
       transform={`translate(${node.pos.x}, ${node.pos.y})`}
       className="node-group"
       data-id={node.id}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        openRecipeEditor?.(node);
+      }}
     >
       {/* 配方类型名称 - 左上角外部 */}
       {node.onCanvas && <text

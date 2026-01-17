@@ -153,7 +153,7 @@ export const SVGItemSlot: React.FC<SVGItemSlotProps> = ({
         <g
           transform={`translate(${(size - iconSize) / 2}, ${(size - iconSize) / 2})`}
           data-type="item"
-          data-count={count}
+          data-count={count || 1}
           data-id={itemIdorTag}
         >
           <MCItemIcon itemId={current} size={iconSize} tag={isTag ? itemIdorTag : undefined} />

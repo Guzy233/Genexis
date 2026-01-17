@@ -90,8 +90,6 @@ export abstract class RecipeClassBase {
         delete (this.recipe as any)[fieldName];
         this.clearCache();
       }
-      // 多数固定槽位的配方应当忽略删除操作，只有输入输出个数不定的配方（如合成表）允许删除
-      // 这里返回 true 表示 mark 已匹配，但是操作被忽略
       return true;
     }
 
