@@ -22,6 +22,11 @@ import {
   calculateRecipeNodeSize,
   RecipeLayout,
 } from "./RecipeLayout";
+import {
+  createRecipeClass,
+  RecipeClassBase,
+  SlotMark,
+} from "./RecipeClass";
 
 // 重新导出 Recipe 类型以保持兼容性
 export type { Recipe } from "./RecipeSlot";
@@ -222,7 +227,10 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
 }) => {
   useAtom(node.contentUpdater);
   const { recipe, onCanvas, modifyMode } = node;
-  const layout = getRecipeLayout(recipe);
+
+  // 尝试使用新的RecipeClass系统
+  const recipeClass = createRecipeClass(recipe);
+  const layout = recipeClass ? recipeClass.getLayout() : getRecipeLayout(recipe);
 
   if (!layout) {
     return (
@@ -243,11 +251,30 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
 
     const onReplace = (e: Event) => {
       const customEvent = e as CustomEvent;
-      const { idorTag } = customEvent.detail;
+      const info = customEvent.detail; // 新格式: 完整的info对象 {type, id, amount, ...}
       const target = e.target as HTMLElement;
       const slot = target.closest('[data-slot-role]');
       if (!slot) return;
 
+      // ========== 尝试使用新的 RecipeClass 系统 ==========
+      // const recipeClass = createRecipeClass(recipe);
+      if (recipeClass) {
+        // 获取槽位的mark
+        const markAttr = slot.getAttribute('data-slot-mark');
+        if (markAttr) {
+          try {
+            recipeClass.replaceByMark(markAttr as SlotMark, info);
+            // 更新recipe引用 (RecipeClass内部已修改)
+            node.recipe = recipeClass.getRecipe();
+            managerUpdateAtom(node.contentUpdater);
+            return;
+          } catch (err) {
+            console.warn('RecipeClass替换失败,回退到旧逻辑:', err);
+          }
+        }
+      }
+
+      // ========== 回退: 使用旧的 Path-based 系统 ==========
       // 从 data 属性获取 slotPath
       const slotPathAttr = slot.getAttribute('data-slot-path');
       if (!slotPathAttr) return;
@@ -261,9 +288,16 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
 
       const role = slot.getAttribute('data-slot-role') as 'input' | 'output';
 
+      // 兼容旧格式: 如果detail中有idorTag则使用,否则从info中提取
+      let idorTag = (customEvent.detail as any).idorTag;
+      if (idorTag === undefined && info && info.id) {
+        // 新格式: 从info中提取
+        idorTag = info.id;
+      }
+
       // 构建新物品对象
       let newItem: any = null;
-      if (idorTag !== "") {
+      if (idorTag !== "" && idorTag !== undefined) {
         if (role === 'output') {
           // 输出槽位始终使用 id 格式
           newItem = { id: idorTag.startsWith('#') ? idorTag.substring(1) : idorTag, count: 1 };
@@ -330,6 +364,10 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
       {/* 统一槽位渲染 - 使用动态渲染器 */}
       {layout.slots.map((slot, i) => {
         const Renderer = getSlotRenderer(slot.slotType);
+        // 检查是否有markedSlots (使用RecipeClass时会有)
+        const markedSlots = (layout as any).markedSlots;
+        const mark = markedSlots && markedSlots[i] ? markedSlots[i].mark : undefined;
+
         return (
           <g
             key={`slot-${slot.slotType}-${i}`}
@@ -338,6 +376,7 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
             data-slot-role={slot.role}
             data-slot-index={'index' in slot ? slot.index : undefined}
             data-slot-path={JSON.stringify(slot.slotPath)}
+            data-slot-mark={mark}
           >
             <Renderer slot={slot} />
           </g>

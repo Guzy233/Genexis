@@ -196,7 +196,7 @@ function onMouseDown(e: MouseEvent) {
       target.dispatchEvent(
         new CustomEvent("replace-item", {
           bubbles: true,
-          detail: { idorTag: "" }
+          detail: { id: "" }  // 使用新格式: {id: ""} 表示删除
         })
       );
     }
