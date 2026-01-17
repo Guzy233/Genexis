@@ -7,7 +7,7 @@ import {
   deserializeAnchors,
 } from "../Serialization";
 import { activedId } from "../Controllers/Selector";
-import { RECIPE_TYPE_NAMES } from "./Reciper";
+import { RECIPE_TYPE_NAMES } from "./Constants";
 import { PrimitiveAtom } from "jotai";
 import { managerUpdate, managerUpdateAtom, saveHistory } from "../Manager";
 
@@ -351,6 +351,12 @@ topLayer.push(() => {
         backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease'
       }}
       onClick={() => setEditingNode(null)}
+      onKeyDown={e => {
+        e.stopPropagation();
+        if (e.key === 'Escape') setEditingNode(null);
+      }}
+      onKeyUp={e => e.stopPropagation()}
+      onKeyPress={e => e.stopPropagation()}
     >
       <div
         style={{
@@ -377,6 +383,7 @@ topLayer.push(() => {
           value={jsonText}
           onChange={e => setJsonText(e.target.value)}
           spellCheck={false}
+          autoFocus
         />
 
         {error && (

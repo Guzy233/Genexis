@@ -27,6 +27,7 @@ const InitializationModal: React.FC = () => {
   const [exportPath, setExportPath] = useState(currentConfig?.exportPath || "");
   const [language, setLanguage] = useState(currentConfig?.language || "zh_cn");
   const [forceReload, setForceReload] = useState(false);
+  const [importExisting, setImportExisting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,6 +115,7 @@ const InitializationModal: React.FC = () => {
         exportPath: exportPath.trim(),
         language: language,
         forceReload: forceReload,
+        importExisting: importExisting,
       });
       closeInitializationModal();
     } catch (err) {
@@ -378,6 +380,27 @@ const InitializationModal: React.FC = () => {
             style={{ color: "#e4e4e7", fontSize: "14px", cursor: "pointer" }}
           >
             强制刷新缓存 (Force Reload)
+          </label>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
+          <input
+            type="checkbox"
+            id="importExisting"
+            checked={importExisting}
+            onChange={(e) => setImportExisting(e.target.checked)}
+            style={{
+              width: "16px",
+              height: "16px",
+              cursor: "pointer",
+              accentColor: "#6366f1",
+            }}
+          />
+          <label
+            htmlFor="importExisting"
+            style={{ color: "#e4e4e7", fontSize: "14px", cursor: "pointer" }}
+          >
+            导入已有配方 (Import Existing)
           </label>
         </div>
 
