@@ -46,19 +46,13 @@ export const onMouseDown = (e: MouseEvent) => {
   };
   managerAdd(deletionTrail);
 
-  // 阻止默认右键菜单
-  const onContextMenu = (e: MouseEvent) => {
-    if (startPos.x === e.clientX && startPos.y === e.clientY) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  };
 
   // 窗口失去焦点时退出删除模式
   const onBlur = () => {
     managerDeleteId(deletionTrail.id);
     window.removeEventListener("mousemove", onMouseMove, true);
     window.removeEventListener("mouseover", onMouseOver, true);
-    window.removeEventListener("contextmenu", onContextMenu, true);
+    window.removeEventListener("mouseup", onMouseUp, true);
     window.removeEventListener("blur", onBlur);
   };
 
@@ -80,23 +74,22 @@ export const onMouseDown = (e: MouseEvent) => {
     managerDeleteIdWithEdges(id);
   };
 
-  const onMouseUp = () => {
+  const onMouseUp = (e: MouseEvent) => {
     saveHistory();
     managerDeleteId(deletionTrail.id);
     window.removeEventListener("mousemove", onMouseMove, true);
     window.removeEventListener("mouseover", onMouseOver, true);
     window.removeEventListener("mouseup", onMouseUp, true);
     window.removeEventListener("blur", onBlur);
-    setTimeout(() => {
-      window.removeEventListener("contextmenu", onContextMenu, true);
-    }, 0);
+
+    if (deletionTrail.points.length >= 3) e.stopImmediatePropagation()
+
   };
 
   window.addEventListener("mousemove", onMouseMove, true);
   window.addEventListener("mouseover", onMouseOver, true);
   window.addEventListener("mouseup", onMouseUp, true);
   window.addEventListener("blur", onBlur);
-  window.addEventListener("contextmenu", onContextMenu, true);
 };
 
 onSetup((canvas: SVGSVGElement) => {

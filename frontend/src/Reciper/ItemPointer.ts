@@ -228,8 +228,6 @@ function onMouseDown(e: MouseEvent) {
   if (ignoreVal === "C" && e.ctrlKey) return;
   if (ignoreVal === "A" && e.altKey) return;
 
-  e.stopPropagation()
-
   // 3. 处理打开配方 (目前主要支持物品, 未来可扩展流体和化学品)
   if (getSetting("reciper.open_recipe_result")?.value === mouseQuery)
     openRecipeModal(info?.id!, "result")
@@ -237,6 +235,9 @@ function onMouseDown(e: MouseEvent) {
     openRecipeModal(info?.id!, "usage")
   else if (getSetting("reciper.drag_item")?.value === mouseQuery)
     startDragItem(e, info)
+  else return
+
+  e.stopPropagation()
 }
 
 onSetup(() => {

@@ -29,6 +29,9 @@ export function registerKeyAction(registration: KeyActionRegistration): void {
     ...registration.settings,
     onChange: (v) => updateBinding(registration.action, v),
   });
+
+  // 立即初始化按键映射，确保外部注册的按键也能生效
+  updateBinding(registration.action, registration.settings.value);
 }
 
 // ==================== 按键映射 ====================
