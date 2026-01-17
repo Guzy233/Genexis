@@ -10,7 +10,7 @@ import {
 import { activedId } from "../Controllers/Selector";
 
 // ============ 流体颜色映射 ============
-const FLUID_COLORS: Record<string, string> = {
+export const FLUID_COLORS: Record<string, string> = {
   'minecraft:water': '#3b82f6',
   'minecraft:lava': '#f97316',
   'minecraft:milk': '#f5f5f4',

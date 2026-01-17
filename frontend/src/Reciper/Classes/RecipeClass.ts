@@ -83,6 +83,43 @@ export abstract class RecipeClassBase {
   // 根据mark和info替换配方内容
   abstract replaceByMark(mark: SlotMark, info: any): void;
 
+  protected applyFieldMark(mark: SlotMark, info: any, allowDelete: boolean = false): boolean {
+    if (typeof mark !== 'string') return false;
+    const match = mark.match(/^(item|fluid):(.+)$/);
+    if (!match) return false;
+
+    const [_, type, fieldName] = match;
+
+    // 删除逻辑
+    if (!info || info.id === "" || info.id === undefined) {
+      if (allowDelete) {
+        delete (this.recipe as any)[fieldName];
+        this.clearCache();
+      }
+      // 多数固定槽位的配方应当忽略删除操作，只有输入输出个数不定的配方（如合成表）允许删除
+      // 这里返回 true 表示 mark 已匹配，但是操作被忽略
+      return true;
+    }
+
+    // 替换逻辑
+    const id = info.id as string;
+    const value: any = {};
+
+    if (type === 'item') {
+      if (id.startsWith('#')) value.tag = id.substring(1);
+      else value.item = id;
+      if (info.amount && info.amount > 1) value.count = info.amount;
+    } else if (type === 'fluid') {
+      if (id.startsWith('#')) value.tag = id.substring(1);
+      else value.fluid = id;
+      value.amount = info.amount || 1;
+    }
+
+    (this.recipe as any)[fieldName] = value;
+    this.clearCache();
+    return true;
+  }
+
   // 获取原始配方对象 (用于序列化等)
   getRecipe(): Recipe {
     return this.recipe;
@@ -186,7 +223,7 @@ export class ShapelessRecipeClass extends RecipeClassBase {
       size: this.slotSize,
       label: "结果",
       index: 0,
-      mark: 'outputItem'
+      mark: `item:${this.recipe.result ? 'result' : 'output'}`
     };
 
     slots.push(outputSlot);
@@ -217,18 +254,9 @@ export class ShapelessRecipeClass extends RecipeClassBase {
   }
 
   replaceByMark(mark: SlotMark, info: any): void {
-    const ingredients = this.recipe.ingredients || [];
+    if (this.applyFieldMark(mark, info)) return;
 
-    // 处理输出
-    if (mark === 'outputItem') {
-      if (!info || info.id === "" || info.id === undefined) {
-        return;
-      }
-      const outputKey = this.recipe.result ? 'result' : 'output';
-      (this.recipe as any)[outputKey] = { id: info.id, count: info.amount || 1 };
-      this.clearCache();
-      return;
-    }
+    const ingredients = this.recipe.ingredients || [];
 
     // 处理空槽位 - 添加到ingredients数组末尾
     if (mark === 'emptySlot') {
@@ -384,7 +412,7 @@ export class ShapedRecipeClass extends RecipeClassBase {
       size: this.slotSize,
       label: "结果",
       index: 0,
-      mark: 'outputItem'
+      mark: `item:${this.recipe.result ? 'result' : 'output'}`
     };
 
     slots.push(outputSlot);
@@ -414,21 +442,13 @@ export class ShapedRecipeClass extends RecipeClassBase {
   }
 
   replaceByMark(mark: SlotMark, info: any): void {
+    if (this.applyFieldMark(mark, info)) return;
+
     if (!this.recipe.pattern) this.recipe.pattern = ["   ", "   ", "   "];
     if (!this.recipe.key) this.recipe.key = {};
 
     const pattern = this.recipe.pattern;
     const key = this.recipe.key;
-
-    if (mark === 'outputItem') {
-      if (!info || info.id === "" || info.id === undefined) {
-        return;
-      }
-      const outputKey = this.recipe.result ? 'result' : 'output';
-      (this.recipe as any)[outputKey] = { id: info.id, count: info.amount || 1 };
-      this.clearCache();
-      return;
-    }
 
     const posMatch = mark.match(/^input_(\d+)_(\d+)$/);
     if (!posMatch && mark !== 'emptySlot') return;
@@ -520,14 +540,23 @@ export function registerClassFactory(detector: RecipeClassDetector): void {
 }
 
 // ============================================================================
-// 具体配方类: 熔炼/烧炼 (1进1出)
+// 具体配方类: 通用 1进1出 (支持熔炼、烧炼以及各种单输入单输出机器)
 // ============================================================================
 
-export class SmeltingRecipeClass extends RecipeClassBase {
+export class Generic1In1OutRecipeClass extends RecipeClassBase {
   private readonly padding = 12;
   private readonly slotSize = 40;
   private readonly arrowGap = 20;
   private readonly arrowWidth = 24;
+
+  private inputKey: string;
+  private outputKey: string;
+
+  constructor(recipe: Recipe, inputKey?: string, outputKey?: string) {
+    super(recipe);
+    this.inputKey = inputKey || (recipe.ingredient ? 'ingredient' : (recipe.item_input ? 'item_input' : 'input'));
+    this.outputKey = outputKey || (recipe.result ? 'result' : (recipe.output ? 'output' : (recipe.item_output ? 'item_output' : 'results')));
+  }
 
   get width(): number {
     return this.padding + this.slotSize + this.arrowGap + this.arrowWidth + this.arrowGap + this.slotSize + this.padding + this.slotSize + this.padding;
@@ -541,7 +570,7 @@ export class SmeltingRecipeClass extends RecipeClassBase {
 
   generateLayout(): RecipeLayout {
     const slots: SlotDisplay[] = [];
-    const inputSource = this.recipe.ingredient || this.recipe.input;
+    const inputSource = this.recipe[this.inputKey];
     const inputInfo = extractItemInfo(inputSource);
     const inputSlot: ItemSlotDisplay = {
       slotType: 'item',
@@ -552,21 +581,22 @@ export class SmeltingRecipeClass extends RecipeClassBase {
       size: this.slotSize,
       label: "原料",
       index: 0,
-      mark: 'input1'
+      mark: `item:${this.inputKey}`
     };
     slots.push(inputSlot);
 
-    const output = parseOutput(this.recipe);
+    const outputSource = this.recipe[this.outputKey] || (Array.isArray(this.recipe.results) ? this.recipe.results[0] : null);
+    const outputInfo = extractItemInfo(outputSource);
     const outputSlot: ItemSlotDisplay = {
       slotType: 'item',
-      itemId: output?.itemId || "",
-      count: output?.count || 1,
+      itemId: outputInfo?.itemId || "",
+      count: outputInfo?.count || 1,
       x: this.padding + this.slotSize + this.arrowGap + this.arrowWidth + this.arrowGap,
       y: this.padding,
       size: this.slotSize,
       label: "结果",
       index: 0,
-      mark: 'outputItem'
+      mark: `item:${this.outputKey}`
     };
     slots.push(outputSlot);
 
@@ -588,22 +618,7 @@ export class SmeltingRecipeClass extends RecipeClassBase {
   }
 
   replaceByMark(mark: SlotMark, info: any): void {
-    if (mark === 'outputItem') {
-      const outputKey = this.recipe.result ? 'result' : 'output';
-      if (!info || info.id === "") return;
-      (this.recipe as any)[outputKey] = { id: info.id, count: info.amount || 1 };
-    } else if (mark === 'input1') {
-      const inputKey = this.recipe.ingredient ? 'ingredient' : 'input';
-      if (!info || info.id === "") {
-        delete (this.recipe as any)[inputKey];
-      } else {
-        const newItem: any = {};
-        if (info.id.startsWith('#')) newItem.tag = info.id.substring(1);
-        else newItem.item = info.id;
-        if (info.amount > 1) newItem.count = info.amount;
-        (this.recipe as any)[inputKey] = newItem;
-      }
-    }
+    if (this.applyFieldMark(mark, info)) return;
     this.clearCache();
   }
 }
@@ -619,12 +634,27 @@ function parseOutput(recipe: Recipe): { itemId: string; count: number } | null {
 export function createRecipeClass(recipe: Recipe): RecipeClassBase | null {
   const type = recipe.type || "";
   if (recipe.pattern && recipe.key) return new ShapedRecipeClass(recipe);
-  if (type.includes('smelting') || type.includes('blasting') || type.includes('smoking') || type.includes('campfire_cooking')) return new SmeltingRecipeClass(recipe);
-  if (type.includes('shapeless') || recipe.ingredients) return new ShapelessRecipeClass(recipe);
+
+  // 1. 已知特定类型
+  if (type.includes('smelting') || type.includes('blasting') || type.includes('smoking') || type.includes('campfire_cooking')) return new Generic1In1OutRecipeClass(recipe);
+  if (type.includes('shapeless') || (recipe.ingredients && Array.isArray(recipe.ingredients) && recipe.ingredients.length > 1)) return new ShapelessRecipeClass(recipe);
+
+  // 2. 插件注册的工厂
   for (const factory of factories) {
     const result = factory(recipe);
     if (result) return result;
   }
+
+  // 3. 通用 1进1出检测 (只检测关键字段是否存在)
+  const hasInput = recipe.ingredient || recipe.input || recipe.item_input;
+  const hasOutput = recipe.result || recipe.output || recipe.item_output || (Array.isArray(recipe.results) && recipe.results.length === 1);
+  if (hasInput && hasOutput) {
+    // 排除掉已经确定的复杂布局
+    if (!recipe.pattern && !recipe.key && (!recipe.ingredients || (Array.isArray(recipe.ingredients) && recipe.ingredients.length <= 1))) {
+      return new Generic1In1OutRecipeClass(recipe);
+    }
+  }
+
   return null;
 }
 

@@ -117,19 +117,14 @@ export interface ChemicalSlotDisplay extends SlotDisplayBase {
 registerRenderer("chemical",
   ({ slot }: SlotRendererProps<ChemicalSlotDisplay>) => {
     const color = getChemicalColor(slot.chemicalType, slot.chemicalId);
-    // 对于小量化学品使用固定比例，避免负数高度
+    // 对于小量化学品使用固定比例，避免高度显示不正常
     const maxAmount = slot.amount < 1000 ? 1000 : 10000;
     const fillPercent = Math.min(1, Math.max(0.1, slot.amount / maxAmount));  // 至少显示10%
     const fillHeight = Math.max(4, slot.height * fillPercent);  // 至少4px高度
     const emptyHeight = slot.height - fillHeight;
 
-    // 化学品类型图标
-    const typeIcons: Record<string, string> = {
-      gas: '◯',
-      slurry: '◈',
-      infuse: '✦',
-      pigment: '◆',
-    };
+    // 化学品类型图标 (优先使用显示配置中的图标)
+    const icon = CHEMICAL_TYPE_CONFIG[slot.chemicalType]?.icon || '?';
 
     return (
       <g
@@ -167,8 +162,9 @@ registerRenderer("chemical",
           fill={color}
           fontSize="10"
           dominantBaseline="middle"
+          style={{ pointerEvents: 'none' }}
         >
-          {typeIcons[slot.chemicalType] || '?'}
+          {icon}
         </text>
         <text
           x={slot.width / 2}
@@ -177,6 +173,7 @@ registerRenderer("chemical",
           fill="#a1a1aa"
           fontSize="9"
           dominantBaseline="hanging"
+          style={{ pointerEvents: 'none' }}
         >
           {slot.amount >= 1000 ? `${(slot.amount / 1000).toFixed(1)}B` : `${slot.amount}mb`}
         </text>
@@ -385,10 +382,10 @@ Coms["node/mc/chemical"] = ({ obj }) => {
 
 
 // ============================================================================
-// Mekanism 冶金灌注配方类
+// Mekanism 通用化学品+物品配方类 (净化、注入、灌注)
 // ============================================================================
 
-export class MetallurgicInfusing extends RecipeClassBase {
+export class MekanismItemChemicalRecipeClass extends RecipeClassBase {
   private readonly padding = 12;
   private readonly slotSize = 40;
   private readonly chemicalWidth = 24;
@@ -410,16 +407,24 @@ export class MetallurgicInfusing extends RecipeClassBase {
   generateLayout(): RecipeLayout {
     const slots: SlotDisplay[] = [];
 
-    // ========== 化学品输入槽位 (灌注类型) ==========
+    // ========== 化学品输入槽位 ==========
     const chemicalInput = this.recipe.chemical_input;
     if (chemicalInput) {
       const chemicalId = chemicalInput.tag
         ? (chemicalInput.tag.startsWith('#') ? chemicalInput.tag : '#' + chemicalInput.tag)
         : (chemicalInput.chemical || chemicalInput.id || 'unknown');
 
+      // 根据配方类型推断化学品类型
+      let chemType: ChemicalType = 'gas';
+      if (this.recipe.type.includes('infusing')) chemType = 'infuse';
+      else if (this.recipe.type.includes('purifying') || this.recipe.type.includes('injecting')) chemType = 'gas';
+      // 也可以根据字段名推断 (Mekanism 内部有时会用不同的键)
+      if (chemicalInput.gas) chemType = 'gas';
+      if (chemicalInput.infuse) chemType = 'infuse';
+
       const chemicalSlot: ChemicalSlotDisplay & { mark: SlotMark } = {
         slotType: 'chemical',
-        chemicalType: 'infuse',
+        chemicalType: chemType,
         chemicalId: chemicalId,
         amount: chemicalInput.amount || 1,
         x: this.padding,
@@ -453,26 +458,26 @@ export class MetallurgicInfusing extends RecipeClassBase {
       size: this.slotSize,
       label: "原料",
       index: 0,
-      mark: 'input1'
+      mark: 'item:item_input'
     };
 
     slots.push(itemInputSlot);
 
     // ========== 输出物品槽位 ==========
-    const output = this.recipe.result || this.recipe.output || (Array.isArray(this.recipe.results) ? this.recipe.results[0] : null);
+    const outputKey = this.recipe.result ? 'result' : 'output';
+    const output = this.recipe[outputKey] || (Array.isArray(this.recipe.results) ? this.recipe.results[0] : null);
     let outputItemId = "";
     let outputCount = 1;
 
     if (output) {
-      if (typeof output === 'string') {
-        outputItemId = output;
-      } else if (typeof output === 'object') {
-        outputItemId = output.id || output.item || "";
-        outputCount = output.count || 1;
+      const outInfo = extractItemInfo(output);
+      if (outInfo) {
+        outputItemId = outInfo.itemId;
+        outputCount = outInfo.count || 1;
       }
     }
 
-    const outputSlot: ItemSlotDisplay & { mark: SlotMark } = {
+    const outputSlot: ItemSlotDisplay = {
       slotType: 'item',
       itemId: outputItemId,
       count: outputCount,
@@ -481,7 +486,7 @@ export class MetallurgicInfusing extends RecipeClassBase {
       size: this.slotSize,
       label: "结果",
       index: 0,
-      mark: 'outputItem'
+      mark: `item:${outputKey}`
     };
 
     slots.push(outputSlot);
@@ -505,72 +510,129 @@ export class MetallurgicInfusing extends RecipeClassBase {
       height: 24
     };
 
-    return {
-      width: this.width,
-      height: this.height,
-      slots,
-      arrow,
-      actionButton
-    };
+    return { width: this.width, height: this.height, slots, arrow, actionButton };
   }
 
   replaceByMark(mark: SlotMark, info: any): void {
-    // ========== 处理输出 ==========
-    if (mark === 'outputItem') {
-      if (!info || info.id === "" || info.id === undefined) {
-        return; // 不处理删除输出
-      }
-      const outputKey = this.recipe.result ? 'result' : 'output';
-      (this.recipe as any)[outputKey] = { id: info.id, count: info.amount || 1 };
-      this.clearCache();
-      return;
-    }
+    if (this.applyFieldMark(mark, info)) return;
 
-    // ========== 处理化学品输入 ==========
     if (mark === 'inputChemical') {
-      if (!info || info.id === "" || info.id === undefined) {
-        // 删除化学品输入
-        delete (this.recipe as any).chemical_input;
+      if (!info || info.id === "" || info.id === undefined) return;
+
+      const newChemical: any = { amount: (this.recipe.chemical_input as any)?.amount || 1 };
+      if (info.id.startsWith('#')) {
+        newChemical.tag = info.id.substring(1);
       } else {
-        // 替换化学品输入
-        const newChemical: any = { amount: info.amount || 1 };
-
-        if (info.id.startsWith('#')) {
-          newChemical.tag = info.id.substring(1);
-        } else {
-          newChemical.chemical = info.id;
-        }
-
-        (this.recipe as any).chemical_input = newChemical;
+        newChemical.chemical = info.id;
       }
+      (this.recipe as any).chemical_input = newChemical;
       this.clearCache();
       return;
     }
 
-    // ========== 处理物品输入 ==========
-    if (mark === 'input1') {
-      if (!info || info.id === "" || info.id === undefined) {
-        // 删除物品输入
-        delete (this.recipe as any).item_input;
-      } else {
-        // 替换物品输入
-        const newItem: any = {};
+    this.clearCache();
+  }
+}
 
-        if (info.id.startsWith('#')) {
-          newItem.tag = info.id.substring(1);
-        } else {
-          newItem.item = info.id;
-        }
+// ============================================================================
+// Mekanism 绑定配方类 (Combining) - 上下结构
+// ============================================================================
 
-        if (info.amount && info.amount > 1) {
-          newItem.count = info.amount;
-        }
+export class MekanismCombiningRecipeClass extends RecipeClassBase {
+  private readonly padding = 12;
+  private readonly slotSize = 40;
+  private readonly gap = 4;
+  private readonly arrowGap = 16;
+  private readonly arrowWidth = 24;
 
-        (this.recipe as any).item_input = newItem;
-      }
-      this.clearCache();
-      return;
-    }
+  get width(): number {
+    const inputWidth = this.slotSize;
+    const contentWidth = inputWidth + this.arrowGap + this.arrowWidth + this.arrowGap + this.slotSize;
+    const actionButtonX = this.padding + contentWidth + this.arrowGap;
+    return actionButtonX + this.slotSize + this.padding;
+  }
+
+  get height(): number {
+    return this.padding + this.slotSize * 2 + this.gap + this.padding;
+  }
+
+  generateLayout(): RecipeLayout {
+    const slots: SlotDisplay[] = [];
+
+    // ========== 从输入 (extra_input) - 上 ==========
+    const extraInput = this.recipe.extra_input;
+    const extraInfo = extractItemInfo(extraInput);
+    const extraSlot: ItemSlotDisplay = {
+      slotType: 'item',
+      itemId: extraInfo?.itemId || "",
+      count: extraInfo?.count,
+      x: this.padding,
+      y: this.padding,
+      size: this.slotSize,
+      label: "次",
+      index: 0,
+      mark: 'item:extra_input'
+    };
+    slots.push(extraSlot);
+
+    // ========== 主输入 (main_input) - 下 ==========
+    const mainInput = this.recipe.main_input;
+    const mainInfo = extractItemInfo(mainInput);
+    const mainSlot: ItemSlotDisplay = {
+      slotType: 'item',
+      itemId: mainInfo?.itemId || "",
+      count: mainInfo?.count,
+      x: this.padding,
+      y: this.padding + this.slotSize + this.gap,
+      size: this.slotSize,
+      label: "主",
+      index: 0,
+      mark: 'item:main_input'
+    };
+    slots.push(mainSlot);
+
+    // ========== 输出 ==========
+    const outputKey = this.recipe.result ? 'result' : 'output';
+    const output = this.recipe[outputKey] || (Array.isArray(this.recipe.results) ? this.recipe.results[0] : null);
+    const outputInfo = extractItemInfo(output);
+
+    // 居中显示输出
+    const centerY = (this.height - this.slotSize) / 2;
+
+    const outputSlot: ItemSlotDisplay = {
+      slotType: 'item',
+      itemId: outputInfo?.itemId || "",
+      count: outputInfo?.count || 1,
+      x: this.padding + this.slotSize + this.arrowGap + this.arrowWidth + this.arrowGap,
+      y: centerY,
+      size: this.slotSize,
+      label: "结果",
+      index: 0,
+      mark: `item:${outputKey}`
+    };
+    slots.push(outputSlot);
+
+    // 箭头
+    const arrow = {
+      x: this.padding + this.slotSize + this.arrowGap + this.arrowWidth / 2,
+      y: this.height / 2,
+      text: "→",
+      fontSize: 20
+    };
+
+    const actionButton = {
+      x: this.width - this.padding - this.slotSize,
+      y: this.height - this.padding - 24,
+      width: this.slotSize,
+      height: 24
+    };
+
+    return { width: this.width, height: this.height, slots, arrow, actionButton };
+  }
+
+  replaceByMark(mark: SlotMark, info: any): void {
+    if (this.applyFieldMark(mark, info)) return;
+    this.clearCache();
   }
 }
 
@@ -584,19 +646,17 @@ export class MetallurgicInfusing extends RecipeClassBase {
  * 检查是否为Mekanism配方并返回对应的类实例
  */
 function mekanism(recipe: Recipe): RecipeClassBase | null {
-  // 冶金灌注配方
-  if (recipe.type.includes("metallurgic_infusing")) {
-    return new MetallurgicInfusing(recipe);
+  // 1. 化学品 + 物品 输入类配方 (净化、注入、灌注)
+  if (recipe.type.includes("purifying") ||
+    recipe.type.includes("injecting") ||
+    recipe.type.includes("metallurgic_infusing")) {
+    return new MekanismItemChemicalRecipeClass(recipe);
   }
 
-  // TODO: 添加其他Mekanism配方类型
-  // - Crushing (粉碎)
-  // - Enriching (富集)
-  // - Combining (合并)
-  // - Purifying (净化)
-  // - Injecting (注入)
-  // - Sawing (锯切)
-  // 等等...
+  // 2. 双物品输入绑定类配方 (Combining)
+  if (recipe.type.includes("combining") || (recipe.main_input && recipe.extra_input)) {
+    return new MekanismCombiningRecipeClass(recipe);
+  }
 
   return null;
 }
