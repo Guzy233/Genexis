@@ -9,6 +9,7 @@ import { createRecipeNode, RecipeNode } from "./RecipeNode";
 import "./MCFluidNode";
 import "./Classes/Mekanism";
 import "./Classes/Ae2";
+import "./Classes/IntegratedDynamics";
 
 export var coords: Record<string, any> = {}
 export var translations: Record<string, string> = {}

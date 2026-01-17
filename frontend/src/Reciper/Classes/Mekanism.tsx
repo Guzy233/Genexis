@@ -637,6 +637,203 @@ export class MekanismCombiningRecipeClass extends RecipeClassBase {
 }
 
 // ============================================================================
+// Mekanism 物品 -> 化学品类 (氧化/Oxidizing)
+// ============================================================================
+
+export class MekanismItemToChemicalRecipeClass extends RecipeClassBase {
+  private readonly padding = 12;
+  private readonly slotSize = 40;
+  private readonly chemicalWidth = 24;
+  private readonly chemicalHeight = 40;
+  private readonly gap = 12;
+  private readonly arrowWidth = 20;
+
+  get width(): number {
+    const contentWidth = this.slotSize + this.gap + this.arrowWidth + this.gap + this.chemicalWidth;
+    const actionButtonX = this.padding + contentWidth + this.gap;
+    return actionButtonX + this.slotSize + this.padding;
+  }
+
+  get height(): number {
+    return this.padding + this.slotSize + this.padding;
+  }
+
+  generateLayout(): RecipeLayout {
+    const slots: SlotDisplay[] = [];
+
+    // ========== 物品输入 ==========
+    const input = this.recipe.input || (Array.isArray(this.recipe.inputs) ? this.recipe.inputs[0] : null);
+    const inputInfo = extractItemInfo(input);
+
+    slots.push({
+      slotType: 'item',
+      itemId: inputInfo?.itemId || "",
+      count: inputInfo?.count,
+      x: this.padding,
+      y: this.padding,
+      size: this.slotSize,
+      label: "原料",
+      index: 0,
+      mark: 'item:input'
+    } as ItemSlotDisplay);
+
+    // ========== 化学品输出 ==========
+    // 对于 Oxidizing，输出通常是 gas，但有时定义在 output 字段
+    const output = this.recipe.output || (Array.isArray(this.recipe.results) ? this.recipe.results[0] : null);
+    let chemicalId = "";
+    let amount = 0;
+
+    if (output) {
+      chemicalId = output.id || output.gas || output.fluid || (output.tag ? '#' + output.tag : "");
+      amount = output.amount || 0;
+    }
+
+    slots.push({
+      slotType: 'chemical',
+      chemicalType: 'gas', // Oxidizing 默认输出气体
+      chemicalId: chemicalId,
+      amount: amount,
+      x: this.padding + this.slotSize + this.gap + this.arrowWidth + this.gap,
+      y: this.padding,
+      width: this.chemicalWidth,
+      height: this.chemicalHeight,
+      mark: 'outputChemical'
+    } as ChemicalSlotDisplay & { mark: SlotMark });
+
+    // 箭头
+    const arrow = {
+      x: this.padding + this.slotSize + this.gap + this.arrowWidth / 2,
+      y: this.padding + this.slotSize / 2,
+      text: "→",
+      fontSize: 20
+    };
+
+    const actionButton = {
+      x: this.width - this.padding - this.slotSize,
+      y: this.padding,
+      width: this.slotSize,
+      height: 24
+    };
+
+    return { width: this.width, height: this.height, slots, arrow, actionButton };
+  }
+
+  replaceByMark(mark: SlotMark, info: any): void {
+    if (this.applyFieldMark(mark, info)) return;
+
+    if (mark === 'outputChemical') {
+      if (!info || !info.id) {
+        delete this.recipe.output;
+      } else {
+        this.recipe.output = {
+          id: info.id,
+          amount: info.amount || 1000
+        } as any;
+      }
+    }
+    this.clearCache();
+  }
+}
+
+// ============================================================================
+// Mekanism 化学品 -> 物品类 (结晶/Crystallizing)
+// ============================================================================
+
+export class MekanismChemicalToItemRecipeClass extends RecipeClassBase {
+  private readonly padding = 12;
+  private readonly slotSize = 40;
+  private readonly chemicalWidth = 24;
+  private readonly chemicalHeight = 40;
+  private readonly gap = 12;
+  private readonly arrowWidth = 20;
+
+  get width(): number {
+    const contentWidth = this.chemicalWidth + this.gap + this.arrowWidth + this.gap + this.slotSize;
+    const actionButtonX = this.padding + contentWidth + this.gap;
+    return actionButtonX + this.slotSize + this.padding;
+  }
+
+  get height(): number {
+    return this.padding + this.slotSize + this.padding;
+  }
+
+  generateLayout(): RecipeLayout {
+    const slots: SlotDisplay[] = [];
+
+    // ========== 化学品输入 ==========
+    const input = this.recipe.input || (Array.isArray(this.recipe.inputs) ? this.recipe.inputs[0] : null);
+    let chemicalId = "";
+    let amount = 0;
+
+    if (input) {
+      chemicalId = input.chemical || input.id || (input.tag ? '#' + input.tag : "");
+      amount = input.amount || 0;
+    }
+
+    slots.push({
+      slotType: 'chemical',
+      chemicalType: 'gas', // Crystallizing 通常输入气体或浆料，默认为 gas
+      chemicalId: chemicalId,
+      amount: amount,
+      x: this.padding,
+      y: this.padding,
+      width: this.chemicalWidth,
+      height: this.chemicalHeight,
+      mark: 'inputChemical'
+    } as ChemicalSlotDisplay & { mark: SlotMark });
+
+    // ========== 物品输出 ==========
+    const output = this.recipe.output || (Array.isArray(this.recipe.results) ? this.recipe.results[0] : null);
+    const outputInfo = extractItemInfo(output);
+
+    slots.push({
+      slotType: 'item',
+      itemId: outputInfo?.itemId || "",
+      count: outputInfo?.count,
+      x: this.padding + this.chemicalWidth + this.gap + this.arrowWidth + this.gap,
+      y: this.padding,
+      size: this.slotSize,
+      label: "成品",
+      index: 0,
+      mark: 'item:output'
+    } as ItemSlotDisplay);
+
+    // 箭头
+    const arrow = {
+      x: this.padding + this.chemicalWidth + this.gap + this.arrowWidth / 2,
+      y: this.padding + this.slotSize / 2,
+      text: "→",
+      fontSize: 20
+    };
+
+    const actionButton = {
+      x: this.width - this.padding - this.slotSize,
+      y: this.padding,
+      width: this.slotSize,
+      height: 24
+    };
+
+    return { width: this.width, height: this.height, slots, arrow, actionButton };
+  }
+
+  replaceByMark(mark: SlotMark, info: any): void {
+    if (this.applyFieldMark(mark, info)) return;
+
+    if (mark === 'inputChemical') {
+      if (!info || !info.id) {
+        delete this.recipe.input;
+      } else {
+        this.recipe.input = {
+          chemical: info.id,
+          amount: info.amount || 1000
+        } as any;
+      }
+    }
+    this.clearCache();
+  }
+}
+
+// ============================================================================
 // Mekanism 配方检测器 - 使用注册系统
 // ============================================================================
 
@@ -656,6 +853,16 @@ function mekanism(recipe: Recipe): RecipeClassBase | null {
   // 2. 双物品输入绑定类配方 (Combining)
   if (recipe.type.includes("combining") || (recipe.main_input && recipe.extra_input)) {
     return new MekanismCombiningRecipeClass(recipe);
+  }
+
+  // 3. 物品 -> 化学品类配方 (Oxidizing)
+  if (recipe.type.includes("oxidizing")) {
+    return new MekanismItemToChemicalRecipeClass(recipe);
+  }
+
+  // 4. 化学品 -> 物品类配方 (Crystallizing)
+  if (recipe.type.includes("crystallizing")) {
+    return new MekanismChemicalToItemRecipeClass(recipe);
   }
 
   return null;

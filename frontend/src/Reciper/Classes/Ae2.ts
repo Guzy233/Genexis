@@ -5,7 +5,7 @@ export class Ae2ReactionRecipeClass extends RecipeClassBase {
   private readonly padding = 12;
   private readonly slotSize = 40;
   private readonly fluidWidth = 24;
-  private readonly fluidHeight = 40;
+  private readonly fluidHeight = 128; // 40*3 + 4*2 = 128
   private readonly gap = 4;
   private readonly largeGap = 12;
   private readonly arrowGap = 16;
@@ -47,7 +47,7 @@ export class Ae2ReactionRecipeClass extends RecipeClassBase {
       fluidId: inputFluidId,
       amount: inputFluidAmount,
       x: this.padding,
-      y: this.padding + (this.height - this.padding * 2 - this.fluidHeight) / 2,
+      y: this.padding,
       width: this.fluidWidth,
       height: this.fluidHeight,
       mark: 'inputFluid'
@@ -114,7 +114,7 @@ export class Ae2ReactionRecipeClass extends RecipeClassBase {
       fluidId: isOutputFluid ? (output.id || output.fluid) : "",
       amount: isOutputFluid ? (output["#"] || output.amount) : 0,
       x: outputFluidX,
-      y: centerY - this.fluidHeight / 2,
+      y: this.padding,
       width: this.fluidWidth,
       height: this.fluidHeight,
       mark: 'outputFluid'
