@@ -44,7 +44,8 @@ import { CoordinateSystem } from "./UIs/CoordinateSystem";
 
 const App: React.FC = () => {
   useAtom(canvasUpdater);
-  const canvasRef = React.useRef<SVGGElement>(null);
+  const canvasRef = React.useRef<SVGSVGElement>(null);
+
 
   const objs = Object.values(objects);
   const edges = objs.filter((obj) => obj.type.startsWith("edge"));
@@ -74,14 +75,16 @@ const App: React.FC = () => {
       tabIndex={0}
       onContextMenuCapture={(e) => e.preventDefault()}
     >
-      <svg width="100%" height="100%" className="mindmap-svg">
+      <svg width="100%" height="100%" className="mindmap-svg"
+        ref={canvasRef} id="canvas"
+      >
         <rect
           width="100%"
           height="100%"
           fill="url(#grid)"
           id="background"
         />
-        <g ref={canvasRef} id="canvas">
+        <g id="vp">
           <CoordinateSystem />
 
           {sortedObjects.map((obj) => {

@@ -466,18 +466,40 @@ export class ShapedRecipeClass extends RecipeClassBase {
     if (info.id.startsWith('#')) newItem.tag = info.id.substring(1);
     else newItem.item = info.id;
 
-    if (currentChar === ' ') {
-      const newChar = this.allocateChar();
-      pattern[row] = currentPattern.substring(0, col) + newChar + currentPattern.substring(col + 1);
-      key[newChar] = newItem;
+    // 查找是否已经存在相同的物品定义
+    const infoB = extractItemInfo(newItem);
+    const existingChar = Object.keys(key).find(c => {
+      const infoA = extractItemInfo(key[c]);
+      return infoA?.itemId === infoB?.itemId;
+    });
+
+    if (existingChar) {
+      if (currentChar !== existingChar) {
+        // 更新 pattern 使用已有的字符
+        pattern[row] = currentPattern.substring(0, col) + existingChar + currentPattern.substring(col + 1);
+        // 如果旧字符不再被使用，则从 key 中删除
+        if (currentChar !== ' ' && this.countCharUsage(currentChar) === 0) {
+          delete key[currentChar];
+        }
+      }
     } else {
-      const charUsageCount = this.countCharUsage(currentChar);
-      if (charUsageCount > 1) {
+      // 不存在现有字符时
+      if (currentChar === ' ') {
+        // 在空格处新建
         const newChar = this.allocateChar();
         pattern[row] = currentPattern.substring(0, col) + newChar + currentPattern.substring(col + 1);
         key[newChar] = newItem;
       } else {
-        key[currentChar] = newItem;
+        const charUsageCount = this.countCharUsage(currentChar);
+        if (charUsageCount > 1) {
+          // 当前字符在别处也有使用，不能直接修改，需要新建
+          const newChar = this.allocateChar();
+          pattern[row] = currentPattern.substring(0, col) + newChar + currentPattern.substring(col + 1);
+          key[newChar] = newItem;
+        } else {
+          // 当前字符仅在此处使用，直接修改 key 定义
+          key[currentChar] = newItem;
+        }
       }
     }
 

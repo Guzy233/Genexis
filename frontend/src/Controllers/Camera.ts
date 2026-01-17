@@ -225,23 +225,17 @@ function updateViewport() {
       gridPattern.setAttribute("patternTransform", `translate(${offsetX}, ${offsetY})`);
     }
   } else {
-    canvas = document.querySelector("#canvas");
+    canvas = document.querySelector("#vp");
     if (canvas) updateViewport();
   }
 }
 
-onSetup((_canvas: SVGGElement) => {
-  canvas = _canvas;
-  const svg = _canvas.ownerSVGElement;
-  if (svg) {
-    // 将监听器移动到全局 SVG，以便在背景上点击也能平移
-    svg.addEventListener("mousedown", onMouseDown);
-    svg.addEventListener("wheel", onWheel, { passive: false });
-  }
+onSetup((_canvas: SVGSVGElement) => {
+  // 将监听器移动到全局 SVG，以便在背景上点击也能平移
+  _canvas.addEventListener("mousedown", onMouseDown);
+  _canvas.addEventListener("wheel", onWheel, { passive: false });
   return () => {
-    if (svg) {
-      svg.removeEventListener("mousedown", onMouseDown);
-      svg.removeEventListener("wheel", onWheel);
-    }
+    _canvas.removeEventListener("mousedown", onMouseDown);
+    _canvas.removeEventListener("wheel", onWheel);
   };
 });

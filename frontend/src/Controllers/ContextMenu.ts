@@ -47,6 +47,7 @@ export interface ContextMenu extends Obj {
 
 // 右键点击处理
 const onContextMenu = (e: MouseEvent) => {
+  if (e.button !== 2) return
   e.preventDefault();
 
   // 查找点击的目标
@@ -97,9 +98,9 @@ const onContextMenu = (e: MouseEvent) => {
   };
   window.addEventListener("mousedown", onMenuMouseDown, true);
 };
-onSetup((canvas: SVGGElement) => {
-  canvas.addEventListener("contextmenu", onContextMenu);
-  return () => canvas.removeEventListener("contextmenu", onContextMenu);
+onSetup((canvas: SVGSVGElement) => {
+  canvas.addEventListener("mouseup", onContextMenu);
+  return () => canvas.removeEventListener("mouseup", onContextMenu);
 });
 
 // 注册删除选项

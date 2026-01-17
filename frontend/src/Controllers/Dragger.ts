@@ -57,7 +57,7 @@ export const onClickNode = (e: MouseEvent) => {
   window.addEventListener("blur", onBlur);
 };
 
-onSetup((canvas: SVGGElement) => {
+onSetup((canvas: SVGSVGElement) => {
   canvas.addEventListener("mousedown", onClickNode);
   return () => canvas.removeEventListener("mousedown", onClickNode);
 });

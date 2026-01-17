@@ -400,7 +400,7 @@ registerSetting({
 
 // ==================== 注册控制器 ====================
 
-onSetup((canvas: SVGGElement) => {
+onSetup((canvas: SVGSVGElement) => {
   canvas.addEventListener("mousedown", onMouseDown);
   window.addEventListener("keydown", handleKeyboardNavigation);
   return () => {

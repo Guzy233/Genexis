@@ -77,7 +77,7 @@ export const Controllers: {
 }[] = [];
 
 // 新的 onSetup 注册系统
-export type SetupFn = (canvas: SVGGElement) => () => void;
+export type SetupFn = (canvas: SVGSVGElement) => () => void;
 export const onSetups: SetupFn[] = [];
 
 export function onSetup(setupFn: SetupFn) {

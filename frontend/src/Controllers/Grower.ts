@@ -158,7 +158,7 @@ registerSetting({
 
 // ==================== 注册控制器 ====================
 
-onSetup((_canvas: SVGGElement) => {
+onSetup((_canvas: SVGSVGElement) => {
   window.addEventListener("keydown", onKeyDown);
   return () => window.removeEventListener("keydown", onKeyDown);
 });

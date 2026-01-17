@@ -86,11 +86,15 @@ export const startDragItem = (e: MouseEvent, info: any) => {
   // 鼠标释放
   const onMouseUp = (e: MouseEvent) => {
     window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
+    window.removeEventListener("mouseup", onMouseUp, true);
     window.removeEventListener("blur", onBlur);
 
     // 移除拖拽元素
     document.body.removeChild(dragElement);
+
+    if (startX !== currentX || startY !== currentY)
+      e.stopPropagation()
+    else return
 
     if (e.target instanceof SVGRectElement && e.target.id === "background") {
       const viewportPos = screen2Viewport({ x: e.clientX, y: e.clientY });
@@ -117,7 +121,7 @@ export const startDragItem = (e: MouseEvent, info: any) => {
   // 失去焦点
   const onBlur = () => {
     window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
+    window.removeEventListener("mouseup", onMouseUp, true);
     window.removeEventListener("blur", onBlur);
     if (document.body.contains(dragElement)) {
       document.body.removeChild(dragElement);
@@ -125,7 +129,7 @@ export const startDragItem = (e: MouseEvent, info: any) => {
   };
 
   window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
+  window.addEventListener("mouseup", onMouseUp, true);
   window.addEventListener("blur", onBlur);
 };
 
@@ -138,8 +142,8 @@ registerSetting({
   category: "Interaction",
   title: "忽略物品操作",
   type: "key",
-  defaultValue: "S",
-  value: "S",
+  defaultValue: "Shift",
+  value: "Shift",
   description: "按住此键时忽略物品拖拽或打开配方操作",
 });
 
@@ -171,6 +175,16 @@ registerSetting({
   defaultValue: "M4",
   value: "M4",
   description: "在物品上点击此键以查看该物品的用途配方",
+});
+
+registerSetting({
+  id: "reciper.drag_item",
+  category: "Interaction",
+  title: "拖拽物品",
+  type: "mousekey",
+  defaultValue: "M2",
+  value: "M2",
+  description: "在物品上点击此键以拖拽物品到画布",
 });
 
 function getMouseQuery(e: MouseEvent) {
@@ -221,9 +235,8 @@ function onMouseDown(e: MouseEvent) {
     openRecipeModal(info?.id!, "result")
   else if (getSetting("reciper.open_recipe_usage")?.value === mouseQuery)
     openRecipeModal(info?.id!, "usage")
-  else if (e.button === 0) { // 左键拖拽
+  else if (getSetting("reciper.drag_item")?.value === mouseQuery)
     startDragItem(e, info)
-  }
 }
 
 onSetup(() => {

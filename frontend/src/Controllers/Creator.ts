@@ -95,7 +95,7 @@ const onDblClick = (e: MouseEvent) => {
   }
 };
 
-onSetup((canvas: SVGGElement) => {
+onSetup((canvas: SVGSVGElement) => {
   canvas.addEventListener("dblclick", onDblClick);
   return () => canvas.removeEventListener("dblclick", onDblClick);
 });

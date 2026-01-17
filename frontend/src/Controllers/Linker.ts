@@ -1,5 +1,5 @@
 import { objects, getActiveTab, managerDeleteId, managerUpdate, managerAdd, managerUpdateId } from "../Manager";
-import { Edge, idFromEvent, Node, onSetup, Obj } from "../Globals";
+import { Edge, idFromEvent, Node, onSetup, Obj, Vec2 } from "../Globals";
 import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
@@ -80,7 +80,19 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
     e.stopImmediatePropagation();
   };
 
+  const start: Vec2 = { ...vNode.pos }
+
   const onMouseUp = (e: MouseEvent) => {
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp, true);
+    window.removeEventListener("mouseover", onMouseOver);
+    window.removeEventListener("mouseout", onMouseOut);
+    window.removeEventListener("blur", onBlur);
+
+    if (start.x === vNode.pos.x && start.y === vNode.pos.y)
+      return
+    e.stopPropagation()
+
     const aNodeId = idFromEvent(e, ".node-group");
     if (aNodeId) {
       if (aNodeId !== vEdge.source.id) {
@@ -122,20 +134,11 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
         managerDeleteId(vEdge.id);
       }
     }
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp, true);
-    window.removeEventListener("mouseover", onMouseOver);
-    window.removeEventListener("mouseout", onMouseOut);
-    window.removeEventListener("blur", onBlur);
 
-    setTimeout(() => {
-      window.removeEventListener("contextmenu", onContextMenu, true);
-    }, 0);
   };
 
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp, true);
-  window.addEventListener("contextmenu", onContextMenu, true);
   window.addEventListener("mouseover", onMouseOver);
   window.addEventListener("mouseout", onMouseOut);
   window.addEventListener("blur", onBlur);
@@ -168,7 +171,7 @@ export const onClickNode = (e: MouseEvent) => {
   startLinking(vEdge, vNode);
 };
 
-onSetup((canvas: SVGGElement) => {
+onSetup((canvas: SVGSVGElement) => {
   canvas.addEventListener("mousedown", onClickNode);
   return () => canvas.removeEventListener("mousedown", onClickNode);
 });

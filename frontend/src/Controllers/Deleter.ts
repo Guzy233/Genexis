@@ -99,8 +99,7 @@ export const onMouseDown = (e: MouseEvent) => {
   window.addEventListener("contextmenu", onContextMenu, true);
 };
 
-onSetup((canvas: SVGGElement) => {
-  const background = document.querySelector("#background") as SVGRectElement
-  background.addEventListener("mousedown", onMouseDown);
-  return () => background.removeEventListener("mousedown", onMouseDown);
+onSetup((canvas: SVGSVGElement) => {
+  canvas.addEventListener("mousedown", onMouseDown);
+  return () => canvas.removeEventListener("mousedown", onMouseDown);
 });
