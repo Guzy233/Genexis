@@ -31,19 +31,13 @@ export const extractItemInfo = (
     return { itemId: value };
   }
   if (typeof value === "object") {
-    if (value.tag) return { itemId: value.tag.startsWith('#') ? value.tag : '#' + value.tag };
-
     const target = value.basePredicate || value;
     const id = target.id || target.item;
     const tag = target.tag;
+    const count = value.count || target.count;
 
-    if (tag) return { itemId: tag.startsWith('#') ? tag : '#' + tag, count: value.count };
-    if (id) {
-      return {
-        itemId: id,
-        count: value.count,
-      };
-    }
+    if (tag) return { itemId: tag.startsWith('#') ? tag : '#' + tag, count };
+    if (id) return { itemId: id, count };
   }
   return null;
 };
@@ -270,9 +264,6 @@ export class ShapelessRecipeClass extends RecipeClassBase {
       } else {
         newItem.item = info.id;
       }
-      if (info.amount && info.amount > 1) {
-        newItem.count = info.amount;
-      }
 
       let insertIndex = ingredients.length;
       for (let i = 0; i < 9; i++) {
@@ -304,9 +295,6 @@ export class ShapelessRecipeClass extends RecipeClassBase {
           newItem.tag = info.id.substring(1);
         } else {
           newItem.item = info.id;
-        }
-        if (info.amount && info.amount > 1) {
-          newItem.count = info.amount;
         }
         ingredients[slotIndex] = newItem;
       }
@@ -496,7 +484,6 @@ export class ShapedRecipeClass extends RecipeClassBase {
     const newItem: any = {};
     if (info.id.startsWith('#')) newItem.tag = info.id.substring(1);
     else newItem.item = info.id;
-    if (info.amount && info.amount > 1) newItem.count = info.amount;
 
     if (currentChar === ' ') {
       const newChar = this.allocateChar();
@@ -559,7 +546,7 @@ export class Generic1In1OutRecipeClass extends RecipeClassBase {
   }
 
   get width(): number {
-    return this.padding + this.slotSize + this.arrowGap + this.arrowWidth + this.arrowGap + this.slotSize + this.padding + this.slotSize + this.padding;
+    return this.padding + this.slotSize + this.arrowGap + this.arrowWidth + this.arrowGap + this.slotSize + this.padding + (this.slotSize + this.padding);
   }
 
   get height(): number {
@@ -623,6 +610,172 @@ export class Generic1In1OutRecipeClass extends RecipeClassBase {
   }
 }
 
+// ============================================================================
+// 具体配方类: 通用多槽位配方 (支持 inputs/results 数组)
+// ============================================================================
+
+export class GenericMultiSlotRecipeClass extends RecipeClassBase {
+  private readonly padding = 12;
+  private readonly slotSize = 40;
+  private readonly gap = 4;
+  private readonly arrowWidth = 24;
+  private readonly arrowGap = 16;
+  private readonly gridCols = 3;
+
+  private inputFields = ['inputs', 'ingredients', 'item_input', 'input', 'ingredient', 'additives'];
+  private outputFields = ['results', 'item_output', 'output', 'result'];
+
+  private getSlots(fieldNames: string[], isOutput: boolean) {
+    const slots: { field: string; index?: number; value: any; mark: SlotMark }[] = [];
+    for (const field of fieldNames) {
+      const val = (this.recipe as any)[field];
+      if (!val) {
+        // 如果是核心字段且不存在，可以考虑是否显示一个空的
+        continue;
+      }
+
+      if (Array.isArray(val)) {
+        val.forEach((item, idx) => {
+          slots.push({ field, index: idx, value: item, mark: `array:${field}:${idx}` as SlotMark });
+        });
+        // 留出一个空位用于添加
+        slots.push({ field, index: val.length, value: null, mark: `array_empty:${field}` as SlotMark });
+      } else {
+        slots.push({ field, value: val, mark: `item:${field}` as SlotMark });
+      }
+    }
+    return slots;
+  }
+
+  get width(): number {
+    const inSlots = this.getSlots(this.inputFields, false);
+    const outSlots = this.getSlots(this.outputFields, true);
+
+    const inCols = Math.min(this.gridCols, inSlots.length || 1);
+    const outCols = Math.min(this.gridCols, outSlots.length || 1);
+
+    const inWidth = inCols * this.slotSize + (inCols - 1) * this.gap;
+    const outWidth = outCols * this.slotSize + (outCols - 1) * this.gap;
+
+    return this.padding + inWidth + this.arrowGap + this.arrowWidth + this.arrowGap + outWidth + this.padding + (this.slotSize + this.padding);
+  }
+
+  get height(): number {
+    const inSlots = this.getSlots(this.inputFields, false);
+    const outSlots = this.getSlots(this.outputFields, true);
+
+    const inRows = Math.ceil((inSlots.length || 1) / this.gridCols);
+    const outRows = Math.ceil((outSlots.length || 1) / this.gridCols);
+
+    const maxRows = Math.max(inRows, outRows);
+    return maxRows * this.slotSize + (maxRows - 1) * this.gap + this.padding * 2;
+  }
+
+  generateLayout(): RecipeLayout {
+    const slots: SlotDisplay[] = [];
+    const inItems = this.getSlots(this.inputFields, false);
+    const outItems = this.getSlots(this.outputFields, true);
+
+    const inCols = Math.min(this.gridCols, inItems.length || 1);
+    const inWidth = inCols * this.slotSize + (inCols - 1) * this.gap;
+
+    // 输入槽位绘制
+    inItems.forEach((item, i) => {
+      const col = i % this.gridCols;
+      const row = Math.floor(i / this.gridCols);
+      const info = extractItemInfo(item.value);
+      slots.push({
+        slotType: 'item',
+        itemId: info?.itemId || "",
+        count: info?.count,
+        x: this.padding + col * (this.slotSize + this.gap),
+        y: this.padding + row * (this.slotSize + this.gap),
+        size: this.slotSize,
+        index: i,
+        mark: item.mark
+      } as ItemSlotDisplay);
+    });
+
+    // 输出槽位绘制
+    const outStartX = this.padding + inWidth + this.arrowGap + this.arrowWidth + this.arrowGap;
+    outItems.forEach((item, i) => {
+      const col = i % this.gridCols;
+      const row = Math.floor(i / this.gridCols);
+      const info = extractItemInfo(item.value);
+      slots.push({
+        slotType: 'item',
+        itemId: info?.itemId || "",
+        count: info?.count,
+        x: outStartX + col * (this.slotSize + this.gap),
+        y: this.padding + row * (this.slotSize + this.gap),
+        size: this.slotSize,
+        index: i,
+        mark: item.mark
+      } as ItemSlotDisplay);
+    });
+
+    const arrow = {
+      x: this.padding + inWidth + this.arrowGap + this.arrowWidth / 2,
+      y: this.height / 2,
+      text: "→",
+      fontSize: 20
+    };
+
+    const actionButton = {
+      x: this.width - this.padding - this.slotSize,
+      y: this.height - this.padding - 24,
+      width: this.slotSize,
+      height: 24
+    };
+
+    return { width: this.width, height: this.height, slots, arrow, actionButton };
+  }
+
+  replaceByMark(mark: SlotMark, info: any): void {
+    if (this.applyFieldMark(mark, info, true)) return;
+
+    // 处理数组空位添加
+    const emptyMatch = (mark as string).match(/^array_empty:(.+)$/);
+    if (emptyMatch) {
+      if (!info || !info.id) return;
+      const field = emptyMatch[1];
+      const arr = (this.recipe as any)[field] || [];
+      const newItem: any = {};
+      if (info.id.startsWith('#')) newItem.tag = info.id.substring(1);
+      else newItem.item = info.id;
+      if (info.amount && info.amount > 1) newItem.count = info.amount;
+
+      arr.push(newItem);
+      (this.recipe as any)[field] = arr;
+      this.clearCache();
+      return;
+    }
+
+    // 处理具体数组项更新或删除
+    const arrayMatch = (mark as string).match(/^array:(.+):(\d+)$/);
+    if (arrayMatch) {
+      const field = arrayMatch[1];
+      const index = parseInt(arrayMatch[2]);
+      const arr = (this.recipe as any)[field];
+      if (!arr || !arr[index]) return;
+
+      if (!info || !info.id) {
+        // 删除项
+        arr.splice(index, 1);
+      } else {
+        // 更新项
+        const newItem: any = {};
+        if (info.id.startsWith('#')) newItem.tag = info.id.substring(1);
+        else newItem.item = info.id;
+        if (info.amount && info.amount > 1) newItem.count = info.amount;
+        arr[index] = newItem;
+      }
+      this.clearCache();
+      return;
+    }
+  }
+}
+
 function parseOutput(recipe: Recipe): { itemId: string; count: number } | null {
   const outSource = recipe.result || recipe.output || (Array.isArray(recipe.results) ? recipe.results[0] : null);
   if (!outSource) return null;
@@ -636,7 +789,6 @@ export function createRecipeClass(recipe: Recipe): RecipeClassBase | null {
   if (recipe.pattern && recipe.key) return new ShapedRecipeClass(recipe);
 
   // 1. 已知特定类型
-  if (type.includes('smelting') || type.includes('blasting') || type.includes('smoking') || type.includes('campfire_cooking')) return new Generic1In1OutRecipeClass(recipe);
   if (type.includes('shapeless') || (recipe.ingredients && Array.isArray(recipe.ingredients) && recipe.ingredients.length > 1)) return new ShapelessRecipeClass(recipe);
 
   // 2. 插件注册的工厂
@@ -645,12 +797,19 @@ export function createRecipeClass(recipe: Recipe): RecipeClassBase | null {
     if (result) return result;
   }
 
-  // 3. 通用 1进1出检测 (只检测关键字段是否存在)
+  // 3. 多槽位/数组配方检测 (inputs, results 等数组)
+  const isMultiInput = Array.isArray(recipe.inputs) || Array.isArray(recipe.ingredients) || Array.isArray(recipe.additives);
+  const isMultiOutput = Array.isArray(recipe.results) || Array.isArray(recipe.outputs);
+  if (isMultiInput || isMultiOutput) {
+    return new GenericMultiSlotRecipeClass(recipe);
+  }
+
+  // 4. 通用 1进1出检测 (只检测关键字段是否存在)
   const hasInput = recipe.ingredient || recipe.input || recipe.item_input;
   const hasOutput = recipe.result || recipe.output || recipe.item_output || (Array.isArray(recipe.results) && recipe.results.length === 1);
   if (hasInput && hasOutput) {
     // 排除掉已经确定的复杂布局
-    if (!recipe.pattern && !recipe.key && (!recipe.ingredients || (Array.isArray(recipe.ingredients) && recipe.ingredients.length <= 1))) {
+    if (!recipe.pattern && !recipe.key) {
       return new Generic1In1OutRecipeClass(recipe);
     }
   }

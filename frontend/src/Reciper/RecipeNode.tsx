@@ -9,7 +9,7 @@ import {
 import { activedId } from "../Controllers/Selector";
 import { RECIPE_TYPE_NAMES } from "./Reciper";
 import { PrimitiveAtom } from "jotai";
-import { managerUpdateAtom } from "../Manager";
+import { managerUpdate, managerUpdateAtom } from "../Manager";
 
 // 导入拆分出的组件和类型
 import {
@@ -151,10 +151,18 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
 
     const onReplace = (e: Event) => {
       const customEvent = e as CustomEvent;
-      const info = customEvent.detail; // 新格式: 完整的info对象 {type, id, amount, ...}
+      const rawInfo = customEvent.detail;
       const target = e.target as HTMLElement;
       const slot = target.closest('[data-slot-mark]');
       if (!slot) return;
+
+      // 标准化 info 对象
+      const info = { ...rawInfo };
+      // 兼容 count 和 amount 两个字段
+      const val = rawInfo.amount ?? rawInfo.count;
+      if (val !== undefined) {
+        info.amount = typeof val === 'string' ? parseInt(val) : val;
+      }
 
       if (recipeClass) {
         // 获取槽位的mark (新系统的唯一标识)
@@ -162,9 +170,11 @@ export const SVGRecipeContent = React.memo<RecipeContentProps>(({
         if (mark) {
           try {
             recipeClass.replaceByMark(mark, info);
-            // 更新recipe引用 (RecipeClass内部已修改)
             node.recipe = recipeClass.getRecipe();
             managerUpdateAtom(node.contentUpdater);
+            node.size.x = recipeClass.width
+            node.size.y = recipeClass.height
+            managerUpdate(node)
           } catch (err) {
             console.error('RecipeClass替换失败:', err);
           }
