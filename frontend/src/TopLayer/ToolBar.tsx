@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { topLayer } from "../Globals";
+import { startDragTool } from "../Controllers/Creator";
 
 // ==================== 工具项相关 ====================
 
@@ -105,7 +106,14 @@ topLayer.push(() => {
           <div
             key={item.id}
             className={`dock-item ${isSelected ? "selected" : ""}`}
-            onClick={() => selectTool(category, item.id)}
+            onMouseDown={(e) => {
+              const iconEl = e.currentTarget.querySelector('.dock-icon') as HTMLElement;
+              const clonedIcon = iconEl ? iconEl.cloneNode(true) as HTMLElement : document.createElement('div');
+
+              startDragTool(e, item.id, clonedIcon, () => {
+                selectTool(category, item.id);
+              });
+            }}
             title={label}
           >
             <div className="dock-icon">{item.icon}</div>

@@ -130,3 +130,101 @@ ContextMenuFactories["canvas"] = (_target: Obj, event: MouseEvent): ContextMenuI
 
   return items;
 };
+
+
+// ==================== 拖拽创建工具 ====================
+
+export const startDragTool = (
+  e: React.MouseEvent | MouseEvent,
+  toolId: string,
+  iconClone: HTMLElement,
+  onClickFallback: () => void
+) => {
+  const startX = e.clientX;
+  const startY = e.clientY;
+  let hasDragged = false;
+  let ghost: HTMLElement | null = null;
+
+  const onMouseMove = (ev: MouseEvent) => {
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+
+    // 拖拽阈值
+    if (!hasDragged && (dx * dx + dy * dy > 25)) { // 5px threshold
+      hasDragged = true;
+
+      // 创建拖拽残影
+      ghost = document.createElement("div");
+      ghost.style.position = "fixed";
+      ghost.style.pointerEvents = "none";
+      ghost.style.zIndex = "10000";
+      ghost.style.opacity = "0.8";
+
+      // 容器样式
+      const container = document.createElement("div");
+      container.style.width = "48px";
+      container.style.height = "48px";
+      container.style.display = "flex";
+      container.style.alignItems = "center";
+      container.style.justifyContent = "center";
+      container.style.background = "rgba(40, 40, 45, 0.8)";
+      container.style.borderRadius = "8px";
+      container.style.border = "1px solid rgba(255, 255, 255, 0.2)";
+
+      // 图标样式调整
+      iconClone.style.display = "block";
+      iconClone.style.width = "32px";
+      iconClone.style.height = "32px";
+      // 移除原有的 transform 等可能影响显示的样式
+      iconClone.style.transform = "none";
+
+      container.appendChild(iconClone);
+      ghost.appendChild(container);
+      document.body.appendChild(ghost);
+
+      // 初始位置
+      ghost.style.left = (ev.clientX - 24) + "px";
+      ghost.style.top = (ev.clientY - 24) + "px";
+    }
+
+    if (hasDragged && ghost) {
+      ghost.style.left = (ev.clientX - 24) + "px";
+      ghost.style.top = (ev.clientY - 24) + "px";
+    }
+  };
+
+  const onMouseUp = (ev: MouseEvent) => {
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+
+    if (ghost) {
+      ghost.remove();
+    }
+
+    if (!hasDragged) {
+      onClickFallback();
+      return;
+    }
+
+    // 处理放置
+    const target = document.elementFromPoint(ev.clientX, ev.clientY);
+
+    // 检查是否放置在背景画布上 (id="background")
+    // 同时也允许放置在 SVG 元素本身上 (通常是背景)
+    if (target && (target.id === "background" || target.tagName === 'svg' || target.closest("#background"))) {
+      const factory = ObjectFactories[toolId];
+      if (factory) {
+        const pos = screen2Viewport({ x: ev.clientX, y: ev.clientY });
+        const node = factory() as Node;
+        // 居中放置
+        node.pos = { x: pos.x - node.size.x / 2, y: pos.y - node.size.y / 2 };
+        node.selected = true;
+        managerAdd(node);
+        saveHistory();
+      }
+    }
+  };
+
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+};

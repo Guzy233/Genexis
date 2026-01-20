@@ -115,6 +115,7 @@ ToolItems.push({
         fontSize="28"
         fontWeight="bold"
         fontFamily="Arial, sans-serif"
+        style={{ userSelect: "none" }}
       >
         T
       </text>
