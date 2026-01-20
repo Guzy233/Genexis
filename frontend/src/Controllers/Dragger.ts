@@ -28,10 +28,8 @@ export const onClickNode = (e: MouseEvent) => {
   nodeElement.style.pointerEvents = "none"
 
   const node = objects[id] as Node;
-  let lastX = e.clientX;
-  let lastY = e.clientY;
-
   const originPos = { x: node.pos.x, y: node.pos.y };
+  const originMouse = { x: e.clientX, y: e.clientY };
 
   const cleanUp = () => {
     window.removeEventListener("mousemove", onMouseMove);
@@ -39,27 +37,40 @@ export const onClickNode = (e: MouseEvent) => {
     window.removeEventListener("blur", cleanUp);
 
     nodeElement.style.pointerEvents = "auto"
+
+    if (lastNode) lastNode.dispatchEvent(new CustomEvent("node-drop", { detail: node }))
   }
 
+  let lastNode: SVGElement | null = null
+
   const onMouseMove = (e: MouseEvent) => {
+    const deltaX = (e.clientX - originMouse.x) / viewport.zoom;
+    const deltaY = (e.clientY - originMouse.y) / viewport.zoom;
+
+    node.pos.x = originPos.x + deltaX;
+    node.pos.y = originPos.y + deltaY;
+
     const target = (e.target as SVGElement).closest(".node-group") as SVGElement
-    if (target) {
+    if (target !== lastNode) {
+      if (lastNode) {
+        lastNode.dispatchEvent(new CustomEvent("node-leave", { detail: node }));
+      }
+      lastNode = target;
+      if (lastNode) {
+        lastNode.dispatchEvent(new CustomEvent("node-hover", { detail: node }));
+      }
+    } else if (target) {
+      // 仍然在同一个节点上，持续发送 hover 表示正在其上方移动
       target.dispatchEvent(new CustomEvent("node-hover", { detail: node }));
     }
 
-    const deltaX = (e.clientX - lastX) / viewport.zoom;
-    const deltaY = (e.clientY - lastY) / viewport.zoom;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    node.pos.x += deltaX;
-    node.pos.y += deltaY;
     managerUpdate(node);
   };
 
   const onMouseUp = () => {
     cleanUp()
     // 拖动结束，保存历史
-    if (originPos !== node.pos) saveHistory();
+    if (originPos.x !== node.pos.x || originPos.y !== node.pos.y) saveHistory();
   };
 
   window.addEventListener("mousemove", onMouseMove);

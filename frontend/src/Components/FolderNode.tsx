@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import { atom, useAtom } from "jotai";
-import { managerUpdate, objects, saveHistory } from "../Manager";
+import { managerUpdate, objects, saveHistory, updateCanvas } from "../Manager";
 import { Anchor, anchors_rect, Node, Coms, Obj } from "../Globals";
 import { ToolItems, CATEGORY_NODES } from "../TopLayer/ToolBar";
 import { ObjectFactories } from "../Controllers/Creator";
@@ -99,10 +99,15 @@ Coms["node/folder"] = ({ obj }) => {
   const node = obj as FolderNode;
   const groupRef = useRef<SVGGElement>(null);
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
-  const hoverTimeoutRef = useRef<number | null>(null);
+
+  // 悬浮时提升层级，防止被子项遮挡导致失去 hover 事件
+  useEffect(() => {
+    node.z = isDraggingOver ? 100 : -1;
+    updateCanvas();
+  }, [isDraggingOver, node]);
 
   // 自动布局与自动大小逻辑
-  useEffect(() => {
+  const reLayout = React.useCallback(() => {
     let currentY = 40; // 标题栏下方开始
     let maxWidth = 150;
     let changed = false;
@@ -133,36 +138,13 @@ Coms["node/folder"] = ({ obj }) => {
     if (changed) {
       managerUpdate(node);
     }
-  }, [node.pos.x, node.pos.y, node.childrenIds, updater]);
+  }, [node, updater]);
 
-  // 边界检查：移除离开文件夹的节点
   useEffect(() => {
-    const checkLeavers = () => {
-      if (node.childrenIds.length === 0) return;
+    reLayout();
+  }, [node.pos.x, node.pos.y, node.childrenIds, reLayout]);
 
-      const bounds = {
-        x1: node.pos.x,
-        y1: node.pos.y,
-        x2: node.pos.x + node.size.x,
-        y2: node.pos.y + node.size.y,
-      };
 
-      const nextChildren = node.childrenIds.filter((id) => {
-        const child = objects[id] as Node;
-        if (!child) return false;
-        const cx = child.pos.x + child.size.x / 2;
-        const cy = child.pos.y + child.size.y / 2;
-        return cx >= bounds.x1 && cx <= bounds.x2 && cy >= bounds.y1 && cy <= bounds.y2;
-      });
-
-      if (nextChildren.length !== node.childrenIds.length) {
-        node.childrenIds = nextChildren;
-        managerUpdate(node);
-      }
-    };
-
-    checkLeavers();
-  });
 
   // 监听 node-hover 事件以纳入新节点并处理高亮
   useEffect(() => {
@@ -174,12 +156,10 @@ Coms["node/folder"] = ({ obj }) => {
       if (dragged.id === node.id) return;
 
       setIsDraggingOver(true);
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = window.setTimeout(() => {
-        setIsDraggingOver(false);
-      }, 100);
 
-      if (!node.childrenIds.includes(dragged.id)) {
+      const isChild = node.childrenIds.includes(dragged.id);
+
+      if (!isChild) {
         const bounds = {
           x1: node.pos.x,
           y1: node.pos.y,
@@ -192,16 +172,40 @@ Coms["node/folder"] = ({ obj }) => {
         if (cx >= bounds.x1 && cx <= bounds.x2 && cy >= bounds.y1 && cy <= bounds.y2) {
           node.childrenIds.push(dragged.id);
           managerUpdate(node);
+          reLayout();
         }
+      } else {
+        // 已经是子项，强制布局使其吸附，覆盖 Dragger 的鼠标相对移动
+        reLayout();
       }
     };
 
+    const onNodeLeave = (e: any) => {
+      setIsDraggingOver(false);
+      const dragged = e.detail as Node;
+      if (!dragged) return;
+
+      const index = node.childrenIds.indexOf(dragged.id);
+      if (index !== -1) {
+        node.childrenIds.splice(index, 1);
+        managerUpdate(node);
+        reLayout();
+      }
+    };
+
+    const onNodeDrop = (e: any) => {
+      setIsDraggingOver(false)
+    }
+
     el.addEventListener("node-hover", onNodeHover);
+    el.addEventListener("node-leave", onNodeLeave);
+    el.addEventListener("node-drop", onNodeDrop)
     return () => {
       el.removeEventListener("node-hover", onNodeHover);
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      el.removeEventListener("node-leave", onNodeLeave);
+      el.removeEventListener("node-drop", onNodeDrop)
     }
-  }, [node]);
+  }, [node, reLayout]);
 
   return (
     <g
