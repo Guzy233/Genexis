@@ -109,6 +109,7 @@ registerSerializer(
       src: node.src,
       imageSize: { ...node.imageSize },
       selected: node.selected,
+      z: node.z,
     };
   },
   (data) => {
@@ -122,6 +123,7 @@ registerSerializer(
       src: data.src,
       imageSize: { ...data.imageSize },
       selected: data.selected ?? false,
+      z: data.z ?? 0,
       updater: atom(0),
     };
     return node;
@@ -193,7 +195,7 @@ Coms["node/image"] = ({ obj }) => {
   const handleUrlChange = (newSrc: string) => {
     setIsError(false);
     node.src = newSrc;
-    Manager.update(node);
+    managerUpdate(node);
     saveHistory();
   };
 
@@ -272,9 +274,8 @@ Coms["node/image"] = ({ obj }) => {
 
       {/* 图片区域 */}
       <g
-        transform={`translate(${
-          (node.size.x - (node.imageSize.width || 100)) / 2
-        }, 28)`}
+        transform={`translate(${(node.size.x - (node.imageSize.width || 100)) / 2
+          }, 28)`}
       >
         {node.src && !isError ? (
           <image

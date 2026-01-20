@@ -29,6 +29,7 @@ registerSerializer(
       eAncs: serializeAnchors(node.eAncs, null),
       childrenIds: [...node.childrenIds],
       selected: node.selected,
+      z: node.z,
     };
   },
   (data) => {
@@ -41,6 +42,7 @@ registerSerializer(
       eAncs: deserializeAnchors(data.eAncs),
       childrenIds: data.childrenIds || [],
       selected: data.selected ?? false,
+      z: data.z ?? 0,
       updater: atom(0),
     };
     return node;
@@ -69,6 +71,7 @@ ObjectFactories["node/folder"] = (): FolderNode => {
     size: { x: 300, y: 200 },
     childrenIds: [],
     selected: false,
+    z: -1,
     eAncs: [anchors_rect[1], anchors_rect[2]],
     aAncs: anchors_rect,
   };
@@ -92,26 +95,45 @@ ToolItems.push({
 });
 
 Coms["node/folder"] = ({ obj }) => {
-  useAtom(obj.updater);
+  const [updater] = useAtom(obj.updater);
   const node = obj as FolderNode;
-  const lastPos = useRef({ x: node.pos.x, y: node.pos.y });
   const groupRef = useRef<SVGGElement>(null);
+  const [isDraggingOver, setIsDraggingOver] = React.useState(false);
+  const hoverTimeoutRef = useRef<number | null>(null);
 
-  // 带动子节点逻辑
-  const dx = node.pos.x - lastPos.current.x;
-  const dy = node.pos.y - lastPos.current.y;
+  // 自动布局与自动大小逻辑
+  useEffect(() => {
+    let currentY = 40; // 标题栏下方开始
+    let maxWidth = 150;
+    let changed = false;
 
-  if (dx !== 0 || dy !== 0) {
     node.childrenIds.forEach((id) => {
       const child = objects[id] as Node;
       if (child) {
-        child.pos.x += dx;
-        child.pos.y += dy;
-        managerUpdate(child);
+        const targetX = node.pos.x + 10;
+        const targetY = node.pos.y + currentY;
+
+        if (child.pos.x !== targetX || child.pos.y !== targetY) {
+          child.pos.x = targetX;
+          child.pos.y = targetY;
+          managerUpdate(child);
+        }
+
+        currentY += child.size.y + 10;
+        maxWidth = Math.max(maxWidth, child.size.x + 20);
       }
     });
-    lastPos.current = { x: node.pos.x, y: node.pos.y };
-  }
+
+    if (node.size.y !== currentY || node.size.x !== maxWidth) {
+      node.size.y = currentY;
+      node.size.x = maxWidth;
+      changed = true;
+    }
+
+    if (changed) {
+      managerUpdate(node);
+    }
+  }, [node.pos.x, node.pos.y, node.childrenIds, updater]);
 
   // 边界检查：移除离开文件夹的节点
   useEffect(() => {
@@ -128,7 +150,6 @@ Coms["node/folder"] = ({ obj }) => {
       const nextChildren = node.childrenIds.filter((id) => {
         const child = objects[id] as Node;
         if (!child) return false;
-        // 使用中心点判断
         const cx = child.pos.x + child.size.x / 2;
         const cy = child.pos.y + child.size.y / 2;
         return cx >= bounds.x1 && cx <= bounds.x2 && cy >= bounds.y1 && cy <= bounds.y2;
@@ -140,20 +161,24 @@ Coms["node/folder"] = ({ obj }) => {
       }
     };
 
-    // 每一帧或位置更新后检查（由于 useEffect 在渲染后执行，且渲染是由 updater 触发的，这里可以胜任）
     checkLeavers();
   });
 
-  // 监听 node-hover 事件以纳入新节点
+  // 监听 node-hover 事件以纳入新节点并处理高亮
   useEffect(() => {
     const el = groupRef.current;
     if (!el) return;
 
     const onNodeHover = (e: any) => {
       const dragged = e.detail as Node;
-      if (dragged.id === node.id) return; // 忽略自己
+      if (dragged.id === node.id) return;
 
-      // 如果不是子节点且中心点在范围内，则加入
+      setIsDraggingOver(true);
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = window.setTimeout(() => {
+        setIsDraggingOver(false);
+      }, 100);
+
       if (!node.childrenIds.includes(dragged.id)) {
         const bounds = {
           x1: node.pos.x,
@@ -172,7 +197,10 @@ Coms["node/folder"] = ({ obj }) => {
     };
 
     el.addEventListener("node-hover", onNodeHover);
-    return () => el.removeEventListener("node-hover", onNodeHover);
+    return () => {
+      el.removeEventListener("node-hover", onNodeHover);
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    }
   }, [node]);
 
   return (
@@ -182,7 +210,22 @@ Coms["node/folder"] = ({ obj }) => {
       className="node-group"
       data-id={node.id}
     >
-      {/* 文件夹标题栏（耳朵） */}
+      {/* 文件夹高亮层 */}
+      {isDraggingOver && (
+        <rect
+          x="-4"
+          y="-4"
+          width={node.size.x + 8}
+          height={node.size.y + 8}
+          rx="10"
+          fill="none"
+          stroke="#8b5cf6"
+          strokeWidth="3"
+          strokeDasharray="4 4"
+          style={{ opacity: 0.6 }}
+        />
+      )}
+
       <path
         d={`M 0 0 L 60 0 L 70 10 L ${node.size.x} 10 L ${node.size.x} ${node.size.y} L 0 ${node.size.y} Z`}
         fill={getFillColor(node)}
@@ -190,7 +233,6 @@ Coms["node/folder"] = ({ obj }) => {
         strokeWidth="2"
       />
 
-      {/* 文件夹底色 */}
       <rect
         y="10"
         width={node.size.x}
@@ -199,15 +241,15 @@ Coms["node/folder"] = ({ obj }) => {
         stroke="none"
       />
 
-      {/* 装饰性文字 */}
       <text
         x="10"
         y="30"
-        fill="rgba(255, 255, 255, 0.3)"
+        fill={isDraggingOver ? "#8b5cf6" : "rgba(255, 255, 255, 0.3)"}
         fontSize="12"
+        fontWeight={isDraggingOver ? "bold" : "normal"}
         style={{ pointerEvents: "none", userSelect: "none" }}
       >
-        Folder
+        {isDraggingOver ? "Drop to add" : "Folder"}
       </text>
     </g>
   );

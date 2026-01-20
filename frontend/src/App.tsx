@@ -125,11 +125,13 @@ const App: React.FC = () => {
           {/* 渲染节点层 */}
           {nodeLayers.map((layer, i) => (
             <g key={`node-layer-${i}`} className="compositing-layer">
-              {layer.map((obj) => {
-                const Com = Coms[obj.type] || (obj.type.startsWith("node") ? Coms["node/undefined"] : null);
-                if (Com) return <Com obj={obj} key={obj.id} />;
-                return null;
-              })}
+              {layer
+                .sort((a, b) => (a.z || 0) - (b.z || 0))
+                .map((obj) => {
+                  const Com = Coms[obj.type] || (obj.type.startsWith("node") ? Coms["node/undefined"] : null);
+                  if (Com) return <Com obj={obj} key={obj.id} />;
+                  return null;
+                })}
             </g>
           ))}
 

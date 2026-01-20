@@ -32,6 +32,7 @@ registerSerializer(
       eAncs: serializeAnchors(node.eAncs, null),
       text: node.text,
       selected: node.selected,
+      z: node.z,
     };
   },
   (data) => {
@@ -44,6 +45,7 @@ registerSerializer(
       eAncs: deserializeAnchors(data.eAncs),
       text: data.text,
       selected: data.selected ?? false,
+      z: data.z ?? 0,
       updater: atom(0),
     };
     return node;

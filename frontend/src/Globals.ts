@@ -51,6 +51,7 @@ export interface Node extends Obj {
   aAncs: Anchor[]; // 节点的锚点
   eAncs: Anchor[]; // 节点的锚点
   selected: boolean; // 节点是否被选中
+  z?: number; // 节点的渲染层级，值越大越靠前
 }
 
 export interface Edge extends Obj {
