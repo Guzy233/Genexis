@@ -100,11 +100,34 @@ Coms["node/folder"] = ({ obj }) => {
   const groupRef = useRef<SVGGElement>(null);
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
 
+  // 递归更新子项层级（支持深层嵌套）
+  const updateChildrenZ = React.useCallback((parentZ: number, childIds: string[]) => {
+    childIds.forEach((id) => {
+      const child = objects[id] as Node;
+      if (!child) return;
+
+      const targetZ = child.type === "node/folder" ? parentZ + 3 : parentZ + 1;
+      if (child.z !== targetZ) {
+        child.z = targetZ;
+        managerUpdate(child);
+      }
+
+      // 如果子项是文件夹，递归更新其子项
+      if (child.type === "node/folder") {
+        const folderChild = child as FolderNode;
+        if (folderChild.childrenIds && folderChild.childrenIds.length > 0) {
+          updateChildrenZ(targetZ, folderChild.childrenIds);
+        }
+      }
+    });
+  }, []);
+
   // 自动布局与自动大小逻辑
   const reLayout = React.useCallback(() => {
     let currentY = 40; // 标题栏下方开始
     let maxWidth = 150;
     let changed = false;
+    const baseZ = node.z ?? 0;
 
     node.childrenIds.forEach((id) => {
       const child = objects[id] as Node;
@@ -123,6 +146,9 @@ Coms["node/folder"] = ({ obj }) => {
       }
     });
 
+    // 递归更新所有子项层级
+    updateChildrenZ(baseZ, node.childrenIds);
+
     if (node.size.y !== currentY || node.size.x !== maxWidth) {
       node.size.y = currentY;
       node.size.x = maxWidth;
@@ -132,7 +158,7 @@ Coms["node/folder"] = ({ obj }) => {
     if (changed) {
       managerUpdate(node);
     }
-  }, [node, updater]);
+  }, [node, updater, updateChildrenZ]);
 
   useEffect(() => {
     reLayout();
@@ -158,30 +184,20 @@ Coms["node/folder"] = ({ obj }) => {
       const isChild = node.childrenIds.includes(dragged.id);
 
       if (!isChild) {
-        const bounds = {
-          x1: node.pos.x,
-          y1: node.pos.y,
-          x2: node.pos.x + node.size.x,
-          y2: node.pos.y + node.size.y,
-        };
-        const cx = dragged.pos.x + dragged.size.x / 2;
-        const cy = dragged.pos.y + dragged.size.y / 2;
+        // node-hover 事件已表示鼠标在文件夹上，直接纳入
+        node.childrenIds.push(dragged.id);
 
-        if (cx >= bounds.x1 && cx <= bounds.x2 && cy >= bounds.y1 && cy <= bounds.y2) {
-          node.childrenIds.push(dragged.id);
-
-          // 设置层级关系：子文件夹(Z+3) > 本文件夹(Z) > 普通节点(Z+1)
-          const baseZ = (node.z ?? 0) - 2;
-          if (dragged.type === "node/folder") {
-            dragged.z = baseZ + 3;
-          } else {
-            dragged.z = baseZ + 1;
-          }
-
-          managerUpdate(node);
-          managerUpdate(dragged);
-          reLayout();
+        // 设置层级关系：子文件夹(Z+3) > 本文件夹(Z) > 普通节点(Z+1)
+        const baseZ = (node.z ?? 0) - 2;
+        if (dragged.type === "node/folder") {
+          dragged.z = baseZ + 3;
+        } else {
+          dragged.z = baseZ + 1;
         }
+
+        managerUpdate(node);
+        managerUpdate(dragged);
+        reLayout();
       } else {
         // 已经是子项，强制布局使其吸附，覆盖 Dragger 的鼠标相对移动
         reLayout();
