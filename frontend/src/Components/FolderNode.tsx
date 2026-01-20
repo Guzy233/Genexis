@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useMemo } from "react";
 import { atom, useAtom, getDefaultStore } from "jotai";
-import { managerUpdate, objects, saveHistory, updateCanvas } from "../Manager";
+import { managerUpdate, managerDeleteId, managerAdd, objects, saveHistory, updateCanvas, store } from "../Manager";
 import { Anchor, anchors_rect, Node, Coms, Obj } from "../Globals";
 import { ToolItems, CATEGORY_NODES } from "../TopLayer/ToolBar";
 import { ObjectFactories } from "../Controllers/Creator";
@@ -9,12 +9,16 @@ import {
   registerSerializer,
   serializeAnchors,
   deserializeAnchors,
+  Serializers,
+  Deserializers,
 } from "../Serialization";
 import { EditableText } from "./EditableText";
 
 export interface FolderNode extends Node {
   childrenIds: string[];
   name: string;
+  collapsed: boolean;
+  hiddenChildren: Obj[]; // 存储折叠时移除的子节点
 }
 
 // 注册序列化函数
@@ -22,6 +26,11 @@ registerSerializer(
   "node/folder",
   (obj: Obj) => {
     const node = obj as FolderNode;
+    const serializedHiddenChildren = node.hiddenChildren.map((child) => {
+      const serializer = Serializers[child.type];
+      return serializer ? serializer(child) : { ...child, updater: undefined };
+    });
+
     return {
       id: node.id,
       type: node.type,
@@ -31,11 +40,18 @@ registerSerializer(
       eAncs: serializeAnchors(node.eAncs, null),
       childrenIds: [...node.childrenIds],
       name: node.name,
+      collapsed: node.collapsed,
+      hiddenChildren: serializedHiddenChildren,
       selected: node.selected,
       z: node.z,
     };
   },
   (data) => {
+    const deserializedHiddenChildren = (data.hiddenChildren || []).map((childData: any) => {
+      const deserializer = Deserializers[childData.type];
+      return deserializer ? deserializer(childData) : { ...childData, updater: atom(0) };
+    });
+
     const node: FolderNode = {
       id: data.id,
       type: data.type,
@@ -45,6 +61,8 @@ registerSerializer(
       eAncs: deserializeAnchors(data.eAncs),
       childrenIds: data.childrenIds || [],
       name: data.name || "Folder",
+      collapsed: data.collapsed ?? false,
+      hiddenChildren: deserializedHiddenChildren,
       selected: data.selected ?? false,
       z: data.z ?? 0,
       updater: atom(0),
@@ -75,6 +93,8 @@ ObjectFactories["node/folder"] = (): FolderNode => {
     size: { x: 300, y: 200 },
     childrenIds: [],
     name: "Folder",
+    collapsed: false,
+    hiddenChildren: [],
     selected: false,
     z: 0,
     eAncs: [anchors_rect[1], anchors_rect[2]],
@@ -108,12 +128,146 @@ Coms["node/folder"] = ({ obj }) => {
   // 用于名称编辑的 atom
   const isEditingAtom = useMemo(() => atom(false), [node.id]);
 
+  // 使用 ref 追踪已订阅的子节点，避免频繁重新订阅
+  const subscribedIdsRef = useRef<Set<string>>(new Set());
+  const unsubscribesRef = useRef<Map<string, () => void>>(new Map());
+
+  // 订阅每个子节点的 updater，检测删除事件和大小变化
+  useEffect(() => {
+    const currentIds = new Set(node.childrenIds);
+    const subscribedIds = subscribedIdsRef.current;
+    const unsubscribes = unsubscribesRef.current;
+
+    // 取消订阅已移除的子节点
+    subscribedIds.forEach((id) => {
+      if (!currentIds.has(id)) {
+        const unsub = unsubscribes.get(id);
+        if (unsub) {
+          unsub();
+          unsubscribes.delete(id);
+        }
+        subscribedIds.delete(id);
+      }
+    });
+
+    // 订阅新增的子节点
+    node.childrenIds.forEach((childId) => {
+      if (subscribedIds.has(childId)) return;
+
+      const child = objects[childId];
+      if (!child) return;
+
+      // 订阅子节点的 updater
+      const unsubscribe = store.sub(child.updater, () => {
+        const value = store.get(child.updater);
+        if (value === -1) {
+          // 子节点被删除，从 childrenIds 中移除
+          const index = node.childrenIds.indexOf(childId);
+          if (index !== -1) {
+            node.childrenIds.splice(index, 1);
+            managerUpdate(node);
+          }
+        }
+        // 移除：不再在子节点更新时触发父文件夹更新，布局由事件驱动
+      });
+
+      subscribedIds.add(childId);
+      unsubscribes.set(childId, unsubscribe);
+    });
+
+    return () => {
+      // 组件卸载时清理所有订阅
+      unsubscribes.forEach((unsub) => unsub());
+      unsubscribes.clear();
+      subscribedIds.clear();
+    };
+  }, [node.childrenIds.length]); // 仅当子节点数量变化时重新检查
+
   // 处理名称变更
   const handleNameChange = (newName: string) => {
     node.name = newName || "Folder";
     managerUpdate(node);
     saveHistory();
   };
+
+  // 递归收集所有子节点（包括嵌套的子文件夹内容）
+  const collectAllChildren = React.useCallback((ids: string[]): Obj[] => {
+    const collected: Obj[] = [];
+    ids.forEach((id) => {
+      const child = objects[id];
+      if (!child) return;
+      collected.push(child);
+      // 如果是文件夹，递归收集其子项
+      if (child.type === "node/folder") {
+        const folderChild = child as FolderNode;
+        collected.push(...collectAllChildren(folderChild.childrenIds));
+      }
+    });
+    return collected;
+  }, []);
+
+  // 折叠：收起所有子节点
+  const handleCollapse = React.useCallback(() => {
+    if (node.childrenIds.length === 0) return;
+
+    // 收集所有子节点
+    const children = collectAllChildren(node.childrenIds);
+    node.hiddenChildren = children;
+
+    // 从 objects 中移除所有子节点
+    children.forEach((child) => {
+      managerDeleteId(child.id);
+    });
+
+    // 清空 childrenIds 并设置折叠状态
+    node.childrenIds = [];
+    node.collapsed = true;
+    managerUpdate(node);
+    saveHistory();
+  }, [node, collectAllChildren]);
+
+  // 展开：恢复所有子节点
+  const handleExpand = React.useCallback(() => {
+    // 如果没有隐藏的子节点，重置 collapsed 状态并返回
+    if (node.hiddenChildren.length === 0) {
+      node.collapsed = false;
+      managerUpdate(node);
+      return;
+    }
+
+    // 找出直接子节点的 ID（第一层）
+    const directChildIds: string[] = [];
+
+    // 恢复所有隐藏的子节点到 objects
+    node.hiddenChildren.forEach((child) => {
+      // 重新添加到 objects
+      managerAdd(child);
+    });
+
+    // 从 hiddenChildren 中找出直接子节点
+    // 直接子节点是那些不在任何其他 hiddenChildren 的 childrenIds 中的节点
+    const allChildrenIdsInFolders = new Set<string>();
+    node.hiddenChildren.forEach((child) => {
+      if (child.type === "node/folder") {
+        (child as FolderNode).childrenIds.forEach((id) => {
+          allChildrenIdsInFolders.add(id);
+        });
+      }
+    });
+
+    node.hiddenChildren.forEach((child) => {
+      if (!allChildrenIdsInFolders.has(child.id)) {
+        directChildIds.push(child.id);
+      }
+    });
+
+    // 恢复状态
+    node.childrenIds = directChildIds;
+    node.hiddenChildren = [];
+    node.collapsed = false;
+    managerUpdate(node);
+    saveHistory();
+  }, [node]);
 
   // 递归更新子项层级（支持深层嵌套）
   const updateChildrenZ = React.useCallback((parentZ: number, childIds: string[]) => {
@@ -141,7 +295,7 @@ Coms["node/folder"] = ({ obj }) => {
   const reLayout = React.useCallback(() => {
     let currentY = 40; // 标题栏下方开始
     let maxWidth = 150;
-    let changed = false;
+    let sizeChanged = false;
     // 拖拽时文件夹层级临时 +2，子节点应使用原始 baseZ
     const baseZ = isDraggingOver ? (node.z ?? 0) - 2 : (node.z ?? 0);
 
@@ -168,20 +322,31 @@ Coms["node/folder"] = ({ obj }) => {
     if (node.size.y !== currentY || node.size.x !== maxWidth) {
       node.size.y = currentY;
       node.size.x = maxWidth;
-      changed = true;
+      sizeChanged = true;
     }
 
-    if (changed) {
+    if (sizeChanged) {
       managerUpdate(node);
     }
 
     // 确保层级变更后触发画布重新排序
     updateCanvas();
-  }, [node, updater, updateChildrenZ, isDraggingOver]);
+  }, [node, updateChildrenZ, isDraggingOver]); // 移除 updater 依赖，避免循环
+
+  // 使用 ref 追踪上次布局时的 childrenIds 长度，避免重复布局
+  const lastChildrenLengthRef = useRef(node.childrenIds.length);
+  const lastPosRef = useRef({ x: node.pos.x, y: node.pos.y });
 
   useEffect(() => {
-    reLayout();
-  }, [node.pos.x, node.pos.y, node.childrenIds, reLayout]);
+    const posChanged = lastPosRef.current.x !== node.pos.x || lastPosRef.current.y !== node.pos.y;
+    const childrenChanged = lastChildrenLengthRef.current !== node.childrenIds.length;
+
+    if (posChanged || childrenChanged) {
+      lastPosRef.current = { x: node.pos.x, y: node.pos.y };
+      lastChildrenLengthRef.current = node.childrenIds.length;
+      reLayout();
+    }
+  }, [node.pos.x, node.pos.y, node.childrenIds.length, reLayout]);
 
 
 
@@ -385,6 +550,35 @@ Coms["node/folder"] = ({ obj }) => {
           />
         )}
       </g>
+
+      {/* 折叠/展开按钮 */}
+      {(node.childrenIds.length > 0 || node.hiddenChildren.length > 0) && (
+        <g
+          transform={`translate(${node.size.x - 18}, 25)`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (node.collapsed) {
+              handleExpand();
+            } else {
+              handleCollapse();
+            }
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          {/* +/- 符号 */}
+          <text
+            x="2"
+            y="1"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="rgba(255, 255, 255, 0.6)"
+            fontSize="18"
+            fontWeight="bold"
+          >
+            {node.collapsed ? "+" : "-"}
+          </text>
+        </g>
+      )}
     </g>
   );
 };

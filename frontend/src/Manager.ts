@@ -588,6 +588,11 @@ export const managerUpdateAtom = (atom: PrimitiveAtom<number>) => {
 };
 
 export const managerDeleteId = (id: string) => {
+  const obj = objects[id];
+  if (obj) {
+    // 先发送删除通知（updater = -1 表示即将删除）
+    store.set(obj.updater, -1);
+  }
   delete objects[id];
   updateCanvas();
   markAsModified();
@@ -612,9 +617,18 @@ export const managerDeleteIdWithEdges = (id: string) => {
         }
       }
     });
-    // 先删除所有连接的边
-    edgesToDelete.forEach((edgeId) => delete objects[edgeId]);
+    // 先发送边的删除通知，再删除
+    edgesToDelete.forEach((edgeId) => {
+      const edgeObj = objects[edgeId];
+      if (edgeObj) {
+        store.set(edgeObj.updater, -1);
+      }
+      delete objects[edgeId];
+    });
   }
+
+  // 发送节点删除通知
+  store.set(obj.updater, -1);
 
   // 删除对象本身
   delete objects[id];
