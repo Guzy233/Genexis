@@ -91,7 +91,7 @@ export const onClickNode = (e: MouseEvent) => {
     });
 
     // 只禁用点击节点的指针事件
-    if (deltaX || deltaY)
+    if (deltaX * deltaX + deltaY * deltaY > 10)
       clickedElement.style.pointerEvents = "none"
 
     const target = (e.target as SVGElement).closest(".node-group") as SVGElement

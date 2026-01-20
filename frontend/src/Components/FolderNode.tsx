@@ -90,7 +90,7 @@ ObjectFactories["node/folder"] = (): FolderNode => {
     type: "node/folder",
     updater: atom(0),
     pos: { x: 0, y: 0 },
-    size: { x: 300, y: 200 },
+    size: { x: 150, y: 40 },
     childrenIds: [],
     name: "Folder",
     collapsed: false,
@@ -125,14 +125,12 @@ Coms["node/folder"] = ({ obj }) => {
   const groupRef = useRef<SVGGElement>(null);
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
 
-  // 用于名称编辑的 atom
   const isEditingAtom = useMemo(() => atom(false), [node.id]);
 
-  // 使用锁标记当前是否正在进行布局计算，防止子节点更新回调造成死循环
   const isLayoutingRef = useRef(false);
 
-  // 订阅每个子节点的 updater，检测删除事件和大小变化
-  // 简化逻辑：每次 childrenIds 变化时，重新订阅所有子节点
+  const childrenKey = node.childrenIds.join(',');
+
   useEffect(() => {
     const unsubs: (() => void)[] = [];
 
@@ -151,8 +149,6 @@ Coms["node/folder"] = ({ obj }) => {
             managerUpdate(node);
           }
         } else {
-          // 子节点更新（包括大小变化），触发父文件夹重新布局
-          // 关键：如果正在进行父节点的布局计算（isLayoutingRef为true），则忽略此次更新
           if (!isLayoutingRef.current) {
             managerUpdate(node);
           }
@@ -165,7 +161,7 @@ Coms["node/folder"] = ({ obj }) => {
       // 清理所有订阅
       unsubs.forEach((unsub) => unsub());
     };
-  }, [node.childrenIds]); // 依赖整个 childrenIds 数组引用，确保列表变化时刷新订阅
+  }, [childrenKey]); // 依赖 childrenKey 字符串，确保内容变化时刷新订阅
 
   // 处理名称变更
   const handleNameChange = (newName: string) => {
@@ -348,6 +344,9 @@ Coms["node/folder"] = ({ obj }) => {
         updateCanvas();
       }
 
+      // 如果已折叠，不进行吸附逻辑
+      if (node.collapsed) return;
+
       // 使用第一个拖拽节点计算插入位置
       const primaryNode = validNodes[0];
       const draggedCenterY = primaryNode.pos.y + primaryNode.size.y / 2;
@@ -435,6 +434,49 @@ Coms["node/folder"] = ({ obj }) => {
         setIsDraggingOver(false);
         node.z = (node.z ?? 0) - 2;
         updateCanvas();
+      }
+
+      // 如果已折叠，处理拖入的节点：将其加入隐藏列表并从画布移除
+      if (node.collapsed) {
+        const draggedNodes = e.detail as Node[];
+        if (!draggedNodes || draggedNodes.length === 0) return;
+
+        // 过滤掉自身
+        const validNodes = draggedNodes.filter(n => n.id !== node.id);
+        if (validNodes.length === 0) return;
+
+        validNodes.forEach((dragged) => {
+          // 1. 将拖入节点加入 hiddenChildren
+          node.hiddenChildren.push(dragged);
+
+          // 2. 如果是文件夹，递归收集其所有后代也加入 hiddenChildren
+          if (dragged.type === "node/folder") {
+            const folderChild = dragged as FolderNode;
+            const descendants = collectAllChildren(folderChild.childrenIds);
+            node.hiddenChildren.push(...descendants);
+
+            // 还需要删除后代节点
+            descendants.forEach(descendant => {
+              managerDeleteId(descendant.id);
+            });
+          }
+
+          // 3. 将拖入节点加入 childrenIds (作为直接子节点记录，虽然不显示)
+          // 注意：这一步是为了在展开时能正确识别它是直接子节点
+          // 如果不加，expand 逻辑里的 "directChildIds" 计算可能会出错，或者它能正确处理吗？
+          // handleExpand 逻辑：找出 hiddenChildren 中不在其他 childrenIds 里的节点作为直接子节点。
+          // 所以如果 dragged 不是其他人的子节点（它是顶层拖进来的），它自然会被识别为直接子节点。
+          // 但是我们需要把它记录在 node.childrenIds 里吗？
+          // 不，collapsed 状态下 node.childrenIds 应该是空的。
+          // handleExpand 会重建 childrenIds。
+          // 所以这里不需要动 node.childrenIds。
+
+          // 4. 从画布移除该节点
+          managerDeleteId(dragged.id);
+        });
+
+        managerUpdate(node);
+        saveHistory();
       }
     }
 
