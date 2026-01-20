@@ -176,8 +176,12 @@ Coms["node/folder"] = ({ obj }) => {
     if (!el) return;
 
     const onNodeHover = (e: any) => {
-      const dragged = e.detail as Node;
-      if (dragged.id === node.id) return;
+      const draggedNodes = e.detail as Node[];
+      if (!draggedNodes || draggedNodes.length === 0) return;
+
+      // 过滤掉自身
+      const validNodes = draggedNodes.filter(n => n.id !== node.id);
+      if (validNodes.length === 0) return;
 
       if (!isDraggingOver) {
         setIsDraggingOver(true);
@@ -185,16 +189,16 @@ Coms["node/folder"] = ({ obj }) => {
         updateCanvas();
       }
 
-      const isChild = node.childrenIds.includes(dragged.id);
-
-      // 根据拖拽节点的 Y 位置计算目标插入索引
-      const draggedCenterY = dragged.pos.y + dragged.size.y / 2;
+      // 使用第一个拖拽节点计算插入位置
+      const primaryNode = validNodes[0];
+      const draggedCenterY = primaryNode.pos.y + primaryNode.size.y / 2;
       let targetIndex = 0;
 
       // 遍历现有子节点，找到合适的插入位置
       for (let i = 0; i < node.childrenIds.length; i++) {
         const childId = node.childrenIds[i];
-        if (childId === dragged.id) continue; // 跳过自身
+        // 跳过所有拖拽中的节点
+        if (validNodes.some(n => n.id === childId)) continue;
 
         const child = objects[childId] as Node;
         if (!child) continue;
@@ -205,37 +209,40 @@ Coms["node/folder"] = ({ obj }) => {
         }
       }
 
-      if (!isChild) {
-        // 新节点：插入到计算出的位置
-        node.childrenIds.splice(targetIndex, 0, dragged.id);
+      // 处理每个拖拽的节点
+      validNodes.forEach((dragged, idx) => {
+        const isChild = node.childrenIds.includes(dragged.id);
 
-        // 设置层级关系：子文件夹(Z+3) > 本文件夹(Z) > 普通节点(Z+1)
-        const baseZ = (node.z ?? 0) - 2;
-        if (dragged.type === "node/folder") {
-          dragged.z = baseZ + 3;
+        if (!isChild) {
+          // 新节点：插入到计算出的位置（后续节点依次排列）
+          node.childrenIds.splice(targetIndex + idx, 0, dragged.id);
+
+          // 设置层级关系：子文件夹(Z+3) > 本文件夹(Z) > 普通节点(Z+1)
+          const baseZ = (node.z ?? 0) - 2;
+          if (dragged.type === "node/folder") {
+            dragged.z = baseZ + 3;
+          } else {
+            dragged.z = baseZ + 1;
+          }
+
+          managerUpdate(dragged);
         } else {
-          dragged.z = baseZ + 1;
+          // 已经是子项：检查是否需要重新排序
+          const currentIndex = node.childrenIds.indexOf(dragged.id);
+          // 调整 targetIndex（因为移除当前元素后索引会变化）
+          const adjustedTargetIndex = targetIndex > currentIndex ? targetIndex - 1 : targetIndex;
+
+          if (currentIndex !== adjustedTargetIndex + idx) {
+            // 需要重新排序
+            node.childrenIds.splice(currentIndex, 1);
+            node.childrenIds.splice(adjustedTargetIndex + idx, 0, dragged.id);
+          }
         }
+      });
 
-        managerUpdate(node);
-        managerUpdate(dragged);
-        reLayout();
-      } else {
-        // 已经是子项：检查是否需要重新排序
-        const currentIndex = node.childrenIds.indexOf(dragged.id);
-        // 调整 targetIndex（因为移除当前元素后索引会变化）
-        const adjustedTargetIndex = targetIndex > currentIndex ? targetIndex - 1 : targetIndex;
-
-        if (currentIndex !== adjustedTargetIndex) {
-          // 需要重新排序
-          node.childrenIds.splice(currentIndex, 1);
-          node.childrenIds.splice(adjustedTargetIndex, 0, dragged.id);
-          managerUpdate(node);
-        }
-
-        // 强制布局使其吸附，覆盖 Dragger 的鼠标相对移动
-        reLayout();
-      }
+      managerUpdate(node);
+      // 强制布局使其吸附，覆盖 Dragger 的鼠标相对移动
+      reLayout();
     };
 
     const onNodeLeave = (e: any) => {
@@ -245,17 +252,23 @@ Coms["node/folder"] = ({ obj }) => {
         updateCanvas();
       }
 
-      const dragged = e.detail as Node;
-      if (!dragged) return;
+      const draggedNodes = e.detail as Node[];
+      if (!draggedNodes || draggedNodes.length === 0) return;
 
-      const index = node.childrenIds.indexOf(dragged.id);
-      if (index !== -1) {
-        node.childrenIds.splice(index, 1);
-        dragged.z = 0; // 移出文件夹后恢复基础层级
-        managerUpdate(node);
-        managerUpdate(dragged);
-        reLayout();
-      }
+      // 移除所有拖拽节点
+      draggedNodes.forEach((dragged) => {
+        if (!dragged) return;
+
+        const index = node.childrenIds.indexOf(dragged.id);
+        if (index !== -1) {
+          node.childrenIds.splice(index, 1);
+          dragged.z = 0; // 移出文件夹后恢复基础层级
+          managerUpdate(dragged);
+        }
+      });
+
+      managerUpdate(node);
+      reLayout();
     };
 
     const onNodeDrop = (e: any) => {
