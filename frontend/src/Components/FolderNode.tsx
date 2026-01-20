@@ -127,7 +127,8 @@ Coms["node/folder"] = ({ obj }) => {
     let currentY = 40; // 标题栏下方开始
     let maxWidth = 150;
     let changed = false;
-    const baseZ = node.z ?? 0;
+    // 拖拽时文件夹层级临时 +2，子节点应使用原始 baseZ
+    const baseZ = isDraggingOver ? (node.z ?? 0) - 2 : (node.z ?? 0);
 
     node.childrenIds.forEach((id) => {
       const child = objects[id] as Node;
@@ -158,7 +159,10 @@ Coms["node/folder"] = ({ obj }) => {
     if (changed) {
       managerUpdate(node);
     }
-  }, [node, updater, updateChildrenZ]);
+
+    // 确保层级变更后触发画布重新排序
+    updateCanvas();
+  }, [node, updater, updateChildrenZ, isDraggingOver]);
 
   useEffect(() => {
     reLayout();
@@ -183,9 +187,27 @@ Coms["node/folder"] = ({ obj }) => {
 
       const isChild = node.childrenIds.includes(dragged.id);
 
+      // 根据拖拽节点的 Y 位置计算目标插入索引
+      const draggedCenterY = dragged.pos.y + dragged.size.y / 2;
+      let targetIndex = 0;
+
+      // 遍历现有子节点，找到合适的插入位置
+      for (let i = 0; i < node.childrenIds.length; i++) {
+        const childId = node.childrenIds[i];
+        if (childId === dragged.id) continue; // 跳过自身
+
+        const child = objects[childId] as Node;
+        if (!child) continue;
+
+        const childCenterY = child.pos.y + child.size.y / 2;
+        if (draggedCenterY > childCenterY) {
+          targetIndex = i + 1;
+        }
+      }
+
       if (!isChild) {
-        // node-hover 事件已表示鼠标在文件夹上，直接纳入
-        node.childrenIds.push(dragged.id);
+        // 新节点：插入到计算出的位置
+        node.childrenIds.splice(targetIndex, 0, dragged.id);
 
         // 设置层级关系：子文件夹(Z+3) > 本文件夹(Z) > 普通节点(Z+1)
         const baseZ = (node.z ?? 0) - 2;
@@ -199,7 +221,19 @@ Coms["node/folder"] = ({ obj }) => {
         managerUpdate(dragged);
         reLayout();
       } else {
-        // 已经是子项，强制布局使其吸附，覆盖 Dragger 的鼠标相对移动
+        // 已经是子项：检查是否需要重新排序
+        const currentIndex = node.childrenIds.indexOf(dragged.id);
+        // 调整 targetIndex（因为移除当前元素后索引会变化）
+        const adjustedTargetIndex = targetIndex > currentIndex ? targetIndex - 1 : targetIndex;
+
+        if (currentIndex !== adjustedTargetIndex) {
+          // 需要重新排序
+          node.childrenIds.splice(currentIndex, 1);
+          node.childrenIds.splice(adjustedTargetIndex, 0, dragged.id);
+          managerUpdate(node);
+        }
+
+        // 强制布局使其吸附，覆盖 Dragger 的鼠标相对移动
         reLayout();
       }
     };

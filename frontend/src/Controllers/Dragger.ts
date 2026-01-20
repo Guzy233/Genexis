@@ -25,8 +25,6 @@ export const onClickNode = (e: MouseEvent) => {
   const id = nodeElement.dataset.id;
   if (!id) return
 
-  nodeElement.style.pointerEvents = "none"
-
   const node = objects[id] as Node;
   const originPos = { x: node.pos.x, y: node.pos.y };
   const originMouse = { x: e.clientX, y: e.clientY };
@@ -49,6 +47,9 @@ export const onClickNode = (e: MouseEvent) => {
 
     node.pos.x = originPos.x + deltaX;
     node.pos.y = originPos.y + deltaY;
+
+    if (deltaX || deltaY)
+      nodeElement.style.pointerEvents = "none"
 
     const target = (e.target as SVGElement).closest(".node-group") as SVGElement
     if (target !== lastNode) {
