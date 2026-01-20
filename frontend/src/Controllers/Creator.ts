@@ -57,7 +57,7 @@ export function generateRandomNodes(count: number = 100): void {
           managerAdd(edge);
 
           // 记录节点关系
-          addEdgeRelation(node.id, target.id);
+          // addEdgeRelation(node.id, target.id);
         }
       }
     }

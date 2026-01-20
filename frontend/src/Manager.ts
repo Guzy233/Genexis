@@ -211,14 +211,6 @@ export const switchTab = (tab: FileTab) => {
   // 恢复目标标签的 objects
   Object.assign(objects, tab.objects);
 
-  // 确保 objects 中的对象正确连接（处理边引用）
-  Object.values(objects).forEach((obj: any) => {
-    if (obj.type?.startsWith("edge/") && obj.source?.id && obj.target?.id) {
-      obj.source = objects[obj.source.id];
-      obj.target = objects[obj.target.id];
-    }
-  });
-
   updateCanvas();
   updateTabs();
   onFileLoadedHooks.forEach(hook => hook(tab));
@@ -477,15 +469,15 @@ export const loadFile = async (): Promise<boolean> => {
   // 遍历所有边，重建关系
   Object.values(objects).forEach((obj) => {
     if (obj.type.startsWith("edge/")) {
-      const edge = obj as unknown as { source: { id: string }; target: { id: string } };
-      if (edge.source && edge.target) {
-        const downstream = nodeRelations.downstream.get(edge.source.id) || new Set<string>();
-        downstream.add(edge.target.id);
-        nodeRelations.downstream.set(edge.source.id, downstream);
+      const edge = obj as unknown as { sourceId: string; targetId: string };
+      if (edge.sourceId && edge.targetId) {
+        const downstream = nodeRelations.downstream.get(edge.sourceId) || new Set<string>();
+        downstream.add(edge.targetId);
+        nodeRelations.downstream.set(edge.sourceId, downstream);
 
-        const upstream = nodeRelations.upstream.get(edge.target.id) || new Set<string>();
-        upstream.add(edge.source.id);
-        nodeRelations.upstream.set(edge.target.id, upstream);
+        const upstream = nodeRelations.upstream.get(edge.targetId) || new Set<string>();
+        upstream.add(edge.sourceId);
+        nodeRelations.upstream.set(edge.targetId, upstream);
       }
     }
   });
@@ -609,10 +601,10 @@ export const managerDeleteIdWithEdges = (id: string) => {
       if (other.type.startsWith("edge/")) {
         const edge = other as unknown as {
           id: string;
-          source: { id: string };
-          target: { id: string };
+          sourceId: string;
+          targetId: string;
         };
-        if (edge.source.id === id || edge.target.id === id) {
+        if (edge.sourceId === id || edge.targetId === id) {
           edgesToDelete.push(edge.id);
         }
       }

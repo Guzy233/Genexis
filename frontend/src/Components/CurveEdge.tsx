@@ -217,16 +217,27 @@ const calculateMidPoint = (
 
 // ==================== 组件渲染 ====================
 
+import { objects } from "../Manager";
+
+// Dummy atom for missing nodes
+const dummyAtom = atom(0);
+
 Coms["edge/curve"] = ({ obj }) => {
   const edge = obj as CurveEdge;
+  // Retrieve nodes
+  const sourceNode = objects[edge.sourceId] as Node;
+  const targetNode = objects[edge.targetId] as Node;
+
   useAtom(obj.updater);
-  useAtom(edge.source.updater);
-  useAtom(edge.target.updater);
+  useAtom(sourceNode ? sourceNode.updater : dummyAtom);
+  useAtom(targetNode ? targetNode.updater : dummyAtom);
+
+  if (!sourceNode || !targetNode) return null;
 
   // 计算边的路径
   const resolvedPoints = resolvePoints(
-    edge.source,
-    edge.target,
+    sourceNode,
+    targetNode,
     edge.anchorSource,
     edge.anchorTarget
   );
@@ -256,9 +267,8 @@ Coms["edge/curve"] = ({ obj }) => {
               fill="white"
             />
             <g
-              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${
-                midPoint!.angle
-              })`}
+              transform={`translate(${midPoint!.x}, ${midPoint!.y}) rotate(${midPoint!.angle
+                })`}
             >
               <rect
                 x={-midPoint!.labelWidth / 2}
@@ -292,7 +302,7 @@ Coms["edge/curve"] = ({ obj }) => {
         fill="none"
         stroke="transparent"
         strokeWidth="14"
-        onMouseDown={() => {}}
+        onMouseDown={() => { }}
       />
 
       <circle
@@ -339,8 +349,8 @@ registerSerializer(
     return {
       id: edge.id,
       type: edge.type,
-      sourceId: edge.source.id,
-      targetId: edge.target.id,
+      sourceId: edge.sourceId,
+      targetId: edge.targetId,
       anchorSource: { ...edge.anchorSource },
       anchorTarget: { ...edge.anchorTarget },
       isSelected: edge.isSelected,
@@ -355,16 +365,16 @@ registerSerializer(
     isSelected: data.isSelected ?? false,
     label: data.label,
     updater: atom(0),
-    source: null as any,
-    target: null as any,
+    sourceId: data.sourceId,
+    targetId: data.targetId,
   })
 );
 
 ContextMenuFactories["edge"] = () => [];
 
 export const newCurveEdge = (
-  source: Node,
-  target: Node,
+  source: Node | null,
+  target: Node | null,
   label: string = ""
 ): CurveEdge => {
   const id = crypto.randomUUID();
@@ -372,8 +382,8 @@ export const newCurveEdge = (
     id,
     type: "edge/curve",
     updater: atom<number>(0),
-    source,
-    target,
+    sourceId: source ? source.id : "",
+    targetId: target ? target.id : "",
     anchorSource: { type: "auto" },
     anchorTarget: { type: "auto" },
     isSelected: false,
@@ -387,7 +397,7 @@ ObjectFactories["edge/curve"] = (
   target?: Node,
   label: string = ""
 ) => {
-  return newCurveEdge(source || (null as any), target || (null as any), label);
+  return newCurveEdge(source || null, target || null, label);
 };
 
 // 注册工具项

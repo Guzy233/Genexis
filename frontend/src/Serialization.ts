@@ -180,43 +180,13 @@ export const deserializeCanvas = (
   data: SerializedCanvas,
   Objects: Record<string, Obj>
 ): void => {
-  // 先创建所有节点（建立 id 映射）
-  const nodeMap: Record<string, Node> = {};
-  data.objects
-    .filter((obj) => obj.type.startsWith("node/"))
-    .forEach((nodeData) => {
-      const deserializer = Deserializers[nodeData.type];
-      const node = deserializer
-        ? (deserializer(nodeData) as unknown as Node)
-        : ({ ...nodeData, updater: atom(0) } as unknown as Node);
-      nodeMap[nodeData.id] = node;
-      Objects[nodeData.id] = node;
-    });
+  // Directly instantiate all objects
+  data.objects.forEach((objData) => {
+    const deserializer = Deserializers[objData.type];
+    const obj = deserializer
+      ? deserializer(objData)
+      : ({ ...objData, updater: atom(0) } as unknown as Obj);
 
-  // 再处理边（通过 sourceId 和 targetId 映射查找源和目标）
-  data.objects
-    .filter((obj) => obj.type.startsWith("edge/"))
-    .forEach((edgeData) => {
-      // 使用 sourceId 和 targetId
-      const sourceId = (edgeData as any).sourceId;
-      const targetId = (edgeData as any).targetId;
-
-      const source = nodeMap[sourceId];
-      const target = nodeMap[targetId];
-
-      if (!source || !target) {
-        console.warn(`Cannot find nodes for edge ${edgeData.id}: source=${sourceId}, target=${targetId}`);
-        return;
-      }
-
-      const deserializer = Deserializers[edgeData.type];
-      // 先调用 deserializer 处理额外属性
-      let edge = deserializer(edgeData);
-
-      // 再设置 source 和 target
-      (edge as any).source = source;
-      (edge as any).target = target;
-
-      Objects[edgeData.id] = edge as Obj;
-    });
+    Objects[obj.id] = obj;
+  });
 };

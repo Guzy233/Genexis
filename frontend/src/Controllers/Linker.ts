@@ -1,6 +1,5 @@
 import { objects, getActiveTab, managerDeleteId, managerUpdate, managerAdd, managerUpdateId } from "../Manager";
 import { Edge, idFromEvent, Node, onSetup, Obj, Vec2 } from "../Globals";
-import { atom } from "jotai";
 import { registerSetting } from "../Option";
 import { screen2Viewport, viewport } from "./Camera";
 import { createNodeCentered, ObjectFactories } from "./Creator";
@@ -8,6 +7,8 @@ import { getToolForCategory, CATEGORY_EDGES } from "../TopLayer/ToolBar";
 import { ContextMenuFactories, ContextMenuItem } from "./ContextMenu";
 import { saveHistory } from "../Manager";
 import { addEdgeRelation } from "../Algorithm";
+import { newParticleNode } from "../Components/ParticleNode";
+import { active } from "./Selector";
 
 // 连接器状态
 let startButton = 2;
@@ -30,6 +31,7 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
   // 窗口失去焦点时清理所有临时监听器
   const onBlur = () => {
     managerDeleteId(vEdge.id);
+    managerDeleteId(vNode.id);
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("mouseover", onMouseOver);
@@ -47,14 +49,16 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
   const onMouseOver = (e: MouseEvent) => {
     const aNodeId = idFromEvent(e, ".node-group");
     if (aNodeId) {
-      //移入源节点，删除边
-      if (aNodeId === vEdge.source.id) {
+      //移入源节点，删除边，删除虚拟节点
+      if (aNodeId === vEdge.sourceId) {
         managerDeleteId(vEdge.id);
+        managerDeleteId(vNode.id);
       } else {
-        // 移入目标节点，更新边的目标节点
-        vEdge.target = objects[aNodeId] as Node;
+        // 移入目标节点，更新边的目标节点，删除虚拟节点
+        vEdge.targetId = objects[aNodeId].id;
         vEdge.anchorTarget = { type: "auto" };
         managerUpdateId(vEdge.id);
+        managerDeleteId(vNode.id);
       }
     }
   };
@@ -62,24 +66,19 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
   const onMouseOut = (e: MouseEvent) => {
     const aNodeId = idFromEvent(e, ".node-group");
     if (aNodeId) {
-      // 移出源节点，重新创建边
-      if (aNodeId === vEdge.source.id) {
+      // 移出源节点，重新创建边和虚拟节点
+      if (aNodeId === vEdge.sourceId) {
+        managerAdd(vNode);
         managerAdd(vEdge);
       } else {
-        // 移出目标节点，更新边的目标节点
-        vEdge.target = vNode;
+        // 移出目标节点，更新边的目标节点为虚拟节点
+        managerAdd(vNode);
+        vEdge.targetId = vNode.id;
         vEdge.anchorTarget = { type: "absPos" };
         managerUpdateId(vEdge.id);
       }
     }
   };
-
-  const onContextMenu = (e: MouseEvent) => {
-    if (!(vEdge.id in objects)) return; // 未移动，不创建节点
-    e.preventDefault(); // 阻止默认右键菜单
-    e.stopImmediatePropagation();
-  };
-
   const start: Vec2 = { ...vNode.pos }
 
   const onMouseUp = (e: MouseEvent) => {
@@ -89,15 +88,18 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
     window.removeEventListener("mouseout", onMouseOut);
     window.removeEventListener("blur", onBlur);
 
+    // 总是清理虚拟节点
+    managerDeleteId(vNode.id);
+
     if (start.x === vNode.pos.x && start.y === vNode.pos.y)
       return
     e.stopPropagation()
 
     const aNodeId = idFromEvent(e, ".node-group");
     if (aNodeId) {
-      if (aNodeId !== vEdge.source.id) {
+      if (aNodeId !== vEdge.sourceId) {
         //在已有节点上松开鼠标，设置为目标节点
-        vEdge.target = objects[aNodeId] as Node;
+        vEdge.targetId = objects[aNodeId].id;
         if ((objects[aNodeId] as Node).eAncs.length > 1) {
           vEdge.anchorTarget = { type: "auto" };
         } else {
@@ -107,7 +109,7 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
         // 更新节点关系
         const activeTab = getActiveTab();
         if (activeTab?.nodeRelations) {
-          addEdgeRelation(activeTab.nodeRelations, vEdge.source.id, vEdge.target.id);
+          addEdgeRelation(activeTab.nodeRelations, vEdge.sourceId, vEdge.targetId);
         }
         saveHistory();
       }
@@ -121,13 +123,13 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
         vEdge.anchorTarget = node?.eAncs[0];
       }
       if (node) {
-        vEdge.target = node;
+        vEdge.targetId = node.id;
         managerAdd(node);
-        managerUpdate(vEdge);
+        active(node.id)
         // 更新节点关系
         const activeTab = getActiveTab();
         if (activeTab?.nodeRelations) {
-          addEdgeRelation(activeTab.nodeRelations, vEdge.source.id, vEdge.target.id);
+          addEdgeRelation(activeTab.nodeRelations, vEdge.sourceId, vEdge.targetId);
         }
         saveHistory();
       } else {
@@ -155,11 +157,12 @@ export const onClickNode = (e: MouseEvent) => {
   // 获取 Edges category 的当前工具
   const edgeType = getToolForCategory(CATEGORY_EDGES) || "edge/line";
   const startPos = screen2Viewport({ x: e.clientX, y: e.clientY });
-  const vNode = ObjectFactories["node/text"]() as Node;
-  vNode.pos = { ...startPos };
+  const vNode = newParticleNode(startPos); // Use ParticleNode
+  // vNode.pos is already set by newParticleNode(startPos)
+
   const vEdge = ObjectFactories[edgeType]() as Edge;
-  vEdge.source = objects[id] as Node;
-  vEdge.target = vNode;
+  vEdge.sourceId = objects[id].id;
+  vEdge.targetId = vNode.id;
   vEdge.anchorTarget = { type: "absPos" };
 
   if ((objects[id] as Node).aAncs.length > 1) {
@@ -196,11 +199,11 @@ ContextMenuFactories["node"] = (target: Obj | null, event: MouseEvent): ContextM
       onClick: () => {
         const node = target as Node;
         const startPos = screen2Viewport({ x: event.clientX, y: event.clientY });
-        const vNode = ObjectFactories["node/text"]() as Node;
-        vNode.pos = { ...startPos };
+        const vNode = newParticleNode(startPos); // Use ParticleNode
+
         const vEdge = ObjectFactories[edgeId]() as Edge;
-        vEdge.source = node;
-        vEdge.target = vNode;
+        vEdge.sourceId = node.id;
+        vEdge.targetId = vNode.id;
         vEdge.anchorTarget = { type: "absPos" };
 
         startLinking(vEdge, vNode);

@@ -262,16 +262,29 @@ const calculateMidPoint = (
 
 // ==================== 组件渲染 ====================
 
+import { objects } from "../Manager";
+
+// Dummy atom for missing nodes to satisfy unconditional hook rules
+const dummyAtom = atom(0);
+
 Coms["edge/line"] = ({ obj }) => {
   const edge = obj as LineEdge;
+  // Retrieve nodes from global objects using IDs
+  const sourceNode = objects[edge.sourceId] as Node;
+  const targetNode = objects[edge.targetId] as Node;
+
   useAtom(obj.updater);
-  useAtom(edge.source.updater);
-  useAtom(edge.target.updater);
+  // Use dummy atom if node is missing
+  useAtom(sourceNode ? sourceNode.updater : dummyAtom);
+  useAtom(targetNode ? targetNode.updater : dummyAtom);
+
+  // If source or target is missing (e.g. hidden in folder), do not render the edge
+  if (!sourceNode || !targetNode) return null;
 
   // 计算边的路径
   const resolvedPoints = resolvePoints(
-    edge.source,
-    edge.target,
+    sourceNode,
+    targetNode,
     edge.anchorSource,
     edge.anchorTarget
   );
@@ -279,8 +292,8 @@ Coms["edge/line"] = ({ obj }) => {
   const { start, end } = calculateLineEndpoints(
     resolvedPoints.source,
     resolvedPoints.target,
-    edge.source,
-    edge.target,
+    sourceNode,
+    targetNode,
     edge.anchorSource.type,
     edge.anchorTarget.type
   );
@@ -386,8 +399,8 @@ registerSerializer(
     return {
       id: edge.id,
       type: edge.type,
-      sourceId: edge.source.id,
-      targetId: edge.target.id,
+      sourceId: edge.sourceId,
+      targetId: edge.targetId,
       anchorSource: { ...edge.anchorSource },
       anchorTarget: { ...edge.anchorTarget },
       isSelected: edge.isSelected,
@@ -402,16 +415,16 @@ registerSerializer(
     isSelected: data.isSelected ?? false,
     label: data.label,
     updater: atom(0),
-    source: null as any,
-    target: null as any,
+    sourceId: data.sourceId,
+    targetId: data.targetId,
   })
 );
 
 ContextMenuFactories["edge"] = () => [];
 
 export const newLineEdge = (
-  source: Node,
-  target: Node,
+  source: Node | null,
+  target: Node | null,
   label: string = ""
 ): LineEdge => {
   const id = crypto.randomUUID();
@@ -419,8 +432,8 @@ export const newLineEdge = (
     id,
     type: "edge/line",
     updater: atom<number>(0),
-    source,
-    target,
+    sourceId: source ? source.id : "",
+    targetId: target ? target.id : "",
     anchorSource: { type: "auto" },
     anchorTarget: { type: "auto" },
     isSelected: false,
@@ -429,7 +442,7 @@ export const newLineEdge = (
 };
 
 ObjectFactories["edge/line"] = (source?: Node, target?: Node, label: string = "") => {
-  return newLineEdge(source || null as any, target || null as any, label);
+  return newLineEdge(source || null, target || null, label);
 };
 
 // 注册工具项

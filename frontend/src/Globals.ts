@@ -55,8 +55,8 @@ export interface Node extends Obj {
 }
 
 export interface Edge extends Obj {
-  source: Node;
-  target: Node;
+  sourceId: string;
+  targetId: string;
   anchorSource: Anchor;
   anchorTarget: Anchor;
   isSelected: boolean;
