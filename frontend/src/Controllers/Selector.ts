@@ -282,7 +282,7 @@ const handleNodeSelection = (e: MouseEvent, nodeId: string) => {
 
   const isExtend = isKeyPressed(extendKey, e);
 
-  if (!isExtend) {
+  if (!isExtend && !node.selected) {
     // 不按扩展键：清除其他选择，只保留当前
     clearSelection(false);
   }

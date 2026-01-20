@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from "react";
-import { atom, useAtom } from "jotai";
+import React, { useRef, useEffect, useMemo } from "react";
+import { atom, useAtom, getDefaultStore } from "jotai";
 import { managerUpdate, objects, saveHistory, updateCanvas } from "../Manager";
 import { Anchor, anchors_rect, Node, Coms, Obj } from "../Globals";
 import { ToolItems, CATEGORY_NODES } from "../TopLayer/ToolBar";
@@ -10,9 +10,11 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
+import { EditableText } from "./EditableText";
 
 export interface FolderNode extends Node {
   childrenIds: string[];
+  name: string;
 }
 
 // 注册序列化函数
@@ -28,6 +30,7 @@ registerSerializer(
       aAncs: serializeAnchors(node.aAncs, "rect"),
       eAncs: serializeAnchors(node.eAncs, null),
       childrenIds: [...node.childrenIds],
+      name: node.name,
       selected: node.selected,
       z: node.z,
     };
@@ -41,6 +44,7 @@ registerSerializer(
       aAncs: deserializeAnchors(data.aAncs),
       eAncs: deserializeAnchors(data.eAncs),
       childrenIds: data.childrenIds || [],
+      name: data.name || "Folder",
       selected: data.selected ?? false,
       z: data.z ?? 0,
       updater: atom(0),
@@ -70,6 +74,7 @@ ObjectFactories["node/folder"] = (): FolderNode => {
     pos: { x: 0, y: 0 },
     size: { x: 300, y: 200 },
     childrenIds: [],
+    name: "Folder",
     selected: false,
     z: 0,
     eAncs: [anchors_rect[1], anchors_rect[2]],
@@ -99,6 +104,16 @@ Coms["node/folder"] = ({ obj }) => {
   const node = obj as FolderNode;
   const groupRef = useRef<SVGGElement>(null);
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
+
+  // 用于名称编辑的 atom
+  const isEditingAtom = useMemo(() => atom(false), [node.id]);
+
+  // 处理名称变更
+  const handleNameChange = (newName: string) => {
+    node.name = newName || "Folder";
+    managerUpdate(node);
+    saveHistory();
+  };
 
   // 递归更新子项层级（支持深层嵌套）
   const updateChildrenZ = React.useCallback((parentZ: number, childIds: string[]) => {
@@ -327,16 +342,49 @@ Coms["node/folder"] = ({ obj }) => {
         stroke="none"
       />
 
-      <text
-        x="10"
-        y="30"
-        fill={isDraggingOver ? "#8b5cf6" : "rgba(255, 255, 255, 0.3)"}
-        fontSize="12"
-        fontWeight={isDraggingOver ? "bold" : "normal"}
-        style={{ pointerEvents: "none", userSelect: "none" }}
+      {/* 文件夹名称区域 */}
+      <g
+        transform="translate(5, 13)"
+        onDoubleClick={() => {
+          if (!isDraggingOver) {
+            getDefaultStore().set(isEditingAtom, true);
+          }
+        }}
       >
-        {isDraggingOver ? "Drop to add" : "Folder"}
-      </text>
+        {/* 透明点击区域 */}
+        <rect
+          width={60}
+          height={22}
+          fill="transparent"
+          style={{ cursor: "text" }}
+        />
+        {isDraggingOver ? (
+          <text
+            x="5"
+            y="15"
+            textAnchor="start"
+            dominantBaseline="middle"
+            fill="#8b5cf6"
+            fontSize="12"
+            fontWeight="bold"
+            style={{ pointerEvents: "none", userSelect: "none" }}
+          >
+            Drop to add
+          </text>
+        ) : (
+          <EditableText
+            text={node.name}
+            size={{ x: 60, y: 22 }}
+            onEndEditing={handleNameChange}
+            isEditingAtom={isEditingAtom}
+            inputClassName="folder-name-input"
+            displayClassName="folder-name-display"
+            fontSize="12px"
+            textAlign="left"
+            placeholder="Folder"
+          />
+        )}
+      </g>
     </g>
   );
 };

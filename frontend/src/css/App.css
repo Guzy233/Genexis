@@ -30,7 +30,9 @@ body {
 /* LOD 优化：在缩放过程中隐藏文本，使用 visibility 避免触发 Layout */
 .is-zooming .text-display,
 .is-zooming .node-url-input,
-.is-zooming .url-display {
+.is-zooming .url-display,
+.is-zooming .folder-name-input,
+.is-zooming .folder-name-display {
   visibility: hidden !important;
 }
 
@@ -260,6 +262,39 @@ body {
 .url-display:empty::before {
   content: "输入图片URL...";
   color: #a1a1aa;
+}
+
+/* ==================== Folder Name Input styles ==================== */
+.folder-name-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: #e4e4e7;
+  text-align: center;
+  outline: none;
+  cursor: pointer;
+  pointer-events: auto;
+  border-radius: 4px;
+  padding: 0 2px;
+  box-sizing: border-box;
+}
+
+.folder-name-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  cursor: text;
+}
+
+.folder-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.folder-name-display {
+  font-size: 12px;
+  fill: rgba(255, 255, 255, 0.5);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* ==================== File Tab Bar ==================== */
