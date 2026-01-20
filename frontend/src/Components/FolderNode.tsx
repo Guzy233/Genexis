@@ -128,34 +128,15 @@ Coms["node/folder"] = ({ obj }) => {
   // 用于名称编辑的 atom
   const isEditingAtom = useMemo(() => atom(false), [node.id]);
 
-  // 使用 ref 追踪已订阅的子节点，避免频繁重新订阅
-  const subedIdsRef = useRef<Set<string>>(new Set());
-  const unsubsRef = useRef<Map<string, () => void>>(new Map());
   // 使用锁标记当前是否正在进行布局计算，防止子节点更新回调造成死循环
   const isLayoutingRef = useRef(false);
 
   // 订阅每个子节点的 updater，检测删除事件和大小变化
+  // 简化逻辑：每次 childrenIds 变化时，重新订阅所有子节点
   useEffect(() => {
-    const currentIds = new Set(node.childrenIds);
-    const subedIds = subedIdsRef.current;
-    const unsubs = unsubsRef.current;
+    const unsubs: (() => void)[] = [];
 
-    // 取消订阅已移除的子节点
-    subedIds.forEach((id) => {
-      if (!currentIds.has(id)) {
-        const unsub = unsubs.get(id);
-        if (unsub) {
-          unsub();
-          unsubs.delete(id);
-        }
-        subedIds.delete(id);
-      }
-    });
-
-    // 订阅新增的子节点
     node.childrenIds.forEach((childId) => {
-      if (subedIds.has(childId)) return;
-
       const child = objects[childId];
       if (!child) return;
 
@@ -177,18 +158,14 @@ Coms["node/folder"] = ({ obj }) => {
           }
         }
       });
-
-      subedIds.add(childId);
-      unsubs.set(childId, unsubscribe);
+      unsubs.push(unsubscribe);
     });
 
     return () => {
-      // 组件卸载时清理所有订阅
+      // 清理所有订阅
       unsubs.forEach((unsub) => unsub());
-      unsubs.clear();
-      subedIds.clear();
     };
-  }, [node.childrenIds.length]); // 仅当子节点数量变化时重新检查
+  }, [node.childrenIds]); // 依赖整个 childrenIds 数组引用，确保列表变化时刷新订阅
 
   // 处理名称变更
   const handleNameChange = (newName: string) => {
