@@ -19,8 +19,13 @@ registerSetting({
 
 export const onClickNode = (e: MouseEvent) => {
   if (e.button !== draggingKey) return;
-  const id = idFromEvent(e, ".node-group");
-  if (!id) return;
+
+  const nodeElement = (e.target as SVGElement).closest(".node-group") as SVGElement
+  if (!nodeElement) return
+  const id = nodeElement.dataset.id;
+  if (!id) return
+
+  nodeElement.style.pointerEvents = "none"
 
   const node = objects[id] as Node;
   let lastX = e.clientX;
@@ -28,13 +33,20 @@ export const onClickNode = (e: MouseEvent) => {
 
   const originPos = { x: node.pos.x, y: node.pos.y };
 
-  const onBlur = () => {
+  const cleanUp = () => {
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
-    window.removeEventListener("blur", onBlur);
-  };
+    window.removeEventListener("blur", cleanUp);
+
+    nodeElement.style.pointerEvents = "auto"
+  }
 
   const onMouseMove = (e: MouseEvent) => {
+    const target = (e.target as SVGElement).closest(".node-group") as SVGElement
+    if (target) {
+      target.dispatchEvent(new CustomEvent("node-hover", { detail: node }));
+    }
+
     const deltaX = (e.clientX - lastX) / viewport.zoom;
     const deltaY = (e.clientY - lastY) / viewport.zoom;
     lastX = e.clientX;
@@ -45,16 +57,14 @@ export const onClickNode = (e: MouseEvent) => {
   };
 
   const onMouseUp = () => {
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-    window.removeEventListener("blur", onBlur);
+    cleanUp()
     // 拖动结束，保存历史
     if (originPos !== node.pos) saveHistory();
   };
 
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
-  window.addEventListener("blur", onBlur);
+  window.addEventListener("blur", cleanUp);
 };
 
 onSetup((canvas: SVGSVGElement) => {

@@ -13,6 +13,7 @@ import "./TopLayer/ArrowEndDefs";
 import "./TopLayer/SettingPanel";
 
 import "./Components/TextNode";
+import "./Components/FolderNode";
 import "./Components/ImageNode";
 import "./Components/CurveEdge";
 import "./Components/LineEdge";
