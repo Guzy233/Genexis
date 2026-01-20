@@ -163,6 +163,24 @@ Coms["node/folder"] = ({ obj }) => {
     };
   }, [childrenKey]); // 依赖 childrenKey 字符串，确保内容变化时刷新订阅
 
+  // 监听自身删除事件，级联删除子节点
+  useEffect(() => {
+    const unsub = store.sub(node.updater, () => {
+      const val = store.get(node.updater);
+      if (val === -1) {
+        // 复制一份 childrenIds 以防止在遍历过程中因回调导致原数组变化
+        const childrenToDelete = [...node.childrenIds];
+        childrenToDelete.forEach((childId) => {
+          if (objects[childId]) {
+            managerDeleteId(childId);
+          }
+        });
+      }
+    });
+
+    return unsub;
+  }, [node]);
+
   // 处理名称变更
   const handleNameChange = (newName: string) => {
     node.name = newName || "Folder";
@@ -460,17 +478,6 @@ Coms["node/folder"] = ({ obj }) => {
               managerDeleteId(descendant.id);
             });
           }
-
-          // 3. 将拖入节点加入 childrenIds (作为直接子节点记录，虽然不显示)
-          // 注意：这一步是为了在展开时能正确识别它是直接子节点
-          // 如果不加，expand 逻辑里的 "directChildIds" 计算可能会出错，或者它能正确处理吗？
-          // handleExpand 逻辑：找出 hiddenChildren 中不在其他 childrenIds 里的节点作为直接子节点。
-          // 所以如果 dragged 不是其他人的子节点（它是顶层拖进来的），它自然会被识别为直接子节点。
-          // 但是我们需要把它记录在 node.childrenIds 里吗？
-          // 不，collapsed 状态下 node.childrenIds 应该是空的。
-          // handleExpand 会重建 childrenIds。
-          // 所以这里不需要动 node.childrenIds。
-
           // 4. 从画布移除该节点
           managerDeleteId(dragged.id);
         });
