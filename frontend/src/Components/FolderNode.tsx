@@ -204,21 +204,25 @@ Coms["node/folder"] = ({ obj }) => {
     return collected;
   }, []);
 
-  // 折叠：收起所有子节点
+  // 折叠：收起所有子节点，但保留第一个作为封面
   const handleCollapse = React.useCallback(() => {
-    if (node.childrenIds.length === 0) return;
+    if (node.childrenIds.length <= 1) return;
 
-    // 收集所有子节点
-    const children = collectAllChildren(node.childrenIds);
+    // 保留第一个子节点，隐藏其余的
+    const firstChildId = node.childrenIds[0];
+    const childrenToHideIds = node.childrenIds.slice(1);
+
+    // 收集所有需要隐藏的子节点
+    const children = collectAllChildren(childrenToHideIds);
     node.hiddenChildren = children;
 
-    // 从 objects 中移除所有子节点
+    // 从 objects 中移除所有需要隐藏的子节点
     children.forEach((child) => {
       managerDeleteId(child.id);
     });
 
-    // 清空 childrenIds 并设置折叠状态
-    node.childrenIds = [];
+    // childrenIds 只保留第一个
+    node.childrenIds = [firstChildId];
     node.collapsed = true;
     managerUpdate(node);
     saveHistory();
@@ -226,7 +230,6 @@ Coms["node/folder"] = ({ obj }) => {
 
   // 展开：恢复所有子节点
   const handleExpand = React.useCallback(() => {
-    // 如果没有隐藏的子节点，重置 collapsed 状态并返回
     if (node.hiddenChildren.length === 0) {
       node.collapsed = false;
       managerUpdate(node);
@@ -238,12 +241,10 @@ Coms["node/folder"] = ({ obj }) => {
 
     // 恢复所有隐藏的子节点到 objects
     node.hiddenChildren.forEach((child) => {
-      // 重新添加到 objects
       managerAdd(child);
     });
 
     // 从 hiddenChildren 中找出直接子节点
-    // 直接子节点是那些不在任何其他 hiddenChildren 的 childrenIds 中的节点
     const allChildrenIdsInFolders = new Set<string>();
     node.hiddenChildren.forEach((child) => {
       if (child.type === "node/folder") {
@@ -259,8 +260,8 @@ Coms["node/folder"] = ({ obj }) => {
       }
     });
 
-    // 恢复状态
-    node.childrenIds = directChildIds;
+    // 恢复状态：保留当前的第一个（封面），追加恢复的直接子节点
+    node.childrenIds = [...node.childrenIds, ...directChildIds];
     node.hiddenChildren = [];
     node.collapsed = false;
     managerUpdate(node);
@@ -400,8 +401,6 @@ Coms["node/folder"] = ({ obj }) => {
           } else {
             dragged.z = baseZ + 1;
           }
-
-          managerUpdate(dragged);
         } else {
           // 已经是子项：检查是否需要重新排序
           const currentIndex = node.childrenIds.indexOf(dragged.id);
@@ -415,8 +414,6 @@ Coms["node/folder"] = ({ obj }) => {
           }
         }
       });
-
-      managerUpdate(node);
       // 强制布局使其吸附，覆盖 Dragger 的鼠标相对移动
       reLayout();
     };
@@ -431,6 +428,8 @@ Coms["node/folder"] = ({ obj }) => {
       const draggedNodes = e.detail as Node[];
       if (!draggedNodes || draggedNodes.length === 0) return;
 
+      let changed = false;
+
       // 移除所有拖拽节点
       draggedNodes.forEach((dragged) => {
         if (!dragged) return;
@@ -440,10 +439,46 @@ Coms["node/folder"] = ({ obj }) => {
           node.childrenIds.splice(index, 1);
           dragged.z = 0; // 移出文件夹后恢复基础层级
           managerUpdate(dragged);
+          changed = true;
         }
       });
 
-      managerUpdate(node);
+      // 如果是折叠状态，且封面（唯一子节点）被移除了，从 hiddenChildren 中补位
+      if (node.collapsed && node.childrenIds.length === 0 && node.hiddenChildren.length > 0) {
+        // 取出第一个隐藏节点（原顺序的第二个）
+        const nextCover = node.hiddenChildren[0];
+
+        // 递归恢复树结构
+        const restoreTree = (n: Obj) => {
+          const idx = node.hiddenChildren.findIndex((x) => x.id === n.id);
+          if (idx !== -1) node.hiddenChildren.splice(idx, 1);
+          managerAdd(n);
+
+          if (n.type === "node/folder") {
+            const f = n as FolderNode;
+            if (f.childrenIds) {
+              f.childrenIds.forEach((cid) => {
+                const child = node.hiddenChildren.find((x) => x.id === cid);
+                if (child) restoreTree(child);
+              });
+            }
+          }
+        };
+
+        restoreTree(nextCover);
+        node.childrenIds.push(nextCover.id);
+        changed = true;
+      }
+
+      // 如果没有隐藏节点了，且当前显示的也不足，取消折叠状态
+      if (node.collapsed && node.hiddenChildren.length === 0) {
+        node.collapsed = false;
+        changed = true;
+      }
+
+      if (changed) {
+        managerUpdate(node);
+      }
       reLayout();
     };
 
@@ -464,6 +499,12 @@ Coms["node/folder"] = ({ obj }) => {
         if (validNodes.length === 0) return;
 
         validNodes.forEach((dragged) => {
+          // 如果拖拽的是当前显示的封面节点（已经在 childrenIds 中），则忽略，防止把自己放入隐藏列表
+          if (node.childrenIds.includes(dragged.id)) {
+            managerUpdate(dragged);
+            return;
+          }
+
           // 1. 将拖入节点加入 hiddenChildren
           node.hiddenChildren.push(dragged);
 
@@ -580,7 +621,7 @@ Coms["node/folder"] = ({ obj }) => {
       </g>
 
       {/* 折叠/展开按钮 */}
-      {(node.childrenIds.length > 0 || node.hiddenChildren.length > 0) && (
+      {((!node.collapsed && node.childrenIds.length > 1) || (node.collapsed && node.hiddenChildren.length > 0)) && (
         <g
           transform={`translate(${node.size.x - 18}, 25)`}
           onClick={(e) => {
@@ -600,7 +641,7 @@ Coms["node/folder"] = ({ obj }) => {
             textAnchor="middle"
             dominantBaseline="middle"
             fill="rgba(255, 255, 255, 0.6)"
-            fontSize="18"
+            fontSize="22"
             fontWeight="bold"
           >
             {node.collapsed ? "+" : "-"}

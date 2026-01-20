@@ -43,7 +43,7 @@ import "./Reciper/ItemPointer"
 
 import { CoordinateSystem } from "./UIs/CoordinateSystem";
 
-const LAYER_COUNT = 4;
+const LAYER_COUNT = 1;
 
 const getSpatialLayerIndex = (obj: any) => {
   if (LAYER_COUNT <= 1) return 0;
