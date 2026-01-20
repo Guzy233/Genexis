@@ -129,30 +129,32 @@ Coms["node/folder"] = ({ obj }) => {
   const isEditingAtom = useMemo(() => atom(false), [node.id]);
 
   // 使用 ref 追踪已订阅的子节点，避免频繁重新订阅
-  const subscribedIdsRef = useRef<Set<string>>(new Set());
-  const unsubscribesRef = useRef<Map<string, () => void>>(new Map());
+  const subedIdsRef = useRef<Set<string>>(new Set());
+  const unsubsRef = useRef<Map<string, () => void>>(new Map());
+  // 使用锁标记当前是否正在进行布局计算，防止子节点更新回调造成死循环
+  const isLayoutingRef = useRef(false);
 
   // 订阅每个子节点的 updater，检测删除事件和大小变化
   useEffect(() => {
     const currentIds = new Set(node.childrenIds);
-    const subscribedIds = subscribedIdsRef.current;
-    const unsubscribes = unsubscribesRef.current;
+    const subedIds = subedIdsRef.current;
+    const unsubs = unsubsRef.current;
 
     // 取消订阅已移除的子节点
-    subscribedIds.forEach((id) => {
+    subedIds.forEach((id) => {
       if (!currentIds.has(id)) {
-        const unsub = unsubscribes.get(id);
+        const unsub = unsubs.get(id);
         if (unsub) {
           unsub();
-          unsubscribes.delete(id);
+          unsubs.delete(id);
         }
-        subscribedIds.delete(id);
+        subedIds.delete(id);
       }
     });
 
     // 订阅新增的子节点
     node.childrenIds.forEach((childId) => {
-      if (subscribedIds.has(childId)) return;
+      if (subedIds.has(childId)) return;
 
       const child = objects[childId];
       if (!child) return;
@@ -167,19 +169,24 @@ Coms["node/folder"] = ({ obj }) => {
             node.childrenIds.splice(index, 1);
             managerUpdate(node);
           }
+        } else {
+          // 子节点更新（包括大小变化），触发父文件夹重新布局
+          // 关键：如果正在进行父节点的布局计算（isLayoutingRef为true），则忽略此次更新
+          if (!isLayoutingRef.current) {
+            managerUpdate(node);
+          }
         }
-        // 移除：不再在子节点更新时触发父文件夹更新，布局由事件驱动
       });
 
-      subscribedIds.add(childId);
-      unsubscribes.set(childId, unsubscribe);
+      subedIds.add(childId);
+      unsubs.set(childId, unsubscribe);
     });
 
     return () => {
       // 组件卸载时清理所有订阅
-      unsubscribes.forEach((unsub) => unsub());
-      unsubscribes.clear();
-      subscribedIds.clear();
+      unsubs.forEach((unsub) => unsub());
+      unsubs.clear();
+      subedIds.clear();
     };
   }, [node.childrenIds.length]); // 仅当子节点数量变化时重新检查
 
@@ -293,60 +300,55 @@ Coms["node/folder"] = ({ obj }) => {
 
   // 自动布局与自动大小逻辑
   const reLayout = React.useCallback(() => {
-    let currentY = 40; // 标题栏下方开始
-    let maxWidth = 150;
-    let sizeChanged = false;
-    // 拖拽时文件夹层级临时 +2，子节点应使用原始 baseZ
-    const baseZ = isDraggingOver ? (node.z ?? 0) - 2 : (node.z ?? 0);
+    isLayoutingRef.current = true; // 上锁：开始布局
 
-    node.childrenIds.forEach((id) => {
-      const child = objects[id] as Node;
-      if (child) {
-        const targetX = node.pos.x + 10;
-        const targetY = node.pos.y + currentY;
+    try {
+      let currentY = 40; // 标题栏下方开始
+      let maxWidth = 150;
+      let sizeChanged = false;
+      // 拖拽时文件夹层级临时 +2，子节点应使用原始 baseZ
+      const baseZ = isDraggingOver ? (node.z ?? 0) - 2 : (node.z ?? 0);
 
-        if (child.pos.x !== targetX || child.pos.y !== targetY) {
-          child.pos.x = targetX;
-          child.pos.y = targetY;
-          managerUpdate(child);
+      node.childrenIds.forEach((id) => {
+        const child = objects[id] as Node;
+        if (child) {
+          const targetX = node.pos.x + 10;
+          const targetY = node.pos.y + currentY;
+
+          if (child.pos.x !== targetX || child.pos.y !== targetY) {
+            child.pos.x = targetX;
+            child.pos.y = targetY;
+            managerUpdate(child);
+          }
+
+          currentY += child.size.y + 10;
+          maxWidth = Math.max(maxWidth, child.size.x + 20);
         }
+      });
 
-        currentY += child.size.y + 10;
-        maxWidth = Math.max(maxWidth, child.size.x + 20);
+      // 递归更新所有子项层级
+      updateChildrenZ(baseZ, node.childrenIds);
+
+      if (node.size.y !== currentY || node.size.x !== maxWidth) {
+        node.size.y = currentY;
+        node.size.x = maxWidth;
+        sizeChanged = true;
       }
-    });
 
-    // 递归更新所有子项层级
-    updateChildrenZ(baseZ, node.childrenIds);
+      if (sizeChanged) {
+        managerUpdate(node);
+      }
 
-    if (node.size.y !== currentY || node.size.x !== maxWidth) {
-      node.size.y = currentY;
-      node.size.x = maxWidth;
-      sizeChanged = true;
+      // 确保层级变更后触发画布重新排序
+      updateCanvas();
+    } finally {
+      isLayoutingRef.current = false; // 解锁：布局结束
     }
-
-    if (sizeChanged) {
-      managerUpdate(node);
-    }
-
-    // 确保层级变更后触发画布重新排序
-    updateCanvas();
   }, [node, updateChildrenZ, isDraggingOver]); // 移除 updater 依赖，避免循环
 
-  // 使用 ref 追踪上次布局时的 childrenIds 长度，避免重复布局
-  const lastChildrenLengthRef = useRef(node.childrenIds.length);
-  const lastPosRef = useRef({ x: node.pos.x, y: node.pos.y });
-
   useEffect(() => {
-    const posChanged = lastPosRef.current.x !== node.pos.x || lastPosRef.current.y !== node.pos.y;
-    const childrenChanged = lastChildrenLengthRef.current !== node.childrenIds.length;
-
-    if (posChanged || childrenChanged) {
-      lastPosRef.current = { x: node.pos.x, y: node.pos.y };
-      lastChildrenLengthRef.current = node.childrenIds.length;
-      reLayout();
-    }
-  }, [node.pos.x, node.pos.y, node.childrenIds.length, reLayout]);
+    reLayout();
+  }, [reLayout, updater, node.pos.x, node.pos.y, node.childrenIds.length]);
 
 
 
