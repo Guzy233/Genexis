@@ -42,18 +42,41 @@ import "./Reciper/ItemPointer"
 
 import { CoordinateSystem } from "./UIs/CoordinateSystem";
 
+const LAYER_COUNT = 4;
+
+const getSpatialLayerIndex = (obj: any) => {
+  if (LAYER_COUNT <= 1) return 0;
+  // 节点和边都根据位置分配象限，减少层与层之间的重叠
+  const pos = obj.pos || (obj.source && obj.source.pos);
+  if (pos) {
+    const quadX = pos.x < 0 ? 0 : 1;
+    const quadY = pos.y < 0 ? 0 : 1;
+    return (quadX + quadY * 2) % LAYER_COUNT;
+  }
+  return 0;
+};
+
 const App: React.FC = () => {
   useAtom(canvasUpdater);
   const canvasRef = React.useRef<SVGSVGElement>(null);
 
 
   const objs = Object.values(objects);
-  const edges = objs.filter((obj) => obj.type.startsWith("edge"));
-  const nodes = objs.filter((obj) => obj.type.startsWith("node"));
-  const uis = objs.filter((obj) => obj.type.startsWith("ui"));
-  const sortedObjects = [...edges, ...nodes, ...uis];
 
-  // sortedObjects.forEach((o)=>console.log(o.id))
+  // 将对象按空间坐标分发到 4 个非重叠或少重叠的层中
+  const edgeLayers = Array.from({ length: LAYER_COUNT }, () => [] as any[]);
+  const nodeLayers = Array.from({ length: LAYER_COUNT }, () => [] as any[]);
+  const uiLayer: any[] = [];
+
+  objs.forEach(obj => {
+    if (obj.type.startsWith("edge")) {
+      edgeLayers[getSpatialLayerIndex(obj)].push(obj);
+    } else if (obj.type.startsWith("node")) {
+      nodeLayers[getSpatialLayerIndex(obj)].push(obj);
+    } else {
+      uiLayer.push(obj);
+    }
+  });
 
   useEffect(() => {
     // generateRandomNodes(500)
@@ -87,10 +110,36 @@ const App: React.FC = () => {
         <g id="vp">
           <CoordinateSystem />
 
-          {sortedObjects.map((obj) => {
-            const Com = Coms[obj.type] || (obj.type.startsWith("node") ? Coms["node/undefined"] : null);
-            if (Com) return <Com obj={obj} key={obj.id} />;
-          })}
+          {/* 渲染边层 (在节点之下) */}
+          {edgeLayers.map((layer, i) => (
+            <g key={`edge-layer-${i}`} className="compositing-layer">
+              {layer.map((obj) => {
+                const Com = Coms[obj.type];
+                if (Com) return <Com obj={obj} key={obj.id} />;
+                return null;
+              })}
+            </g>
+          ))}
+
+          {/* 渲染节点层 */}
+          {nodeLayers.map((layer, i) => (
+            <g key={`node-layer-${i}`} className="compositing-layer">
+              {layer.map((obj) => {
+                const Com = Coms[obj.type] || (obj.type.startsWith("node") ? Coms["node/undefined"] : null);
+                if (Com) return <Com obj={obj} key={obj.id} />;
+                return null;
+              })}
+            </g>
+          ))}
+
+          {/* 渲染 UI 层 (在节点之上) */}
+          <g className="compositing-layer">
+            {uiLayer.map((obj) => {
+              const Com = Coms[obj.type];
+              if (Com) return <Com obj={obj} key={obj.id} />;
+              return null;
+            })}
+          </g>
         </g>
       </svg>
 

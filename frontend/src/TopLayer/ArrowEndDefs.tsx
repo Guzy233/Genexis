@@ -24,14 +24,6 @@ topLayer.push(() => {
         >
           <polygon points="0 0, 10 3.5, 0 7" fill="#9d72f4" />
         </marker>
-        <pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse">
-          <path
-            d="M 25 0 L 0 0 0 25"
-            fill="none"
-            stroke="rgba(255,255,255,0.15)"
-            strokeWidth="0.5"
-          />
-        </pattern>
       </defs>
     </svg>
   );

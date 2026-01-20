@@ -16,11 +16,27 @@ body {
   overflow: hidden;
   outline: none;
 
-  /* 深色网格背景 */
-  background: var(--bg-primary);
+  /* 使用 CSS 变量控制网格，避免触发 SVG Layout */
+  --grid-offset-x: 0px;
+  --grid-offset-y: 0px;
+  --grid-current-size: 25px;
+
+  background-color: var(--bg-primary);
   background-image: radial-gradient(var(--grid-color) 1px, transparent 1px);
-  background-size: var(--grid-size) var(--grid-size);
-  background-position: center;
+  background-size: var(--grid-current-size) var(--grid-current-size);
+  background-position: var(--grid-offset-x) var(--grid-offset-y);
+}
+
+/* LOD 优化：在缩放过程中隐藏文本，使用 visibility 避免触发 Layout */
+.is-zooming .text-display,
+.is-zooming .node-url-input,
+.is-zooming .url-display {
+  visibility: hidden !important;
+}
+
+.is-zooming .node-group {
+  /* 缩放时简化形状渲染 */
+  shape-rendering: optimizeSpeed;
 }
 
 .debug-info {
@@ -46,10 +62,20 @@ body {
   user-select: none;
   -webkit-user-select: none;
   display: block;
-  /* 限制渲染区域 */
-  contain: layout style paint;
-  /* 创建独立的合成层，减少重绘 */
+}
+
+#vp {
+  /* 提示浏览器该元素将频繁变换位置和缩放 */
+  will-change: transform;
+}
+
+.compositing-layer {
+  /* 强制浏览器为该层创建独立的合成上下文 */
+  will-change: transform;
+  /* 某些浏览器需要显式的 transform 来触发 GPU 加速 */
   transform: translateZ(0);
+  /* 隔离绘制，减少重绘影响范围 */
+  contain: layout style paint;
 }
 
 .linking-mode {
@@ -84,8 +110,6 @@ body {
 /* ==================== Node styles ==================== */
 .node-group {
   cursor: move;
-  /* 隔离节点的绘制层，减少重绘范围 */
-  contain: layout style paint;
   /* 优先性能而非质量 */
   shape-rendering: crispEdges;
 }
@@ -144,8 +168,6 @@ body {
 /* ==================== Edge styles ==================== */
 .edge-group {
   cursor: pointer;
-  /* 隔离边的绘制层 */
-  contain: layout style paint;
   /* 优先性能 */
   shape-rendering: crispEdges;
 }

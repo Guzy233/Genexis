@@ -31,6 +31,19 @@ registerSetting({
   onChange: (v) => { smoothFactor = Math.max(0.05, Math.min(1, v)); },
 });
 
+let smoothZoomEnabled = true;
+
+registerSetting({
+  id: "camera.smoothZoom",
+  category: "Camera",
+  title: "平滑缩放",
+  type: "toggle",
+  defaultValue: true,
+  value: true,
+  description: "是否开启平滑缩放动画，关闭可显著提升缩放时的性能",
+  onChange: (v) => (smoothZoomEnabled = v),
+});
+
 let wheelSensitivity = 2.5; // 滚轮灵敏度
 
 registerSetting({
@@ -180,53 +193,59 @@ const onWheel = (e: WheelEvent) => {
   smoothZoom.targetX = targetX;
   smoothZoom.targetY = targetY;
 
-  // 如果没有动画在运行，启动动画
-  if (!smoothZoom.isAnimating) {
-    smoothZoom.isAnimating = true;
-    smoothZoom.current = viewport.zoom;
-    smoothZoom.animationId = requestAnimationFrame(animateSmoothZoom);
+  if (smoothZoomEnabled) {
+    // 如果没有动画在运行，启动动画
+    if (!smoothZoom.isAnimating) {
+      smoothZoom.isAnimating = true;
+      smoothZoom.current = viewport.zoom;
+      smoothZoom.animationId = requestAnimationFrame(animateSmoothZoom);
+    }
+  } else {
+    // 立即应用缩放
+    viewport.zoom = newZoom;
+    viewport.x = targetX;
+    viewport.y = targetY;
+    smoothZoom.current = newZoom;
+    updateViewport();
   }
 };
 
+const container = document.querySelector(".canvas-container") as HTMLElement;
 let canvas: SVGGElement | null = null;
-
-let gridPattern: SVGPatternElement | null = null;
-let gridPath: SVGPathElement | null = null;
 
 function updateViewport() {
   if (canvas) {
-    const transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
-    canvas.style.transform = transform;
-    canvas.style.transformOrigin = "0 0";
+    // 1. 更新主视口变换 (GPU 加速)
+    canvas.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
 
-    // 更新适应性网格
-    if (!gridPattern) gridPattern = document.getElementById("grid") as any;
-    if (gridPattern && !gridPath) gridPath = gridPattern.querySelector("path");
+    // 2. 只有在动画过程中才切换 LOD 类名，减少无意义的类切换
+    const shouldShowLOD = smoothZoom.isAnimating;
+    if (shouldShowLOD && !container?.classList.contains("is-zooming")) {
+      container?.classList.add("is-zooming");
+    } else if (!shouldShowLOD && container?.classList.contains("is-zooming")) {
+      container?.classList.remove("is-zooming");
+    }
 
-    if (gridPattern && gridPath) {
+    // 3. 更新 CSS 网格 (通过 CSS 变量，不触发 SVG Layout)
+    if (container) {
       const baseGridSize = 25;
       let worldGridSize = baseGridSize;
-
-      // 保持视觉网格大小在 20px 到 200px 之间
       if (viewport.zoom > 0) {
         while (worldGridSize * viewport.zoom < 20) worldGridSize *= 10;
         while (worldGridSize * viewport.zoom > 200) worldGridSize /= 10;
       }
-
       const visualGridSize = worldGridSize * viewport.zoom;
 
-      gridPattern.setAttribute("width", visualGridSize.toString());
-      gridPattern.setAttribute("height", visualGridSize.toString());
-      gridPath.setAttribute("d", `M ${visualGridSize} 0 L 0 0 0 ${visualGridSize}`);
-
-      // 偏移网格以对齐世界坐标原点
-      const offsetX = viewport.x % visualGridSize;
-      const offsetY = viewport.y % visualGridSize;
-      gridPattern.setAttribute("patternTransform", `translate(${offsetX}, ${offsetY})`);
+      container.style.setProperty("--grid-current-size", `${visualGridSize}px`);
+      container.style.setProperty("--grid-offset-x", `${viewport.x % visualGridSize}px`);
+      container.style.setProperty("--grid-offset-y", `${viewport.y % visualGridSize}px`);
     }
   } else {
     canvas = document.querySelector("#vp");
-    if (canvas) updateViewport();
+    if (canvas) {
+      canvas.style.transformOrigin = "0 0";
+      updateViewport();
+    }
   }
 }
 
