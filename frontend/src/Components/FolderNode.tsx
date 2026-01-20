@@ -71,7 +71,7 @@ ObjectFactories["node/folder"] = (): FolderNode => {
     size: { x: 300, y: 200 },
     childrenIds: [],
     selected: false,
-    z: -1,
+    z: 0,
     eAncs: [anchors_rect[1], anchors_rect[2]],
     aAncs: anchors_rect,
   };
@@ -99,12 +99,6 @@ Coms["node/folder"] = ({ obj }) => {
   const node = obj as FolderNode;
   const groupRef = useRef<SVGGElement>(null);
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
-
-  // 悬浮时提升层级，防止被子项遮挡导致失去 hover 事件
-  useEffect(() => {
-    node.z = isDraggingOver ? 100 : -1;
-    updateCanvas();
-  }, [isDraggingOver, node]);
 
   // 自动布局与自动大小逻辑
   const reLayout = React.useCallback(() => {
@@ -155,7 +149,11 @@ Coms["node/folder"] = ({ obj }) => {
       const dragged = e.detail as Node;
       if (dragged.id === node.id) return;
 
-      setIsDraggingOver(true);
+      if (!isDraggingOver) {
+        setIsDraggingOver(true);
+        node.z = (node.z ?? 0) + 2;
+        updateCanvas();
+      }
 
       const isChild = node.childrenIds.includes(dragged.id);
 
@@ -171,7 +169,17 @@ Coms["node/folder"] = ({ obj }) => {
 
         if (cx >= bounds.x1 && cx <= bounds.x2 && cy >= bounds.y1 && cy <= bounds.y2) {
           node.childrenIds.push(dragged.id);
+
+          // 设置层级关系：子文件夹(Z+3) > 本文件夹(Z) > 普通节点(Z+1)
+          const baseZ = (node.z ?? 0) - 2;
+          if (dragged.type === "node/folder") {
+            dragged.z = baseZ + 3;
+          } else {
+            dragged.z = baseZ + 1;
+          }
+
           managerUpdate(node);
+          managerUpdate(dragged);
           reLayout();
         }
       } else {
@@ -181,20 +189,31 @@ Coms["node/folder"] = ({ obj }) => {
     };
 
     const onNodeLeave = (e: any) => {
-      setIsDraggingOver(false);
+      if (isDraggingOver) {
+        setIsDraggingOver(false);
+        node.z = (node.z ?? 0) - 2;
+        updateCanvas();
+      }
+
       const dragged = e.detail as Node;
       if (!dragged) return;
 
       const index = node.childrenIds.indexOf(dragged.id);
       if (index !== -1) {
         node.childrenIds.splice(index, 1);
+        dragged.z = 0; // 移出文件夹后恢复基础层级
         managerUpdate(node);
+        managerUpdate(dragged);
         reLayout();
       }
     };
 
     const onNodeDrop = (e: any) => {
-      setIsDraggingOver(false)
+      if (isDraggingOver) {
+        setIsDraggingOver(false);
+        node.z = (node.z ?? 0) - 2;
+        updateCanvas();
+      }
     }
 
     el.addEventListener("node-hover", onNodeHover);
@@ -205,7 +224,7 @@ Coms["node/folder"] = ({ obj }) => {
       el.removeEventListener("node-leave", onNodeLeave);
       el.removeEventListener("node-drop", onNodeDrop)
     }
-  }, [node, reLayout]);
+  }, [node, reLayout, isDraggingOver]);
 
   return (
     <g
