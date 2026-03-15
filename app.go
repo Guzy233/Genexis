@@ -4,14 +4,52 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+type PluginFrontend struct {
+	Entry string `json:"entry"`
+}
+
+type PluginBackend struct {
+	Main  string `json:"main"`
+	Port  int    `json:"port"`
+	Route string `json:"route"`
+}
+
+type PluginMetadata struct {
+	ID       string         `json:"id"`
+	Name     string         `json:"name"`
+	Version  string         `json:"version"`
+	Frontend PluginFrontend `json:"frontend"`
+	Backend  PluginBackend  `json:"backend"`
+}
+
+type PluginInstance struct {
+	Metadata PluginMetadata
+	Cmd      *exec.Cmd
+	Proxy    *httputil.ReverseProxy
+}
+
+type PluginManager struct {
+	Plugins []PluginInstance
+	mu      sync.RWMutex
+}
+
+var GlobalPluginManager = &PluginManager{}
+
 type App struct {
-	ctx     context.Context
+	ctx       context.Context
 	configDir string
 }
 
@@ -22,58 +60,164 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// 获取配置文件目录（使用用户数据目录）
+	// 获取当前工作目录（在开发模式下通常是项目根目录）
+	cwd, _ := os.Getwd()
+
+	// 获取配置文件目录
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = os.TempDir()
 	}
 	a.configDir = filepath.Join(configDir, "MindGraph3")
-
-	// 确保配置目录存在
 	os.MkdirAll(a.configDir, 0755)
+
+	// 扫描并启动插件
+	a.initPlugins(cwd)
 }
 
-// GetConfigPath 获取配置文件路径
+func (a *App) initPlugins(baseDir string) {
+	pluginsDir := filepath.Join(baseDir, "plugins")
+	entries, err := os.ReadDir(pluginsDir)
+	if err != nil {
+		fmt.Printf("Error reading plugins dir: %v\n", err)
+		return
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		pluginPath := filepath.Join(pluginsDir, entry.Name())
+		absPluginPath, _ := filepath.Abs(pluginPath)
+		metaPath := filepath.Join(absPluginPath, "plugin.json")
+		if _, err := os.Stat(metaPath); os.IsNotExist(err) {
+			continue
+		}
+
+		data, err := os.ReadFile(metaPath)
+		if err != nil {
+			fmt.Printf("Error reading plugin.json in %s: %v\n", entry.Name(), err)
+			continue
+		}
+
+		var meta PluginMetadata
+		if err := json.Unmarshal(data, &meta); err != nil {
+			fmt.Printf("Error parsing plugin.json in %s: %v\n", entry.Name(), err)
+			continue
+		}
+
+		// 启动后端
+		var cmd *exec.Cmd
+		if meta.Backend.Main != "" {
+			backendPath := filepath.Join(absPluginPath, meta.Backend.Main)
+
+			// 在 Windows 上，这种相对/绝对路径的处理需要非常小心
+			if strings.HasSuffix(backendPath, ".go") {
+				cmd = exec.Command("go", "run", "main.go")
+				cmd.Dir = absPluginPath
+			} else {
+				// 确保后端可执行文件存在
+				if _, err := os.Stat(backendPath); err == nil {
+					cmd = exec.Command(backendPath)
+					cmd.Dir = absPluginPath
+				} else {
+					fmt.Printf("Plugin backend executable not found: %s\n", backendPath)
+					continue
+				}
+			}
+
+			// 注入端口环境变量
+			cmd.Env = append(os.Environ(), fmt.Sprintf("PORT=%d", meta.Backend.Port))
+
+			// 重定向输出到主进程
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+
+			err := cmd.Start()
+			if err != nil {
+				fmt.Printf("Failed to start plugin backend %s: %v\n", meta.ID, err)
+			} else {
+				fmt.Printf("Plugin backend %s started on port %d (Path: %s)\n", meta.ID, meta.Backend.Port, backendPath)
+			}
+		}
+
+		// 创建代理
+		var proxy *httputil.ReverseProxy
+		if meta.Backend.Port != 0 {
+			target, _ := url.Parse(fmt.Sprintf("http://localhost:%d", meta.Backend.Port))
+			proxy = httputil.NewSingleHostReverseProxy(target)
+			// 修正路径转发
+			originalDirector := proxy.Director
+			proxy.Director = func(req *http.Request) {
+				originalDirector(req)
+				req.URL.Path = strings.TrimPrefix(req.URL.Path, meta.Backend.Route)
+			}
+		}
+
+		GlobalPluginManager.mu.Lock()
+		GlobalPluginManager.Plugins = append(GlobalPluginManager.Plugins, PluginInstance{
+			Metadata: meta,
+			Cmd:      cmd,
+			Proxy:    proxy,
+		})
+		GlobalPluginManager.mu.Unlock()
+	}
+}
+
+func (a *App) GetPlugins() []PluginMetadata {
+	GlobalPluginManager.mu.RLock()
+	defer GlobalPluginManager.mu.RUnlock()
+
+	var metas []PluginMetadata
+	for _, p := range GlobalPluginManager.Plugins {
+		metas = append(metas, p.Metadata)
+	}
+	return metas
+}
+
+func (a *App) shutdown(ctx context.Context) {
+	GlobalPluginManager.mu.Lock()
+	defer GlobalPluginManager.mu.Unlock()
+
+	for _, p := range GlobalPluginManager.Plugins {
+		if p.Cmd != nil && p.Cmd.Process != nil {
+			fmt.Printf("Stopping plugin backend: %s\n", p.Metadata.ID)
+			p.Cmd.Process.Kill()
+		}
+	}
+}
+
+// ==================== 原有方法 ====================
+
 func (a *App) GetConfigPath() string {
 	return filepath.Join(a.configDir, "config.json")
 }
 
-// ReadConfig 读取配置文件
 func (a *App) ReadConfig() (string, error) {
 	configPath := a.GetConfigPath()
-
-	// 如果文件不存在，返回空对象
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		emptyConfig := make(map[string]interface{})
 		data, _ := json.Marshal(emptyConfig)
 		return string(data), nil
 	}
-
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return "", err
 	}
-
 	return string(data), nil
 }
 
-// WriteConfig 写入配置文件
 func (a *App) WriteConfig(configData string) error {
 	configPath := a.GetConfigPath()
-
-	// 确保目录存在
 	os.MkdirAll(a.configDir, 0755)
-
-	// 格式化 JSON
 	var prettyJSON bytes.Buffer
 	if err := json.Indent(&prettyJSON, []byte(configData), "", "  "); err != nil {
 		return err
 	}
-
 	return os.WriteFile(configPath, prettyJSON.Bytes(), 0644)
 }
 
-// 窗口控制方法
 func (a *App) Quit() {
 	runtime.Quit(a.ctx)
 }
@@ -94,112 +238,55 @@ func (a *App) IsMaximized() bool {
 	return runtime.WindowIsMaximised(a.ctx)
 }
 
-// SaveFile 保存文件（另存为，显示对话框）
 func (a *App) SaveFile(data string, defaultFilename string) (string, error) {
-	// 如果没有提供默认文件名，使用 mindgraph.json
 	if defaultFilename == "" {
 		defaultFilename = "mindgraph.json"
 	}
-
-	// 打开保存文件对话框
 	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		Title:           "另存为",
 		DefaultFilename: defaultFilename,
 		Filters: []runtime.FileFilter{
-			{
-				DisplayName: "JSON Files (*.json)",
-				Pattern:     "*.json",
-			},
-			{
-				DisplayName: "All Files (*.*)",
-				Pattern:     "*.*",
-			},
+			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
+			{DisplayName: "All Files (*.*)", Pattern: "*.*"},
 		},
 	})
-
-	if err != nil {
-		return "", err
+	if err != nil || filePath == "" {
+		return filePath, err
 	}
-
-	// 用户取消了对话框
-	if filePath == "" {
-		return "", nil
-	}
-
-	// 写入文件
 	err = os.WriteFile(filePath, []byte(data), 0644)
-	if err != nil {
-		return "", err
-	}
-
-	return filePath, nil
+	return filePath, err
 }
 
-// SaveFileDirect 直接保存到指定路径（不显示对话框）
 func (a *App) SaveFileDirect(data string, filePath string) error {
 	if filePath == "" {
 		return os.ErrInvalid
 	}
-
-	// 写入文件
-	err := os.WriteFile(filePath, []byte(data), 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return os.WriteFile(filePath, []byte(data), 0644)
 }
 
-// LoadFile 加载文件
 func (a *App) LoadFile() (string, error) {
-	// 打开加载文件对话框
 	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "打开思维导图",
 		Filters: []runtime.FileFilter{
-			{
-				DisplayName: "JSON Files (*.json)",
-				Pattern:     "*.json",
-			},
-			{
-				DisplayName: "All Files (*.*)",
-				Pattern:     "*.*",
-			},
+			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
+			{DisplayName: "All Files (*.*)", Pattern: "*.*"},
 		},
 	})
-
-	if err != nil {
+	if err != nil || filePath == "" {
 		return "", err
 	}
-
-	// 用户取消了对话框
-	if filePath == "" {
-		return "", nil
-	}
-
-	// 读取文件
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
-
-	// 返回 JSON 格式：{"path":"...","content":"..."}
-	// 使用 json.Marshal 自动处理转义
 	type FileResult struct {
 		Path    string `json:"path"`
 		Content string `json:"content"`
 	}
-	result := FileResult{
-		Path:    filePath,
-		Content: string(data),
-	}
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
+	jsonResult, _ := json.Marshal(FileResult{Path: filePath, Content: string(data)})
 	return string(jsonResult), nil
 }
 
-// OpenFolder 打开文件夹选择对话框
 func (a *App) OpenFolder() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "Select Folder",

@@ -1,5 +1,12 @@
 import React from 'react'
-import {createRoot} from 'react-dom/client'
+import * as ReactDOM from 'react-dom'
+import { createRoot } from 'react-dom/client'
+import * as Jotai from 'jotai'
+
+// 曝露给插件使用
+window.React = React;
+window.ReactDOM = ReactDOM;
+window.Jotai = Jotai;
 import './css/style.css'
 import App from './App'
 import { registerAPI } from './SDK/Binding'

@@ -1,5 +1,9 @@
 {
-  "dependencies": {
-    "jotai": "^2.16.1"
+  "name": "mindgraph-root",
+  "private": true,
+  "description": "MindGraph Workspace Root",
+  "scripts": {
+    "install-all": "pnpm install",
+    "build-all": "pnpm -r build"
   }
 }

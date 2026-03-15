@@ -1,46 +1,67 @@
 import { onSetup } from "./Globals";
+import { updateCanvas } from "./Manager";
+import { GetPlugins } from "../wailsjs/go/main/App";
 
-export interface Plugin {
-  id: string;
-  name: string;
-  entry?: string; // Path to the JS bundle
+export interface PluginMetadata {
+    id: string;
+    name: string;
+    version: string;
+    frontend: {
+        entry: string;
+    };
+    backend: {
+        main: string;
+        port: number;
+        route: string;
+    };
 }
 
 const loadedPlugins = new Set<string>();
 
 export async function loadPlugin(url: string) {
-  if (loadedPlugins.has(url)) return;
+    if (loadedPlugins.has(url)) return;
 
-  try {
-    const script = document.createElement("script");
-    script.src = url;
-    script.type = "module";
+    try {
+        const script = document.createElement("script");
+        script.src = url;
 
-    return new Promise((resolve, reject) => {
-      script.onload = () => {
-        loadedPlugins.add(url);
-        console.log(`Plugin loaded: ${url}`);
-        resolve(true);
-      };
-      script.onerror = (e) => {
-        console.error(`Failed to load plugin: ${url}`, e);
-        reject(e);
-      };
-      document.head.appendChild(script);
-    });
-  } catch (err) {
-    console.error(`Error loading plugin ${url}:`, err);
-  }
+        return new Promise((resolve, reject) => {
+            script.onload = () => {
+                loadedPlugins.add(url);
+                console.log(`Plugin loaded: ${url}`);
+                resolve(true);
+            };
+            script.onerror = (e) => {
+                console.error(`Failed to load plugin: ${url}`, e);
+                reject(e);
+            };
+            document.head.appendChild(script);
+        });
+    } catch (err) {
+        console.error(`Error loading plugin ${url}:`, err);
+    }
 }
 
-// In Wails, we might want to fetch a list of plugins from the backend
 export async function autoLoadPlugins() {
-  // This could be a call to a Go function like App.GetPlugins()
-  // For now, it's a placeholder.
-  console.log("Auto-loading plugins...");
+    console.log("Auto-loading plugins from backend...");
+    try {
+        const plugins: PluginMetadata[] = await GetPlugins();
+        console.log("Discovered plugins:", plugins);
+        for (const plugin of plugins) {
+            if (plugin.frontend && plugin.frontend.entry) {
+                // Determine the correct URL for the entry point
+                // If it's a relative path in plugin.json, we might need to prefix it
+                let entryUrl = plugin.frontend.entry;
+                await loadPlugin(entryUrl);
+            }
+        }
+        updateCanvas();
+    } catch (err) {
+        console.error("Failed to fetch plugins from backend:", err);
+    }
 }
 
 onSetup(() => {
-  autoLoadPlugins();
-  return () => { };
+    autoLoadPlugins();
+    return () => { };
 });

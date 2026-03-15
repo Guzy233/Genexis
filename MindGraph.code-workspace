@@ -1,0 +1,32 @@
+{
+  "folders": [
+    {
+      "name": "MindGraph-Core",
+      "path": "frontend"
+    },
+    {
+      "name": "Plugin-Reciper",
+      "path": "plugins/Reciper/"
+    },
+    {
+      "name": "Backend-Go",
+      "path": ".",
+      "settings": {
+        "files.exclude": {
+          "frontend": true,
+          "plugins/*": true
+        }
+      }
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.git": true,
+      "**/.svn": true,
+      "**/.hg": true,
+      "**/.DS_Store": true,
+      "**/Thumbs.db": true,
+      // "**/node_modules": true
+    }
+  }
+}
