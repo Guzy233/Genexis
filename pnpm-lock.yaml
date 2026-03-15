@@ -33,6 +33,31 @@ importers:
         specifier: ^3.0.7
         version: 3.2.11(@types/node@25.5.0)
 
+  plugins/HelloPlugin/frontend:
+    dependencies:
+      jotai:
+        specifier: '>=2.0.0'
+        version: 2.18.1(@babel/core@7.29.0)(@babel/template@7.28.6)(@types/react@18.3.28)(react@18.3.1)
+      react:
+        specifier: '>=18.2.0'
+        version: 18.3.1
+      react-dom:
+        specifier: '>=18.2.0'
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.37
+      '@vitejs/plugin-react':
+        specifier: ^2.2.0
+        version: 2.2.0(vite@3.2.11(@types/node@20.19.37))
+      typescript:
+        specifier: ^4.9.3
+        version: 4.9.5
+      vite:
+        specifier: ^3.2.11
+        version: 3.2.11(@types/node@20.19.37)
+
   plugins/Reciper/frontend:
     devDependencies:
       '@types/node':
@@ -197,6 +222,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@types/node@20.19.37':
+    resolution: {integrity: sha512-8kzdPJ3FsNsVIurqBs7oodNnCEVbni9yUEkaHbgptDACOPW04jimGagZ51E6+lXUwJjgnBw+hyko/lkFWCldqw==}
 
   '@types/node@25.5.0':
     resolution: {integrity: sha512-jp2P3tQMSxWugkCUKLRPVUpGaL5MVFwF8RDuSRztfwgN1wmqJeMSbKlnEtQqU8UrhTmzEmZdu2I6v2dpp7XIxw==}
@@ -508,6 +536,9 @@ packages:
     engines: {node: '>=4.2.0'}
     hasBin: true
 
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
@@ -711,6 +742,10 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@types/node@20.19.37':
+    dependencies:
+      undici-types: 6.21.0
+
   '@types/node@25.5.0':
     dependencies:
       undici-types: 7.18.2
@@ -725,6 +760,19 @@ snapshots:
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
+
+  '@vitejs/plugin-react@2.2.0(vite@3.2.11(@types/node@20.19.37))':
+    dependencies:
+      '@babel/core': 7.29.0
+      '@babel/plugin-transform-react-jsx': 7.28.6(@babel/core@7.29.0)
+      '@babel/plugin-transform-react-jsx-development': 7.27.1(@babel/core@7.29.0)
+      '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
+      '@babel/plugin-transform-react-jsx-source': 7.27.1(@babel/core@7.29.0)
+      magic-string: 0.26.7
+      react-refresh: 0.14.2
+      vite: 3.2.11(@types/node@20.19.37)
+    transitivePeerDependencies:
+      - supports-color
 
   '@vitejs/plugin-react@2.2.0(vite@3.2.11(@types/node@25.5.0))':
     dependencies:
@@ -940,6 +988,8 @@ snapshots:
 
   typescript@4.9.5: {}
 
+  undici-types@6.21.0: {}
+
   undici-types@7.18.2: {}
 
   update-browserslist-db@1.2.3(browserslist@4.28.1):
@@ -947,6 +997,16 @@ snapshots:
       browserslist: 4.28.1
       escalade: 3.2.0
       picocolors: 1.1.1
+
+  vite@3.2.11(@types/node@20.19.37):
+    dependencies:
+      esbuild: 0.15.18
+      postcss: 8.5.8
+      resolve: 1.22.11
+      rollup: 2.80.0
+    optionalDependencies:
+      '@types/node': 20.19.37
+      fsevents: 2.3.3
 
   vite@3.2.11(@types/node@25.5.0):
     dependencies:

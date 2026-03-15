@@ -5,6 +5,8 @@ CLAUDE.md
 GEMINI.md
 wailsjs
 files
-plugins
+plugins/*
 .vscode
 frontend/src/SDK
+
+!plugins/HelloPlugin

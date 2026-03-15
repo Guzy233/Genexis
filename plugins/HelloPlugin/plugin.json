@@ -1,0 +1,14 @@
+{
+  "id": "hello-plugin",
+  "name": "Hello World 示例插件",
+  "version": "1.0.0",
+  "author": "Antigravity",
+  "frontend": {
+    "entry": "plugins/HelloPlugin/dist/index.js"
+  },
+  "backend": {
+    "main": "",
+    "port": 0,
+    "route": ""
+  }
+}
