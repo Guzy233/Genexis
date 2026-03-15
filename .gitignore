@@ -2,7 +2,9 @@ build/bin
 node_modules
 frontend/dist
 CLAUDE.md
+GEMINI.md
 wailsjs
 files
 plugins
 .vscode
+frontend/src/SDK
