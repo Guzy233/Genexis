@@ -1,0 +1,55 @@
+/* Edge styles and linking logic */
+
+.edge-group {
+  cursor: pointer;
+  /* 优先性能 */
+  shape-rendering: crispEdges;
+}
+
+.visual-line {
+  stroke: var(--edge-stroke);
+  stroke-width: 2px;
+  fill: none;
+  transition: stroke var(--transition-fast);
+}
+
+.visual-line.selected {
+  stroke: var(--edge-selected);
+}
+
+.edge-handle {
+  fill: var(--bg-primary);
+  stroke: var(--edge-stroke);
+  stroke-width: 1.5px;
+}
+
+.edge-label {
+  fill: var(--text-tertiary);
+  font-size: 16px;
+  font-weight: 500;
+  pointer-events: none;
+  user-select: none;
+}
+
+.edge.selected line {
+  stroke: var(--edge-selected);
+}
+
+.linking-mode {
+  pointer-events: none;
+}
+
+.edge-group .hit-area {
+  cursor: pointer;
+}
+
+.edge-group .reconnect-trigger {
+  fill: transparent;
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.edge-group:hover .reconnect-trigger {
+  opacity: 1;
+}

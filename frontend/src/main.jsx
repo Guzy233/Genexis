@@ -7,7 +7,12 @@ import * as Jotai from 'jotai'
 window.React = React;
 window.ReactDOM = ReactDOM;
 window.Jotai = Jotai;
-import './css/style.css'
+import './css/variables.css'
+import './css/base.css'
+import './css/canvas.css'
+import './css/nodes.css'
+import './css/edges.css'
+import './css/ui.css'
 import App from './App'
 import { registerAPI } from './SDK/Binding'
 

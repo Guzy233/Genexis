@@ -1,0 +1,112 @@
+/* Node styles and background coloring */
+
+.node-group {
+  cursor: move;
+  /* 优先性能而非质量 */
+  shape-rendering: crispEdges;
+}
+
+/* Background component styles */
+.node-rect {
+  transition: fill var(--transition-fast), stroke var(--transition-fast);
+  fill: var(--node-fill);
+  stroke: var(--node-stroke);
+  stroke-width: 2px;
+  rx: var(--radius-md);
+}
+
+/* Selected state from NodeBackground logic */
+.node-rect.selected {
+  fill: var(--color-selected);
+  stroke: var(--color-selected-border);
+}
+
+/* Activated state from NodeBackground logic */
+.node-rect.activated {
+  fill: var(--color-actived);
+  stroke: var(--color-actived-border);
+}
+
+/* Legacy node logic (if still used as fallback) */
+.node.selected rect {
+  fill: var(--color-selected);
+}
+
+.node.actived rect {
+  stroke: var(--color-actived-border);
+}
+
+/* Specific node type customizations */
+
+/* Folder Node Styles */
+.node-folder-path {
+  transition: fill var(--transition-fast), stroke var(--transition-fast);
+  fill: var(--node-fill);
+  stroke: var(--node-stroke);
+  stroke-width: 2px;
+}
+
+.node-folder-path.selected {
+  fill: var(--color-selected);
+  stroke: var(--color-selected-border);
+}
+
+.node-folder-path.activated {
+  fill: var(--color-actived);
+  stroke: var(--color-actived-border);
+}
+
+.node-folder-cover {
+  fill: var(--node-fill);
+  stroke: none;
+  transition: fill var(--transition-fast);
+}
+
+.node-folder-path.selected + .node-folder-cover,
+.node-folder-path.activated + .node-folder-cover {
+  fill: var(--color-selected);
+}
+
+.folder-drag-highlight {
+  fill: none;
+  stroke: var(--color-actived-border);
+  stroke-width: 3px;
+  stroke-dasharray: 4 4;
+  opacity: 0.6;
+}
+
+.folder-drop-label {
+  fill: var(--color-actived-border);
+  font-size: 12px;
+  font-weight: bold;
+  pointer-events: none;
+  user-select: none;
+}
+
+.folder-collapse-btn {
+  font-size: 22px;
+  font-weight: bold;
+  fill: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.folder-collapse-btn:hover {
+  fill: var(--text-primary);
+}
+
+/* 未知类型节点（红色警告色） */
+.node-rect-node-undefined {
+  fill: rgba(239, 68, 68, 0.1);
+  stroke: rgba(239, 68, 68, 0.4);
+  stroke-dasharray: 4 2;
+}
+
+.node-rect-node-undefined.selected {
+  fill: rgba(239, 68, 68, 0.2);
+  stroke: #ef4444;
+}
+
+.node-rect-node-undefined.activated {
+  fill: rgba(239, 68, 68, 0.25);
+  stroke: #ef4444;
+}

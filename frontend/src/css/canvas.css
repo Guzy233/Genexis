@@ -1,0 +1,57 @@
+/* Canvas container and SVG rendering optimizations */
+.canvas-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  outline: none;
+
+  /* 使用 CSS 变量控制网格，避免触发 SVG Layout */
+  --grid-offset-x: 0px;
+  --grid-offset-y: 0px;
+  --grid-current-size: 25px;
+
+  background-color: var(--bg-primary);
+  background-image: radial-gradient(var(--grid-color) 1px, transparent 1px);
+  background-size: var(--grid-current-size) var(--grid-current-size);
+  background-position: var(--grid-offset-x) var(--grid-offset-y);
+}
+
+.mindmap-svg {
+  background: transparent;
+  /* 优化SVG渲染性能 */
+  shape-rendering: optimizeSpeed; /* 优先速度 */
+  text-rendering: optimizeSpeed; /* 优先性能而非质量 */
+  image-rendering: pixelated; /* 简化图像渲染 */
+  /* 阻止文本选择 */
+  user-select: none;
+  -webkit-user-select: none;
+  display: block;
+}
+
+#vp {
+  /* 提示浏览器该元素将频繁变换位置 and 缩放 */
+  will-change: transform;
+}
+
+.compositing-layer {
+  /* 强制浏览器为该层创建独立的合成上下文 */
+  will-change: transform;
+  /* 某些浏览器需要显式的 transform 来触发 GPU 加速 */
+  transform: translateZ(0);
+  /* 隔离绘制，减少重绘影响范围 */
+  contain: layout style paint;
+}
+
+/* LOD 优化：在缩放过程中隐藏部分 UI，减少 Layout 抖动 */
+.is-zooming .text-display,
+.is-zooming .node-url-input,
+.is-zooming .url-display,
+.is-zooming .folder-name-input,
+.is-zooming .folder-name-display {
+  visibility: hidden !important;
+}
+
+.is-zooming .node-group {
+  /* 缩放时简化形状渲染 */
+  shape-rendering: optimizeSpeed;
+}

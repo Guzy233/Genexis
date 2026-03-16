@@ -152,14 +152,12 @@ export const EditableText: React.FC<EditableTextProps> = ({
       {!isEditing && (
         <text
           x={getTextX()}
-          y={size.y / 2+1}
+          y={size.y / 2 + 1}
           textAnchor={getTextAnchor()}
           dominantBaseline="middle"
           className={displayClassName || "text-display no-select"}
           style={{
             fontSize,
-            fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
-            pointerEvents: "none",
             fill: isPlaceholder
               ? "var(--text-tertiary)"
               : "var(--text-primary)",
@@ -178,20 +176,11 @@ export const EditableText: React.FC<EditableTextProps> = ({
             onMouseDown={(e) => e.stopPropagation()}
             onMouseDownCapture={(e) => e.stopPropagation()}
             style={{
-              fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
-              width: "100%",
-              height: "100%",
-              boxSizing: "border-box",
               fontSize,
               textAlign,
-              border: "none",
-              outline: "none",
-              background: "transparent",
               paddingLeft:
                 textAlign === "left"
                   ? "4px"
-                  : textAlign === "right"
-                  ? "0"
                   : "0",
               paddingRight: textAlign === "right" ? "4px" : "0",
             }}

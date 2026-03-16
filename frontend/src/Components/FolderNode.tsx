@@ -71,18 +71,6 @@ registerSerializer(
   }
 );
 
-const getFillColor = (node: FolderNode) => {
-  if (node.id === activedId) return "rgba(139, 92, 246, 0.15)";
-  if (node.selected) return "rgba(99, 102, 241, 0.1)";
-  return "rgba(255, 255, 255, 0.02)";
-};
-
-const getStrokeColor = (node: FolderNode) => {
-  if (node.id === activedId) return "#8b5cf6";
-  if (node.selected) return "#6366f1";
-  return "rgba(255, 255, 255, 0.1)";
-};
-
 // 注册对象工厂
 ObjectFactories["node/folder"] = (): FolderNode => {
   return {
@@ -111,8 +99,8 @@ ToolItems.push({
     <svg viewBox="0 0 60 60" style={{ width: "100%", height: "100%" }}>
       <path
         d="M 10 15 L 25 15 L 30 20 L 50 20 L 50 45 L 10 45 Z"
-        fill="rgba(255, 255, 255, 0.05)"
-        stroke="rgba(255, 255, 255, 0.15)"
+        fill="var(--node-fill)"
+        stroke="var(--node-stroke)"
         strokeWidth="2"
       />
     </svg>
@@ -553,27 +541,20 @@ Coms["node/folder"] = ({ obj }) => {
           width={node.size.x + 8}
           height={node.size.y + 8}
           rx="10"
-          fill="none"
-          stroke="#8b5cf6"
-          strokeWidth="3"
-          strokeDasharray="4 4"
-          style={{ opacity: 0.6 }}
+          className="folder-drag-highlight"
         />
       )}
 
       <path
         d={`M 0 0 L 60 0 L 70 10 L ${node.size.x} 10 L ${node.size.x} ${node.size.y} L 0 ${node.size.y} Z`}
-        fill={getFillColor(node)}
-        stroke={getStrokeColor(node)}
-        strokeWidth="2"
+        className={`node-folder-path ${node.selected ? 'selected' : ''} ${node.id === activedId ? 'activated' : ''}`}
       />
 
       <rect
         y="10"
         width={node.size.x}
         height={node.size.y - 10}
-        fill={getFillColor(node)}
-        stroke="none"
+        className="node-folder-cover"
       />
 
       {/* 文件夹名称区域 */}
@@ -598,10 +579,7 @@ Coms["node/folder"] = ({ obj }) => {
             y="15"
             textAnchor="start"
             dominantBaseline="middle"
-            fill="#8b5cf6"
-            fontSize="12"
-            fontWeight="bold"
-            style={{ pointerEvents: "none", userSelect: "none" }}
+            className="folder-drop-label"
           >
             Drop to add
           </text>
@@ -640,9 +618,7 @@ Coms["node/folder"] = ({ obj }) => {
             y="1"
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="rgba(255, 255, 255, 0.6)"
-            fontSize="22"
-            fontWeight="bold"
+            className="folder-collapse-btn"
           >
             {node.collapsed ? "+" : "-"}
           </text>

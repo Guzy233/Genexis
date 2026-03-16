@@ -1,0 +1,22 @@
+/* Global resets and body/root styles */
+html,
+body,
+#root {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+/* Dragger styles */
+.dragging {
+  cursor: grabbing !important;
+}
+
+.dragging .node-group {
+  cursor: grabbing !important;
+}

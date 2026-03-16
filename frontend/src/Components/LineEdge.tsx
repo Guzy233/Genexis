@@ -333,13 +333,11 @@ Coms["edge/line"] = ({ obj }) => {
       )}
 
       <line
-        className="visual-line"
+        className={`visual-line ${edge.isSelected ? "selected" : ""}`}
         x1={start.x}
         y1={start.y}
         x2={end.x}
         y2={end.y}
-        stroke={edge.isSelected ? "#f472b6" : "#6366f1"}
-        strokeWidth="2"
         mask={edge.label ? `url(#${maskId})` : undefined}
         markerEnd={"url(#arrowhead1)"}
       />
@@ -359,16 +357,14 @@ Coms["edge/line"] = ({ obj }) => {
         cx={resolvedPoints.source.x}
         cy={resolvedPoints.source.y}
         r="4"
-        fill="#1e1e2e"
-        stroke="#6366f1"
+        className="edge-handle"
       />
 
       <circle
         cx={resolvedPoints.target.x}
         cy={resolvedPoints.target.y}
         r="4"
-        fill="#1e1e2e"
-        stroke="#6366f1"
+        className="edge-handle"
       />
 
       {midPoint && (
@@ -378,10 +374,7 @@ Coms["edge/line"] = ({ obj }) => {
           <text
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="#a1a1aa"
-            fontSize="16"
-            fontWeight="500"
-            style={{ pointerEvents: "none" }}
+            className="edge-label"
           >
             {edge.label}
           </text>
@@ -458,17 +451,18 @@ ToolItems.push({
         width="52"
         height="52"
         rx="12"
-        fill="rgba(255, 255, 255, 0.03)"
-        stroke="rgba(255, 255, 255, 0.1)"
+        fill="var(--node-fill)"
+        stroke="var(--node-stroke)"
         strokeWidth="1"
       />
+      {/* 直线预览 */}
       {/* 直线预览 */}
       <line
         x1="15"
         y1="42"
         x2="45"
         y2="18"
-        stroke="#6366f1"
+        style={{ stroke: "var(--edge-stroke)" }}
         strokeWidth="3"
         strokeLinecap="round"
       />
@@ -477,8 +471,7 @@ ToolItems.push({
         cx="15"
         cy="42"
         r="3"
-        fill="#1e1e2e"
-        stroke="#6366f1"
+        style={{ fill: "var(--bg-primary)", stroke: "var(--edge-stroke)" }}
         strokeWidth="2"
       />
       {/* 右端小圆点 */}
@@ -486,8 +479,7 @@ ToolItems.push({
         cx="45"
         cy="18"
         r="3"
-        fill="#1e1e2e"
-        stroke="#6366f1"
+        style={{ fill: "var(--bg-primary)", stroke: "var(--edge-stroke)" }}
         strokeWidth="2"
       />
     </svg>

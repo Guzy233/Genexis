@@ -1,5 +1,4 @@
 import React from 'react';
-import '../css/NodeBackground.css';
 import { Node } from '../Globals';
 import { activedId } from '../Controllers/Selector';
 

@@ -12,7 +12,7 @@ topLayer.push(() => {
           refY="3.5"
           orient="auto"
         >
-          <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1" />
+          <polygon points="0 0, 10 3.5, 0 7" style={{ fill: "var(--edge-stroke)" }} />
         </marker>
         <marker
           id="arrowhead1"
@@ -22,7 +22,7 @@ topLayer.push(() => {
           refY="3.5"
           orient="auto"
         >
-          <polygon points="0 0, 10 3.5, 0 7" fill="#9d72f4" />
+          <polygon points="0 0, 10 3.5, 0 7" style={{ fill: "var(--color-secondary)" }} />
         </marker>
       </defs>
     </svg>

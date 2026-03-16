@@ -49,15 +49,15 @@ const icon = (
       width="52"
       height="44"
       rx="8"
-      fill="rgba(255, 255, 255, 0.05)"
-      stroke="rgba(255, 255, 255, 0.15)"
+      fill="var(--node-fill)"
+      stroke="var(--node-stroke)"
       strokeWidth="2"
     />
     {/* 山峰 */}
     <path
       d="M 13 42 L 23 28 L 33 38 L 40 30 L 46 36 L 46 42 Z"
       fill="none"
-      stroke="#6366f1"
+      style={{ stroke: "var(--edge-stroke)" }}
       strokeWidth="2"
       strokeLinejoin="round"
     />
@@ -67,7 +67,7 @@ const icon = (
       cy="20"
       r="6"
       fill="none"
-      stroke="#f472b6"
+      style={{ stroke: "var(--edge-selected)" }}
       strokeWidth="2"
     />
   </svg>
@@ -213,32 +213,14 @@ Coms["node/image"] = ({ obj }) => {
           width={node.size.x - 16}
           height={28}
           rx="6"
-          fill="rgba(0, 0, 0, 0.3)"
-          stroke="rgba(255, 255, 255, 0.1)"
-          strokeWidth="1.5"
+          className={`url-group-bg ${node.id === activedId ? 'activated' : ''}`}
           style={{ cursor: "text" }}
-        />
-        {/* 编辑状态高亮边框 */}
-        <rect
-          width={node.size.x - 16}
-          height={28}
-          rx="6"
-          fill="none"
-          stroke={
-            node.id === activedId
-              ? "rgba(139, 92, 246, 0.6)"
-              : "rgba(255, 255, 255, 0.05)"
-          }
-          strokeWidth="2"
-          style={{ pointerEvents: "none" }}
         />
         {/* URL 图标 */}
         <text
           x="10"
           y="18"
-          fill="rgba(255, 255, 255, 0.4)"
-          fontSize="12"
-          style={{ pointerEvents: "none", userSelect: "none" }}
+          className="url-icon"
         >
           🔗
         </text>
@@ -277,10 +259,7 @@ Coms["node/image"] = ({ obj }) => {
           <text
             x={(node.imageSize.width || 100) / 2}
             y={(node.imageSize.height || 100) / 2}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="#a1a1aa"
-            fontSize="12"
+            className="image-preview-placeholder"
           >
             {isError ? "加载失败" : "预览区"}
           </text>
