@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"strings"
 
@@ -25,39 +26,42 @@ func main() {
 		Height: 768,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// 动态检测插件路由
-				GlobalPluginManager.mu.RLock()
-				var targetProxy *http.Handler
-				for _, p := range GlobalPluginManager.Plugins {
-					if p.Metadata.Backend.Route != "" && strings.HasPrefix(r.URL.Path, p.Metadata.Backend.Route) {
-						if p.Proxy != nil {
-							var h http.Handler = p.Proxy
-							targetProxy = &h
+			Middleware: func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					GlobalPluginManager.mu.RLock()
+					path := r.URL.Path
+					var proxy *httputil.ReverseProxy
+					for {
+						if p, ok := GlobalPluginManager.RouteMap[path]; ok {
+							proxy = p
+							break
 						}
-						break
+						lastSlash := strings.LastIndex(path, "/")
+						if lastSlash <= 0 {
+							break
+						}
+						path = path[:lastSlash]
 					}
-				}
-				GlobalPluginManager.mu.RUnlock()
 
-				if targetProxy != nil {
-					(*targetProxy).ServeHTTP(w, r)
-					return
-				}
-
-				// 处理插件静态文件
-				if strings.HasPrefix(r.URL.Path, "/plugins/") {
-					// 去掉开头的 /plugins/ 并在本地查找
-					filePath := strings.TrimPrefix(r.URL.Path, "/")
-					if _, err := os.Stat(filePath); err == nil {
-						http.ServeFile(w, r, filePath)
+					if proxy != nil {
+						GlobalPluginManager.mu.RUnlock()
+						proxy.ServeHTTP(w, r)
 						return
 					}
-				}
+					GlobalPluginManager.mu.RUnlock()
 
-				// 其他请求交给默认处理（如静态资源）
-				http.NotFound(w, r)
-			}),
+					if strings.HasPrefix(r.URL.Path, "/plugins/") {
+						filePath := strings.TrimPrefix(r.URL.Path, "/")
+						if _, err := os.Stat(filePath); err == nil {
+							http.ServeFile(w, r, filePath)
+							return
+						}
+					}
+
+					// 3. 其他请求交给 Wails 默认处理
+					next.ServeHTTP(w, r)
+				})
+			},
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,

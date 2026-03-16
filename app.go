@@ -42,8 +42,9 @@ type PluginInstance struct {
 }
 
 type PluginManager struct {
-	Plugins []PluginInstance
-	mu      sync.RWMutex
+	Plugins  []PluginInstance
+	RouteMap map[string]*httputil.ReverseProxy
+	mu       sync.RWMutex
 }
 
 var GlobalPluginManager = &PluginManager{}
@@ -76,6 +77,10 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) initPlugins(baseDir string) {
+	GlobalPluginManager.mu.Lock()
+	GlobalPluginManager.RouteMap = make(map[string]*httputil.ReverseProxy)
+	GlobalPluginManager.mu.Unlock()
+
 	pluginsDir := filepath.Join(baseDir, "plugins")
 	entries, err := os.ReadDir(pluginsDir)
 	if err != nil {
@@ -152,6 +157,9 @@ func (a *App) initPlugins(baseDir string) {
 			proxy.Director = func(req *http.Request) {
 				originalDirector(req)
 				req.URL.Path = strings.TrimPrefix(req.URL.Path, meta.Backend.Route)
+				if !strings.HasPrefix(req.URL.Path, "/") {
+					req.URL.Path = "/" + req.URL.Path
+				}
 			}
 		}
 
@@ -161,6 +169,9 @@ func (a *App) initPlugins(baseDir string) {
 			Cmd:      cmd,
 			Proxy:    proxy,
 		})
+		if meta.Backend.Route != "" && proxy != nil {
+			GlobalPluginManager.RouteMap[meta.Backend.Route] = proxy
+		}
 		GlobalPluginManager.mu.Unlock()
 	}
 }
