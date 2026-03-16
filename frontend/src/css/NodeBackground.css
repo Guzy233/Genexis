@@ -1,0 +1,45 @@
+/**
+ * NodeBackground CSS
+ * 控制各种节点的背景样式，支持主题切换
+ */
+
+.node-rect {
+  transition: fill var(--transition-fast), stroke var(--transition-fast);
+  fill: var(--node-fill);
+  stroke: var(--node-stroke);
+  stroke-width: 2px;
+  rx: var(--radius-md);
+}
+
+/* 选中状态 */
+.node-rect.selected {
+  fill: var(--color-selected);
+  stroke: var(--color-selected-border);
+}
+
+/* 激活状态 */
+.node-rect.activated {
+  fill: var(--color-actived);
+  stroke: var(--color-actived-border);
+}
+
+/* 针对不同类型的节点可以设置特定颜色（如果需要） */
+
+/* 未知类型节点（红色警告色） */
+.node-rect-node-undefined {
+  fill: rgba(239, 68, 68, 0.1);
+  stroke: rgba(239, 68, 68, 0.4);
+  stroke-dasharray: 4 2;
+}
+
+.node-rect-node-undefined.selected {
+  fill: rgba(239, 68, 68, 0.2);
+  stroke: #ef4444;
+}
+
+.node-rect-node-undefined.activated {
+  fill: rgba(239, 68, 68, 0.25);
+  stroke: #ef4444;
+}
+
+/* 文本和图片节点默认使用全局节点颜色，无需额外声明 */

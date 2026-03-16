@@ -13,6 +13,7 @@ import {
   serializeAnchors,
   deserializeAnchors,
 } from "../Serialization";
+import { NodeBackground } from "./NodeBackground";
 
 export interface TextNode extends Node {
   text: string;
@@ -60,18 +61,6 @@ ContextMenuFactories["node"] = (): ContextMenuItem[] => {
 };
 
 
-const getFillColor = (node: TextNode) => {
-  if (node.id === activedId) return "rgba(139, 92, 246, 0.25)";  // 紫色激活
-  if (node.selected) return "rgba(99, 102, 241, 0.2)";          // 靛蓝选中
-  return "rgba(255, 255, 255, 0.05)";                           // 默认半透明白
-};
-
-const getStrokeColor = (node: TextNode) => {
-  if (node.id === activedId) return "#8b5cf6";  // 紫色激活边框
-  if (node.selected) return "#6366f1";          // 靛蓝选中边框
-  return "rgba(255, 255, 255, 0.15)";          // 默认边框
-};
-
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
 
 // 注册对象工厂
@@ -102,8 +91,8 @@ ToolItems.push({
         width="52"
         height="44"
         rx="8"
-        fill="rgba(255, 255, 255, 0.05)"
-        stroke="rgba(255, 255, 255, 0.15)"
+        fill="var(--node-fill)"
+        stroke="var(--node-stroke)"
         strokeWidth="2"
       />
       <text
@@ -111,7 +100,7 @@ ToolItems.push({
         y="35"
         textAnchor="middle"
         dominantBaseline="middle"
-        fill="#e4e4e7"
+        fill="var(--text-primary)"
         fontSize="28"
         fontWeight="bold"
         fontFamily="Arial, sans-serif"
@@ -138,13 +127,9 @@ Coms["node/text"] = ({ obj }) => {
       data-id={node.id}
       onDoubleClick={() => getDefaultStore().set(isEditingAtom, true)}
     >
-      <rect
-        width={node.size.x}
-        height={node.size.y}
-        rx="6"
-        fill={getFillColor(node)}
-        stroke={getStrokeColor(node)}
-        strokeWidth="2"
+      {/* 背景框 */}
+      <NodeBackground
+        node={node}
       />
 
       <EditableText

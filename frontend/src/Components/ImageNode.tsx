@@ -16,23 +16,12 @@ import {
 } from "../Serialization";
 import { EditableText } from "./EditableText";
 import { saveHistory } from "../Manager";
+import { NodeBackground } from "./NodeBackground";
 
 export interface ImageNode extends Node {
   src: string;
   imageSize: { width: number; height: number };
 }
-
-const getFillColor = (node: ImageNode) => {
-  if (node.id === activedId) return "rgba(139, 92, 246, 0.25)"; // 紫色激活
-  if (node.selected) return "rgba(99, 102, 241, 0.2)"; // 靛蓝选中
-  return "rgba(255, 255, 255, 0.05)"; // 默认半透明白
-};
-
-const getStrokeColor = (node: ImageNode) => {
-  if (node.id === activedId) return "#8b5cf6"; // 紫色激活边框
-  if (node.selected) return "#6366f1"; // 靛蓝选中边框
-  return "rgba(255, 255, 255, 0.15)"; // 默认边框
-};
 
 const anchors_default: Anchor[] = [anchors_rect[1], anchors_rect[2]];
 
@@ -186,7 +175,8 @@ Coms["node/image"] = ({ obj }) => {
         }
 
         node.imageSize = { width: newWidth, height: newHeight };
-        // Manager.update(node);
+        node.size.y = 30 + newHeight; // 同步节点高度
+        managerUpdate(node);
       }
     }
   };
@@ -209,13 +199,8 @@ Coms["node/image"] = ({ obj }) => {
       data-id={node.id}
     >
       {/* 背景框 */}
-      <rect
-        width={node.size.x}
-        height={nodeHeight}
-        rx="6"
-        fill={getFillColor(node)}
-        stroke={getStrokeColor(node)}
-        strokeWidth="2"
+      <NodeBackground
+        node={node}
       />
 
       {/* URL 输入框区域 */}
