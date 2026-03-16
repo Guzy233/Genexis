@@ -19,6 +19,7 @@ import (
 
 type PluginFrontend struct {
 	Entry string `json:"entry"`
+	CSS   string `json:"css"`
 }
 
 type PluginBackend struct {
