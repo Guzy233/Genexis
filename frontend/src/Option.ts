@@ -31,10 +31,11 @@ const settings = new Map<string, SettingItem>();
 const categories = new Map<string, SettingCategory>();
 
 // 是否已加载配置
-let configLoaded = false;
+export let configLoaded = false;
 
 // 标记配置需要保存
 let configNeedsSave = false;
+let loadedConfigData: ConfigData | null = null;
 
 /**
  * 注册设置项
@@ -52,6 +53,11 @@ export function registerSetting(item: SettingItem): void {
     category.items[existingIndex] = item;
   } else {
     category.items.push(item);
+  }
+
+  // 如果配置已加载，尝试从加载的数据中恢复该项的值
+  if (loadedConfigData && loadedConfigData[item.id] !== undefined) {
+    item.value = loadedConfigData[item.id];
   }
 }
 
@@ -148,6 +154,7 @@ async function loadConfigInternal(): Promise<void> {
   try {
     const configString = await ReadConfig();
     const configData: ConfigData = JSON.parse(configString);
+    loadedConfigData = configData;
 
     // 应用配置值到已注册的设置项
     Object.entries(configData).forEach(([id, value]) => {
@@ -164,6 +171,20 @@ async function loadConfigInternal(): Promise<void> {
     console.error("加载配置失败:", error);
     configLoaded = true; // 即使失败也标记为已加载，避免重复尝试
   }
+}
+
+/**
+ * 等待配置从后端加载完成
+ */
+export async function waitForConfig(): Promise<void> {
+  if (configLoaded) return;
+  return new Promise((resolve) => {
+    const check = () => {
+      if (configLoaded) resolve();
+      else setTimeout(check, 50);
+    };
+    check();
+  });
 }
 
 /**

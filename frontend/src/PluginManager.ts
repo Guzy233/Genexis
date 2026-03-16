@@ -1,6 +1,7 @@
 import { onSetup } from "./Globals";
 import { updateCanvas } from "./Manager";
 import { GetPlugins } from "../wailsjs/go/main/App";
+import { registerSetting, getSetting, waitForConfig } from "./Option";
 
 export interface PluginMetadata {
   id: string;
@@ -70,8 +71,30 @@ export async function autoLoadPlugins() {
   try {
     const plugins: PluginMetadata[] = await GetPlugins();
     console.log("Discovered plugins:", plugins);
+
+    // 1. 注册所有插件的启用/禁用设置
     for (const plugin of plugins) {
-      if (plugin.frontend && plugin.frontend.entry) {
+      const settingId = `plugin.${plugin.id}.enabled`;
+      registerSetting({
+        id: settingId,
+        category: "Plugins",
+        title: `${plugin.name}`,
+        description: `启用/禁用 ${plugin.name} 插件 (部分插件需刷新页面生效)`,
+        type: "toggle",
+        defaultValue: true,
+        value: true,
+      });
+    }
+
+    // 2. 等待配置加载完成（确保从本地存储恢复了设置）
+    await waitForConfig();
+
+    // 3. 根据设置加载已启用的插件
+    for (const plugin of plugins) {
+      const settingId = `plugin.${plugin.id}.enabled`;
+      const isEnabled = getSetting(settingId)?.value !== false;
+
+      if (isEnabled && plugin.frontend && plugin.frontend.entry) {
         let entryUrl = plugin.frontend.entry;
 
         // Only load CSS if explicitly specified in plugin.json
@@ -80,6 +103,8 @@ export async function autoLoadPlugins() {
         }
 
         await loadPlugin(entryUrl);
+      } else if (!isEnabled) {
+        console.log(`Plugin ${plugin.name} is disabled, skipping load.`);
       }
     }
     updateCanvas();
