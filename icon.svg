@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="200" height="200">
+  <defs>
+    <style>
+      .p-str { stroke: #D8BFD8; } /* 淡紫色 */
+      .s-str { stroke: #FFDAB9; } /* 淡桃色 */
+      .n-fil { fill: none; }
+    </style>
+  </defs>
+
+  <g id="genesis_icon_core" transform="translate(0,-5)">
+    
+    <ellipse cx="50" cy="50" rx="36" ry="18" class="p-str n-fil" stroke-width="3" transform="rotate(-120 50 50)" />
+    
+    <ellipse cx="50" cy="50" rx="36" ry="18" class="s-str n-fil" stroke-width="3" transform="rotate(0 50 50)" />
+    
+    <ellipse cx="50" cy="50" rx="36" ry="18" class="s-str n-fil" stroke-width="3" transform="rotate(120 50 50)" />
+    
+    <circle cx="50" cy="50" r="9" class="p-str n-fil" stroke-width="2.5" />
+
+  </g>
+</svg>

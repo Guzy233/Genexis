@@ -119,7 +119,7 @@ const menuStructure: MenuCategory[] = [
       {
         id: "about",
         label: "关于",
-        action: () => console.log("关于 MindGraph3"),
+        action: () => console.log("关于 Genexis"),
       },
     ],
   },

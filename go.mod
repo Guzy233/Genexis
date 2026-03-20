@@ -1,4 +1,4 @@
-module MindGraph3
+module Genexis
 
 go 1.23
 

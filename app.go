@@ -70,7 +70,7 @@ func (a *App) startup(ctx context.Context) {
 	if err != nil {
 		configDir = os.TempDir()
 	}
-	a.configDir = filepath.Join(configDir, "MindGraph3")
+	a.configDir = filepath.Join(configDir, "Genexis")
 	os.MkdirAll(a.configDir, 0755)
 
 	// 扫描并启动插件
