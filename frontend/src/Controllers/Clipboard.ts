@@ -1,4 +1,4 @@
-import { registerKeyAction } from "./Keyboard";
+import { registerKeyAction } from "./KeyBinding";
 import { onSetup } from "../Globals";
 import { updateCanvas, getActiveTab, managerUpdate } from "../Manager";
 import { objects, saveHistory } from "../Manager";

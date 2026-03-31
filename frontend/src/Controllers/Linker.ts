@@ -1,6 +1,5 @@
 import { objects, getActiveTab, managerDeleteId, managerUpdate, managerAdd, managerUpdateId } from "../Manager";
-import { Edge, idFromEvent, Node, onSetup, Obj, Vec2 } from "../Globals";
-import { registerSetting } from "../Option";
+import { Edge, idFromEvent, Node, Obj, Vec2 } from "../Globals";
 import { screen2Viewport, viewport } from "./Camera";
 import { createNodeCentered, ObjectFactories } from "./Creator";
 import { getToolForCategory, CATEGORY_EDGES } from "../TopLayer/ToolBar";
@@ -9,23 +8,9 @@ import { saveHistory } from "../Manager";
 import { addEdgeRelation } from "../Algorithm";
 import { newParticleNode } from "../Components/ParticleNode";
 import { active } from "./Selector";
+import { registerMouseAction } from "./KeyBinding";
 
 // 连接器状态
-let startButton = 2;
-
-// 注册设置项
-registerSetting({
-  id: "linker.startButton",
-  category: "Linker",
-  title: "开始连接",
-  type: "mousekey",
-  defaultValue: 2,
-  value: 2,
-  description: "按下此键（鼠标按键）开始从节点拉出连接线",
-  onChange: (v) => {
-    startButton = v;
-  },
-});
 
 const startLinking = (vEdge: Edge, vNode: Node) => {
   // 窗口失去焦点时清理所有临时监听器
@@ -146,8 +131,7 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
   window.addEventListener("blur", onBlur);
 }
 
-export const onClickNode = (e: MouseEvent) => {
-  if (e.button !== startButton) return; // 右键
+const onClickNode = (e: MouseEvent) => {
   const id = idFromEvent(e, ".node-group");
   if (!id) return;
 
@@ -174,9 +158,18 @@ export const onClickNode = (e: MouseEvent) => {
   startLinking(vEdge, vNode);
 };
 
-onSetup((canvas: SVGSVGElement) => {
-  canvas.addEventListener("mousedown", onClickNode);
-  return () => canvas.removeEventListener("mousedown", onClickNode);
+registerMouseAction({
+  action: "linker.startButton",
+  handler: onClickNode,
+  settings: {
+    id: "linker.startButton",
+    category: "Linker",
+    title: "开始连接",
+    type: "mousekey",
+    defaultValue: 2,
+    value: 2,
+    description: "按下此键（鼠标按键）开始从节点拉出连接线",
+  },
 });
 
 // ==================== 右键菜单注册 ====================

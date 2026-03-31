@@ -34,6 +34,62 @@ export function registerKeyAction(registration: KeyActionRegistration): void {
   updateBinding(registration.action, registration.settings.value);
 }
 
+// ==================== 鼠标动作注册系统 ====================
+
+type MouseActionHandler = (e: MouseEvent) => void;
+
+interface MouseActionRegistration {
+  action: string;
+  handler: MouseActionHandler;
+  settings: Omit<SettingItem, "onChange">;
+}
+
+const mouseHandlers = new Map<string, MouseActionHandler>();
+
+export function registerMouseAction(registration: MouseActionRegistration): void {
+  mouseHandlers.set(registration.action, registration.handler);
+
+  registerSetting({
+    ...registration.settings,
+    onChange: (v) => updateMouseBinding(registration.action, v),
+  });
+
+  updateMouseBinding(registration.action, registration.settings.value);
+}
+
+// ==================== 鼠标绑定映射 ====================
+
+const mouseMap = new Map<string, string>();
+const actionToMouseBinding = new Map<string, string>();
+
+function updateMouseBinding(action: string, binding: number | string): void {
+  const oldBinding = actionToMouseBinding.get(action);
+  if (oldBinding) mouseMap.delete(oldBinding);
+
+  const bindingStr = String(binding);
+  mouseMap.set(bindingStr, action);
+  actionToMouseBinding.set(action, bindingStr);
+}
+
+// 从鼠标事件构建查询字符串：修饰键 + 按键编号（如 "0" = 左键, "C1" = Ctrl+中键）
+function buildMouseQuery(e: MouseEvent): string {
+  const modifiers =
+    (e.ctrlKey ? "C" : "") +
+    (e.altKey ? "A" : "") +
+    (e.shiftKey ? "S" : "");
+  return modifiers + e.button;
+}
+
+// 集中分发画布 mousedown 事件
+const onCanvasMouseDown = (e: MouseEvent): void => {
+  const query = buildMouseQuery(e);
+  const action = mouseMap.get(query);
+  if (action) {
+    const handler = mouseHandlers.get(action);
+    if (handler) handler(e);
+  }
+};
+
 // ==================== 按键映射 ====================
 // 动态按键映射
 const keyMap = new Map<string, string>();
@@ -323,16 +379,18 @@ const initDefaultBindings = () => {
 };
 
 // 按照操作器模式注册
-onSetup((_canvas: SVGGElement) => {
+onSetup((canvas: SVGGElement) => {
   registerBuiltinActions();
   initDefaultBindings();
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("keypress", onKeyPress);
+  canvas.addEventListener("mousedown", onCanvasMouseDown);
 
   return () => {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("keypress", onKeyPress);
+    canvas.removeEventListener("mousedown", onCanvasMouseDown);
   };
 });

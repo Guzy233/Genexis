@@ -1,38 +1,8 @@
 import { objects, managerUpdateId, managerAdd, managerUpdate, managerDeleteId } from "../Manager";
-import { idFromEvent, Node, onSetup, Obj, Vec2 } from "../Globals";
+import { idFromEvent, Node, Obj, Vec2 } from "../Globals";
 import { screen2Viewport } from "./Camera";
-import { registerSetting, getSetting } from "../Option";
 import { atom } from "jotai";
-
-// ==================== 键盘导航配置 ====================
-
-type NavigationDirection = "up" | "down" | "left" | "right";
-
-interface KeyboardNavConfig {
-  up: string;
-  down: string;
-  left: string;
-  right: string;
-}
-
-const defaultNavKeys: KeyboardNavConfig = {
-  up: "i",
-  down: "k",
-  left: "j",
-  right: "l",
-};
-
-let navKeys: KeyboardNavConfig = { ...defaultNavKeys };
-
-// 从按键配置获取方向（忽略大小写）
-const getDirectionFromKey = (key: string): NavigationDirection | null => {
-  const lowerKey = key.toLowerCase();
-  if (lowerKey === navKeys.up) return "up";
-  if (lowerKey === navKeys.down) return "down";
-  if (lowerKey === navKeys.left) return "left";
-  if (lowerKey === navKeys.right) return "right";
-  return null;
-};
+import { registerKeyAction, registerMouseAction } from "./KeyBinding";
 
 // ==================== 辅助函数 ====================
 
@@ -58,6 +28,8 @@ export function active(id: string) {
 
 // ==================== 键盘导航逻辑 ====================
 
+type NavigationDirection = "up" | "down" | "left" | "right";
+
 // 查找指定方向上最近的节点（使用加权分数算法）
 const findNearestNodeInDirection = (
   fromNodeId: string,
@@ -81,8 +53,6 @@ const findNearestNodeInDirection = (
     let isCandidate = false;
     let score = 0;
 
-    // 空间搜索算法：基于方向过滤并计算加权距离
-    // 权重系数 3.0 用于惩罚非主方向上的偏移，使跳跃更倾向于直线
     switch (direction) {
       case "up":
         if (dy < 0) {
@@ -119,12 +89,7 @@ const findNearestNodeInDirection = (
   return nearestNode;
 };
 
-// 键盘导航事件处理
-const handleKeyboardNavigation = (e: KeyboardEvent) => {
-  const direction = getDirectionFromKey(e.key);
-  if (!direction) return;
-
-  // 如果没有激活节点，尝试激活第一个节点
+const navigateToDirection = (direction: NavigationDirection, shiftKey: boolean, ctrlKey: boolean) => {
   if (!activedId) {
     const firstNode = Object.values(objects).find((obj) =>
       obj.type.startsWith("node/")
@@ -140,39 +105,20 @@ const handleKeyboardNavigation = (e: KeyboardEvent) => {
 
   active(nearestNode.id);
 
-  // 根据修饰键处理选中状态
-  if (e.shiftKey) {
-    // Shift: 切换为选中状态
+  if (shiftKey) {
     if (!nearestNode.selected) {
       nearestNode.selected = true;
       managerUpdate(nearestNode);
     }
-  } else if (e.ctrlKey) {
-    // Ctrl: 切换为未选中状态
+  } else if (ctrlKey) {
     if (nearestNode.selected) {
       nearestNode.selected = false;
       managerUpdate(nearestNode);
     }
   }
-  // 注意：不处理按方向键时已经激活的节点
 };
 
 // ==================== 鼠标选择逻辑 ====================
-
-// 获取设置值的辅助函数
-const getSettings = () => ({
-  extendKey: (getSetting("selector.extendKey")?.value as string) || "Shift",
-  boxSelectButton:
-    (getSetting("selector.boxSelectButton")?.value as number) || 1,
-});
-
-// 检查按键是否按下
-const isKeyPressed = (key: string, e: MouseEvent): boolean => {
-  if (key === "Shift") return e.shiftKey;
-  if (key === "Control") return e.ctrlKey;
-  if (key === "Alt") return e.altKey;
-  return false;
-};
 
 // 清除所有选中状态
 const clearSelection = (includeActived: boolean) => {
@@ -206,12 +152,9 @@ const isNodeInBox = (node: Node, box: SelectionBox): boolean => {
 
 // ==================== 框选逻辑 ====================
 
-const handleBoxSelection = (e: MouseEvent) => {
-  const { extendKey } = getSettings();
-  const isExtendSelection = isKeyPressed(extendKey, e);
-
+const handleBoxSelection = (e: MouseEvent, extend: boolean) => {
   // 非扩展模式下清除选择
-  if (!isExtendSelection) {
+  if (!extend) {
     clearSelection(true);
   }
 
@@ -245,9 +188,8 @@ const handleBoxSelection = (e: MouseEvent) => {
 
       const node = obj as Node;
       const inBox = isNodeInBox(node, selectionBox);
-      const wasSelected = initialSelection.get(node.id) || false;
 
-      if (isExtendSelection) {
+      if (extend) {
         // 扩展模式：只在框内时选中，不取消
         if (inBox && !node.selected) {
           node.selected = true;
@@ -273,138 +215,195 @@ const handleBoxSelection = (e: MouseEvent) => {
   document.addEventListener("mouseup", onMouseUp);
 };
 
-// ==================== 节点选择逻辑 ====================
+// ==================== 点击节点 ====================
 
-const handleNodeSelection = (e: MouseEvent, nodeId: string) => {
-  const { extendKey } = getSettings();
-  const node = objects[nodeId] as Node;
-  if (!node) return;
-
-  const isExtend = isKeyPressed(extendKey, e);
-
-  if (!isExtend && !node.selected) {
-    // 不按扩展键：清除其他选择，只保留当前
-    clearSelection(false);
-  }
-
-  // 切换当前节点的选中状态
-  node.selected = !node.selected;
-
-  // 设置为激活状态
-  active(node.id);
-};
-
-// ==================== 空白区域点击逻辑 ====================
-
-const handleBlankAreaClick = () => {
-  clearSelection(true);
-};
-
-// ==================== 主事件处理 ====================
-
-const onMouseDown = (e: MouseEvent) => {
-  const { boxSelectButton } = getSettings();
+const handleClickNode = (e: MouseEvent, extend: boolean) => {
   const nodeId = idFromEvent(e, ".node-group");
-
-  // 框选：指定鼠标按键 + 点击空白处
-  if (e.button === boxSelectButton && !nodeId) {
-    e.preventDefault();
-    handleBoxSelection(e);
-    return;
-  }
-
-  // 点击节点
   if (nodeId) {
-    handleNodeSelection(e, nodeId);
-    return;
-  }
+    const node = objects[nodeId] as Node;
+    if (!node) return;
 
-  // 点击空白区域（非框选键）
-  handleBlankAreaClick();
+    if (!extend && !node.selected) {
+      clearSelection(false);
+    }
+
+    node.selected = !node.selected;
+    active(node.id);
+  } else if (!extend) {
+    // 空白区域点击：清除选中
+    clearSelection(true);
+  }
 };
 
-// ==================== 注册设置项 ====================
+// ==================== 注册鼠标动作 ====================
 
-registerSetting({
-  id: "selector.extendKey",
-  category: "Selector",
-  title: "扩展选中键",
-  type: "key",
-  defaultValue: "Shift",
-  value: "Shift",
-  description: "按下此键时选择节点会保留当前选中状态",
-});
-
-registerSetting({
-  id: "selector.boxSelectButton",
-  category: "Selector",
-  title: "框选触发键",
-  type: "mousekey",
-  defaultValue: 1,
-  value: 1,
-  description: "默认为中键",
-});
-
-// 注册键盘导航设置
-registerSetting({
-  id: "selector.navUp",
-  category: "Selector",
-  title: "向上导航",
-  type: "key",
-  defaultValue: "i",
-  value: "i",
-  description: "向上移动激活节点",
-  onChange: (v) => {
-    navKeys.up = v;
+registerMouseAction({
+  action: "selector.click",
+  handler: (e) => handleClickNode(e, false),
+  settings: {
+    id: "selector.click",
+    category: "Selector",
+    title: "选择节点",
+    type: "mousekey",
+    defaultValue: 0,
+    value: 0,
+    description: "点击节点或空白区域，默认为左键",
   },
 });
 
-registerSetting({
-  id: "selector.navDown",
-  category: "Selector",
-  title: "向下导航",
-  type: "key",
-  defaultValue: "k",
-  value: "k",
-  description: "向下移动激活节点",
-  onChange: (v) => {
-    navKeys.down = v;
+registerMouseAction({
+  action: "selector.clickExtend",
+  handler: (e) => handleClickNode(e, true),
+  settings: {
+    id: "selector.clickExtend",
+    category: "Selector",
+    title: "扩展选择节点",
+    type: "mousekey",
+    defaultValue: "S0",
+    value: "S0",
+    description: "扩展模式下点击节点，默认为 Shift+左键",
   },
 });
 
-registerSetting({
-  id: "selector.navLeft",
-  category: "Selector",
-  title: "向左导航",
-  type: "key",
-  defaultValue: "j",
-  value: "j",
-  description: "向左移动激活节点",
-  onChange: (v) => {
-    navKeys.left = v;
+registerMouseAction({
+  action: "selector.boxSelect",
+  handler: (e) => { e.preventDefault(); handleBoxSelection(e, false); },
+  settings: {
+    id: "selector.boxSelect",
+    category: "Selector",
+    title: "框选",
+    type: "mousekey",
+    defaultValue: 1,
+    value: 1,
+    description: "框选区域内的节点，默认为中键",
   },
 });
 
-registerSetting({
-  id: "selector.navRight",
-  category: "Selector",
-  title: "向右导航",
-  type: "key",
-  defaultValue: "l",
-  value: "l",
-  description: "向右移动激活节点",
-  onChange: (v) => {
-    navKeys.right = v;
+registerMouseAction({
+  action: "selector.boxSelectExtend",
+  handler: (e) => { e.preventDefault(); handleBoxSelection(e, true); },
+  settings: {
+    id: "selector.boxSelectExtend",
+    category: "Selector",
+    title: "扩展框选",
+    type: "mousekey",
+    defaultValue: "S1",
+    value: "S1",
+    description: "扩展模式下框选，默认为 Shift+中键",
   },
 });
 
-// ==================== 注册控制器 ====================
+// ==================== 注册键盘导航动作 ====================
 
-onSetup((canvas: SVGSVGElement) => {
-  canvas.addEventListener("mousedown", onMouseDown);
-  window.addEventListener("keydown", handleKeyboardNavigation);
-  return () => {
-    canvas.removeEventListener("mousedown", onMouseDown);
-    window.removeEventListener("keydown", handleKeyboardNavigation);
-  };
+registerKeyAction({
+  action: "selector.navUp",
+  handler: () => navigateToDirection("up", false, false),
+  settings: {
+    id: "selector.navUp",
+    category: "Selector",
+    title: "向上导航",
+    type: "key",
+    defaultValue: "i",
+    value: "i",
+    description: "向上移动激活节点",
+  },
+});
+
+registerKeyAction({
+  action: "selector.navDown",
+  handler: () => navigateToDirection("down", false, false),
+  settings: {
+    id: "selector.navDown",
+    category: "Selector",
+    title: "向下导航",
+    type: "key",
+    defaultValue: "k",
+    value: "k",
+    description: "向下移动激活节点",
+  },
+});
+
+registerKeyAction({
+  action: "selector.navLeft",
+  handler: () => navigateToDirection("left", false, false),
+  settings: {
+    id: "selector.navLeft",
+    category: "Selector",
+    title: "向左导航",
+    type: "key",
+    defaultValue: "j",
+    value: "j",
+    description: "向左移动激活节点",
+  },
+});
+
+registerKeyAction({
+  action: "selector.navRight",
+  handler: () => navigateToDirection("right", false, false),
+  settings: {
+    id: "selector.navRight",
+    category: "Selector",
+    title: "向右导航",
+    type: "key",
+    defaultValue: "l",
+    value: "l",
+    description: "向右移动激活节点",
+  },
+});
+
+// 扩展选中版本
+registerKeyAction({
+  action: "selector.navUpExtend",
+  handler: () => navigateToDirection("up", true, false),
+  settings: {
+    id: "selector.navUpExtend",
+    category: "Selector",
+    title: "向上导航（扩展）",
+    type: "key",
+    defaultValue: "Si",
+    value: "Si",
+    description: "向上移动激活节点并选中",
+  },
+});
+
+registerKeyAction({
+  action: "selector.navDownExtend",
+  handler: () => navigateToDirection("down", true, false),
+  settings: {
+    id: "selector.navDownExtend",
+    category: "Selector",
+    title: "向下导航（扩展）",
+    type: "key",
+    defaultValue: "Sk",
+    value: "Sk",
+    description: "向下移动激活节点并选中",
+  },
+});
+
+registerKeyAction({
+  action: "selector.navLeftExtend",
+  handler: () => navigateToDirection("left", true, false),
+  settings: {
+    id: "selector.navLeftExtend",
+    category: "Selector",
+    title: "向左导航（扩展）",
+    type: "key",
+    defaultValue: "Sj",
+    value: "Sj",
+    description: "向左移动激活节点并选中",
+  },
+});
+
+registerKeyAction({
+  action: "selector.navRightExtend",
+  handler: () => navigateToDirection("right", true, false),
+  settings: {
+    id: "selector.navRightExtend",
+    category: "Selector",
+    title: "向右导航（扩展）",
+    type: "key",
+    defaultValue: "Sl",
+    value: "Sl",
+    description: "向右移动激活节点并选中",
+  },
 });

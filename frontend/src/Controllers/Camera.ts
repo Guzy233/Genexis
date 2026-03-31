@@ -1,5 +1,6 @@
 import { onSetup, idFromEvent } from "../Globals";
 import { registerSetting } from "../Option";
+import { registerMouseAction } from "./KeyBinding";
 
 // ==================== Viewport 相关 ====================
 export const viewport = {
@@ -57,19 +58,6 @@ registerSetting({
   onChange: (v) => { wheelSensitivity = Math.max(0.1, Math.min(3, v)); },
 });
 
-let draggingKey: number = 0;
-
-registerSetting({
-  id: "camera.dragKey",
-  category: "Camera",
-  title: "拖动视角",
-  type: "mousekey",
-  defaultValue: 0,
-  value: 0,
-  description: "鼠标按键拖动视角，默认为左键",
-  onChange: (v) => (draggingKey = v),
-});
-
 export const screen2Viewport = (point: {
   x: number;
   y: number;
@@ -92,9 +80,6 @@ export const viewport2Screen = (point: {
 
 // 开始拖动视角
 const onMouseDown = (e: MouseEvent) => {
-  // 只响应配置的按键
-  if (e.button !== draggingKey) return;
-
   // 点击到节点时不移动视角
   if (idFromEvent(e, ".node-group")) return;
 
@@ -132,6 +117,20 @@ const onMouseDown = (e: MouseEvent) => {
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup", onMouseUp);
 };
+
+registerMouseAction({
+  action: "camera.dragKey",
+  handler: onMouseDown,
+  settings: {
+    id: "camera.dragKey",
+    category: "Camera",
+    title: "拖动视角",
+    type: "mousekey",
+    defaultValue: 0,
+    value: 0,
+    description: "鼠标按键拖动视角，默认为左键",
+  },
+});
 
 // 平滑缩放动画循环
 function animateSmoothZoom() {
@@ -250,11 +249,8 @@ function updateViewport() {
 }
 
 onSetup((_canvas: SVGSVGElement) => {
-  // 将监听器移动到全局 SVG，以便在背景上点击也能平移
-  _canvas.addEventListener("mousedown", onMouseDown);
   _canvas.addEventListener("wheel", onWheel, { passive: false });
   return () => {
-    _canvas.removeEventListener("mousedown", onMouseDown);
     _canvas.removeEventListener("wheel", onWheel);
   };
 });
