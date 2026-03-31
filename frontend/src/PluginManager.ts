@@ -20,6 +20,12 @@ export interface PluginMetadata {
 
 const loadedPlugins = new Set<string>();
 const loadedStyles = new Set<string>();
+const pluginLoadNonce = Date.now().toString();
+
+function withCacheBust(url: string) {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}t=${pluginLoadNonce}`;
+}
 
 export async function loadCSS(url: string) {
   if (loadedStyles.has(url)) return;
@@ -27,7 +33,7 @@ export async function loadCSS(url: string) {
   return new Promise((resolve) => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = url;
+    link.href = withCacheBust(url);
     link.onload = () => {
       loadedStyles.add(url);
       console.log(`Plugin style loaded: ${url}`);
@@ -47,7 +53,7 @@ export async function loadPlugin(url: string) {
 
   try {
     const script = document.createElement("script");
-    script.src = url;
+    script.src = withCacheBust(url);
 
     return new Promise((resolve, reject) => {
       script.onload = () => {

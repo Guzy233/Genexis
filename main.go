@@ -53,6 +53,9 @@ func main() {
 					if strings.HasPrefix(r.URL.Path, "/plugins/") {
 						filePath := strings.TrimPrefix(r.URL.Path, "/")
 						if _, err := os.Stat(filePath); err == nil {
+							w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0")
+							w.Header().Set("Pragma", "no-cache")
+							w.Header().Set("Expires", "0")
 							http.ServeFile(w, r, filePath)
 							return
 						}
