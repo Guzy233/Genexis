@@ -79,9 +79,9 @@ export const viewport2Screen = (point: {
 };
 
 // 开始拖动视角
-const onMouseDown = (e: MouseEvent) => {
+const onMouseDown = (e: MouseEvent): boolean => {
   // 点击到节点时不移动视角
-  if (idFromEvent(e, ".node-group")) return;
+  if (idFromEvent(e, ".node-group")) return false;
 
   // 停止平滑缩放动画，避免与拖动冲突
   if (smoothZoom.isAnimating) {
@@ -116,6 +116,7 @@ const onMouseDown = (e: MouseEvent) => {
 
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup", onMouseUp);
+  return true;
 };
 
 registerMouseAction({

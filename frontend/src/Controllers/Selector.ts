@@ -217,22 +217,23 @@ const handleBoxSelection = (e: MouseEvent, extend: boolean) => {
 
 // ==================== 点击节点 ====================
 
-const handleClickNode = (e: MouseEvent, extend: boolean) => {
+const handleClickNode = (e: MouseEvent, extend: boolean): boolean => {
   const nodeId = idFromEvent(e, ".node-group");
   if (nodeId) {
     const node = objects[nodeId] as Node;
-    if (!node) return;
+    if (!node) return false;
 
     if (!extend && !node.selected) {
       clearSelection(false);
     }
-
-    node.selected = !node.selected;
     active(node.id);
+    return true;
   } else if (!extend) {
     // 空白区域点击：清除选中
     clearSelection(true);
+    return false;
   }
+  return false;
 };
 
 // ==================== 注册鼠标动作 ====================
@@ -267,7 +268,7 @@ registerMouseAction({
 
 registerMouseAction({
   action: "selector.boxSelect",
-  handler: (e) => { e.preventDefault(); handleBoxSelection(e, false); },
+  handler: (e) => { e.preventDefault(); handleBoxSelection(e, false); return true; },
   settings: {
     id: "selector.boxSelect",
     category: "Selector",
@@ -281,7 +282,7 @@ registerMouseAction({
 
 registerMouseAction({
   action: "selector.boxSelectExtend",
-  handler: (e) => { e.preventDefault(); handleBoxSelection(e, true); },
+  handler: (e) => { e.preventDefault(); handleBoxSelection(e, true); return true; },
   settings: {
     id: "selector.boxSelectExtend",
     category: "Selector",

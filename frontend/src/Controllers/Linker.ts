@@ -131,9 +131,9 @@ const startLinking = (vEdge: Edge, vNode: Node) => {
   window.addEventListener("blur", onBlur);
 }
 
-const onClickNode = (e: MouseEvent) => {
+const onClickNode = (e: MouseEvent): boolean => {
   const id = idFromEvent(e, ".node-group");
-  if (!id) return;
+  if (!id) return false;
 
   //选中节点，开始链接
   e.stopPropagation();
@@ -156,6 +156,7 @@ const onClickNode = (e: MouseEvent) => {
   }
 
   startLinking(vEdge, vNode);
+  return true;
 };
 
 registerMouseAction({

@@ -35,7 +35,7 @@ export function registerKeyAction(registration: KeyActionRegistration): void {
 
 // ==================== 鼠标动作注册系统 ====================
 
-type MouseActionHandler = (e: MouseEvent) => void;
+type MouseActionHandler = (e: MouseEvent) => boolean; // 返回 true 表示已消耗事件
 
 interface MouseActionRegistration {
   action: string;
@@ -91,17 +91,17 @@ function buildMouseQuery(e: MouseEvent): string {
   return modifiers + "M" + e.button;
 }
 
-// 集中分发画布 mousedown 事件
-const onCanvasMouseDown = (e: MouseEvent): void => {
+// 集中分发鼠标动作，倒序遍历，handler 返回 true 表示已消耗事件
+export function dispatchMouseAction(e: MouseEvent): void {
   const query = buildMouseQuery(e);
   const actions = mouseMap.get(query);
   if (actions) {
-    for (const action of actions) {
-      const handler = mouseHandlers.get(action);
-      if (handler) handler(e);
+    for (let i = actions.length - 1; i >= 0; i--) {
+      const handler = mouseHandlers.get(actions[i]);
+      if (handler && handler(e)) break;
     }
   }
-};
+}
 
 // ==================== 按键映射 ====================
 // 动态按键映射
@@ -368,18 +368,18 @@ const initDefaultBindings = () => {
 };
 
 // 按照操作器模式注册
-onSetup((canvas: SVGGElement) => {
+onSetup((_canvas: SVGGElement) => {
   registerBuiltinActions();
   initDefaultBindings();
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("keypress", onKeyPress);
-  canvas.addEventListener("mousedown", onCanvasMouseDown);
+  window.addEventListener("mousedown", dispatchMouseAction);
 
   return () => {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("keypress", onKeyPress);
-    canvas.removeEventListener("mousedown", onCanvasMouseDown);
+    window.removeEventListener("mousedown", dispatchMouseAction);
   };
 });

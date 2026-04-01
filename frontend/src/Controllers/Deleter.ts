@@ -12,11 +12,11 @@ interface DeletionTrail extends Obj {
 }
 
 // 右键按下时进入删除模式
-const onMouseDown = (e: MouseEvent) => {
+const onMouseDown = (e: MouseEvent): boolean => {
   // 在空白处按下才进入删除模式
   const target = e.target as HTMLElement;
   const group = target.closest(".node-group, .edge-group");
-  if (group) return; // 点击在元素上，不触发删除
+  if (group) return false; // 点击在元素上，不触发删除
 
   const startPos = { x: e.clientX, y: e.clientY };
 
@@ -76,6 +76,7 @@ const onMouseDown = (e: MouseEvent) => {
   window.addEventListener("mouseover", onMouseOver, true);
   window.addEventListener("mouseup", onMouseUp, true);
   window.addEventListener("blur", onBlur);
+  return true;
 };
 
 registerMouseAction({

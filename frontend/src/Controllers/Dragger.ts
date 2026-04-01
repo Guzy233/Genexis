@@ -11,13 +11,13 @@ interface DraggedNodeInfo {
   element: SVGElement;
 }
 
-const onClickNode = (e: MouseEvent) => {
+const onClickNode = (e: MouseEvent): boolean => {
   const clickedElement = (e.target as SVGElement).closest(
     ".node-group",
   ) as SVGElement;
-  if (!clickedElement) return;
+  if (!clickedElement) return false;
   const id = clickedElement.dataset.id;
-  if (!id) return;
+  if (!id) return false;
 
   const clickedNode = objects[id] as Node;
   const originMouse = { x: e.clientX, y: e.clientY };
@@ -122,6 +122,7 @@ const onClickNode = (e: MouseEvent) => {
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
   window.addEventListener("blur", cleanUp);
+  return false;
 };
 
 registerMouseAction({
