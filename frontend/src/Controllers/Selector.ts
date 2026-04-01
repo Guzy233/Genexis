@@ -226,8 +226,9 @@ const handleClickNode = (e: MouseEvent, extend: boolean): boolean => {
     if (!extend && !node.selected) {
       clearSelection(false);
     }
+    node.selected = true;
     active(node.id);
-    return true;
+    return false;
   } else if (!extend) {
     // 空白区域点击：清除选中
     clearSelection(true);
