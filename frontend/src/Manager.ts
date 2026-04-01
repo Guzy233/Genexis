@@ -55,6 +55,7 @@ export interface FileTab {
   isModified: boolean; // 是否有未保存的修改
   history: FileHistory; // 该文件的撤销/重做历史
   metadata: Record<string, any>; // 元数据
+  workspaceRelativePath?: string | null; // 工作区内相对路径
 }
 
 // 打开的标签列表
@@ -62,6 +63,25 @@ const openTabs: FileTab[] = [];
 
 // 当前激活的标签（直接存储引用）
 let activeTab: FileTab | null = null;
+
+// ==================== 工作区相对路径支持 ====================
+
+// 检测文件路径是否在工作区内，返回相对路径或 null
+const detectWorkspaceRelativePath = (
+  filePath: string
+): string | null => {
+  try {
+    // 动态导入避免循环依赖
+    const ws = (globalThis as any).__genexis_workspace_root;
+    if (!ws) return null;
+    const root = ws.replace(/\\/g, "/");
+    const normalized = filePath.replace(/\\/g, "/");
+    if (normalized.startsWith(root + "/")) {
+      return normalized.substring(root.length + 1);
+    }
+  } catch {}
+  return null;
+};
 
 // 标签状态更新器（用于触发 UI 更新）
 export const tabsUpdater = atom(0);
@@ -318,7 +338,7 @@ export const createNewTab = () => {
 // 从文件路径提取文件名
 export const getFilenameFromPath = (path: string): string => {
   const parts = path.split(/[/\\]/);
-  return parts[parts.length - 1] || "mindgraph.json";
+  return parts[parts.length - 1] || "untitled.exis";
 };
 
 // ==================== 纯文件 I/O 操作 ====================
@@ -427,12 +447,22 @@ export const saveFile = async (saveAs: boolean = false): Promise<boolean> => {
   // 更新标签信息
   activeTab.filePath = savedPath;
   activeTab.fileName = getFilenameFromPath(savedPath);
+  activeTab.workspaceRelativePath = detectWorkspaceRelativePath(savedPath);
   activeTab.history.savedIndex = activeTab.history.currentIndex;
   syncModifiedState(activeTab);
 
   onFileSavedHooks.forEach(hook => {
     if (activeTab) hook(activeTab);
   });
+
+  // 如果在工作区内，保存工作区配置
+  if (activeTab?.workspaceRelativePath) {
+    try {
+      const { saveWorkspaceConfig } = await import("./Workspace");
+      await saveWorkspaceConfig();
+    } catch {}
+  }
+
   return true;
 };
 
@@ -639,3 +669,115 @@ export function clearTabs() {
   openTabs.length = 0;
   activeTab = null;
 }
+
+// ==================== 工作区文件直接加载 ====================
+
+// 设置工作区根路径（供 Workspace.ts 调用）
+export const setWorkspaceRoot = (rootPath: string | null) => {
+  (globalThis as any).__genexis_workspace_root = rootPath;
+};
+
+// 直接按路径加载文件（不弹对话框）
+export const loadFileDirect = async (
+  absolutePath: string
+): Promise<boolean> => {
+  try {
+    const { LoadFileDirect } = await import("../wailsjs/go/main/App");
+    const result = await LoadFileDirect(absolutePath);
+    if (!result) return false;
+
+    const { path: filePath, content: fileData } = JSON.parse(result);
+
+    // 检查文件是否已经打开
+    const existingTab = openTabs.find((tab) => tab.filePath === filePath);
+    if (existingTab) {
+      existingTab.workspaceRelativePath = detectWorkspaceRelativePath(filePath);
+      switchTab(existingTab);
+      return true;
+    }
+
+    const data = JSON.parse(fileData);
+
+    // 清空当前对象
+    Object.keys(objects).forEach((key) => {
+      delete objects[key];
+    });
+
+    deserializeCanvas(data, objects);
+
+    // 重建节点关系图
+    const nodeRelations: NodeRelationGraph = {
+      upstream: new Map(),
+      downstream: new Map(),
+    };
+
+    Object.values(objects).forEach((obj) => {
+      if (obj.type.startsWith("edge/")) {
+        const edge = obj as unknown as { sourceId: string; targetId: string };
+        if (edge.sourceId && edge.targetId) {
+          const downstream =
+            nodeRelations.downstream.get(edge.sourceId) || new Set<string>();
+          downstream.add(edge.targetId);
+          nodeRelations.downstream.set(edge.sourceId, downstream);
+
+          const upstream =
+            nodeRelations.upstream.get(edge.targetId) || new Set<string>();
+          upstream.add(edge.sourceId);
+          nodeRelations.upstream.set(edge.targetId, upstream);
+        }
+      }
+    });
+
+    const fileName = getFilenameFromPath(filePath);
+    const relativePath = detectWorkspaceRelativePath(filePath);
+
+    // 如果当前标签是空的，替换它
+    if (
+      activeTab &&
+      !activeTab.filePath &&
+      Object.keys(activeTab.objects).length === 0 &&
+      activeTab.history.history.length <= 1
+    ) {
+      activeTab.filePath = filePath;
+      activeTab.fileName = fileName;
+      activeTab.objects = { ...objects };
+      activeTab.nodeRelations = nodeRelations;
+      activeTab.metadata = data.metadata || {};
+      activeTab.workspaceRelativePath = relativePath;
+      activeTab.isModified = false;
+      activeTab.history.history = [];
+      activeTab.history.currentIndex = -1;
+      activeTab.history.savedIndex = -1;
+      saveHistory();
+      activeTab.history.savedIndex = activeTab.history.currentIndex;
+      syncModifiedState(activeTab);
+    } else {
+      const newTab = createNewTab();
+      newTab.filePath = filePath;
+      newTab.fileName = fileName;
+      newTab.objects = { ...objects };
+      newTab.nodeRelations = nodeRelations;
+      newTab.metadata = data.metadata || {};
+      newTab.workspaceRelativePath = relativePath;
+      newTab.isModified = false;
+      newTab.history.history = [];
+      newTab.history.currentIndex = -1;
+      newTab.history.savedIndex = -1;
+      saveHistory();
+      newTab.history.savedIndex = newTab.history.currentIndex;
+      syncModifiedState(newTab);
+    }
+
+    updateCanvas();
+    updateTabs();
+
+    if (activeTab) {
+      onFileLoadedHooks.forEach((hook) => hook(activeTab!));
+    }
+
+    return true;
+  } catch (error) {
+    console.error("直接加载文件失败:", error);
+    return false;
+  }
+};

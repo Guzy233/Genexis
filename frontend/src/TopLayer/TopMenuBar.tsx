@@ -13,6 +13,7 @@ import {
   undo,
   redo,
 } from "../Manager";
+import { openWorkspace, closeWorkspace, isInWorkspace } from "../Workspace";
 import { topLayer } from "../Globals";
 
 // 菜单项接口
@@ -57,6 +58,18 @@ const menuStructure: MenuCategory[] = [
         action: () => saveFileAs(),
       },
       { id: "divider1", label: "", divider: true, action: () => {} },
+      {
+        id: "openWorkspace",
+        label: "打开工作区",
+        shortcut: "Ctrl+K",
+        action: () => openWorkspace(),
+      },
+      {
+        id: "closeWorkspace",
+        label: "关闭工作区",
+        action: () => closeWorkspace(),
+      },
+      { id: "divider2", label: "", divider: true, action: () => {} },
       {
         id: "settings",
         label: "设置",

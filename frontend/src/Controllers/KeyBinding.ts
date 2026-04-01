@@ -226,6 +226,10 @@ const registerBuiltinActions = () => {
   actionHandlers.set("keyboard.newFile", () => {
     import("../Manager").then(({ newFile }) => newFile());
   });
+
+  actionHandlers.set("keyboard.openWorkspace", () => {
+    import("../Workspace").then(({ openWorkspace }) => openWorkspace());
+  });
 };
 
 const builtinActionIds = [
@@ -239,6 +243,7 @@ const builtinActionIds = [
   "keyboard.saveAs",
   "keyboard.load",
   "keyboard.newFile",
+  "keyboard.openWorkspace",
 ];
 
 // 注册内置设置项
@@ -350,6 +355,17 @@ registerSetting({
   value: "Cn",
   description: "新建文件",
   onChange: (v) => updateBinding("keyboard.newFile", v),
+});
+
+registerSetting({
+  id: "keyboard.openWorkspace",
+  category: "Keyboard",
+  title: "打开工作区",
+  type: "key",
+  defaultValue: "Ck",
+  value: "Ck",
+  description: "打开文件夹作为工作区",
+  onChange: (v) => updateBinding("keyboard.openWorkspace", v),
 });
 
 // 初始化默认绑定

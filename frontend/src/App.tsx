@@ -8,6 +8,7 @@ import "./TopLayer/TopMenuBar";
 import "./TopLayer/FileTabBar";
 import "./TopLayer/ArrowEndDefs";
 import "./TopLayer/SettingPanel";
+import "./TopLayer/WorkspaceSidebar";
 
 import "./Components/TextNode";
 import "./Components/FolderNode";

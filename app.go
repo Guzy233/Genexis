@@ -252,13 +252,13 @@ func (a *App) IsMaximized() bool {
 
 func (a *App) SaveFile(data string, defaultFilename string) (string, error) {
 	if defaultFilename == "" {
-		defaultFilename = "mindgraph.json"
+		defaultFilename = "untitled.exis"
 	}
 	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		Title:           "另存为",
 		DefaultFilename: defaultFilename,
 		Filters: []runtime.FileFilter{
-			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
+			{DisplayName: "Genexis Files (*.exis)", Pattern: "*.exis"},
 			{DisplayName: "All Files (*.*)", Pattern: "*.*"},
 		},
 	})
@@ -278,9 +278,9 @@ func (a *App) SaveFileDirect(data string, filePath string) error {
 
 func (a *App) LoadFile() (string, error) {
 	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "打开思维导图",
+		Title: "打开文件",
 		Filters: []runtime.FileFilter{
-			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
+			{DisplayName: "Genexis Files (*.exis)", Pattern: "*.exis"},
 			{DisplayName: "All Files (*.*)", Pattern: "*.*"},
 		},
 	})
@@ -303,4 +303,138 @@ func (a *App) OpenFolder() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "Select Folder",
 	})
+}
+
+// ==================== 工作区相关方法 ====================
+
+type FileEntry struct {
+	RelativePath string      `json:"path"`
+	Name         string      `json:"name"`
+	IsDirectory  bool        `json:"isDirectory"`
+	Children     []FileEntry `json:"children,omitempty"`
+}
+
+// ListDirectory 递归列出目录树，只返回 .exis 文件和子目录（排除 . 开头的文件/目录）
+func (a *App) ListDirectory(dirPath string) (string, error) {
+	entries, err := a.listDirRecursive(dirPath, "")
+	if err != nil {
+		return "", err
+	}
+	result, _ := json.Marshal(entries)
+	return string(result), nil
+}
+
+func (a *App) listDirRecursive(basePath string, relPath string) ([]FileEntry, error) {
+	fullPath := basePath
+	if relPath != "" {
+		fullPath = filepath.Join(basePath, relPath)
+	}
+
+	dirEntries, err := os.ReadDir(fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]FileEntry, 0)
+	for _, entry := range dirEntries {
+		name := entry.Name()
+		// 排除 . 开头的文件和目录
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		childRelPath := name
+		if relPath != "" {
+			childRelPath = filepath.Join(relPath, name)
+		}
+		// 统一使用正斜杠
+		childRelPath = filepath.ToSlash(childRelPath)
+
+		if entry.IsDir() {
+			children, err := a.listDirRecursive(basePath, childRelPath)
+			if err != nil {
+				continue
+			}
+			// 只包含有 .exis 文件的目录
+			if len(children) > 0 {
+				result = append(result, FileEntry{
+					RelativePath: childRelPath,
+					Name:         name,
+					IsDirectory:  true,
+					Children:     children,
+				})
+			}
+		} else if strings.HasSuffix(name, ".exis") {
+			result = append(result, FileEntry{
+				RelativePath: childRelPath,
+				Name:         name,
+				IsDirectory:  false,
+			})
+		}
+	}
+	return result, nil
+}
+
+// ReadWorkspaceConfig 读取工作区根目录下的 .exis-workspace.json
+func (a *App) ReadWorkspaceConfig(rootPath string) (string, error) {
+	configPath := filepath.Join(rootPath, ".exis-workspace.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "{}", nil
+		}
+		return "", err
+	}
+	return string(data), nil
+}
+
+// WriteWorkspaceConfig 写入工作区配置
+func (a *App) WriteWorkspaceConfig(rootPath string, jsonData string) error {
+	configPath := filepath.Join(rootPath, ".exis-workspace.json")
+	var prettyJSON bytes.Buffer
+	if err := json.Indent(&prettyJSON, []byte(jsonData), "", "  "); err != nil {
+		return err
+	}
+	return os.WriteFile(configPath, prettyJSON.Bytes(), 0644)
+}
+
+// LoadFileDirect 按路径直接加载文件（不弹对话框）
+func (a *App) LoadFileDirect(filePath string) (string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	type FileResult struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}
+	jsonResult, _ := json.Marshal(FileResult{Path: filePath, Content: string(data)})
+	return string(jsonResult), nil
+}
+
+// CreateDirectory 创建目录（含父目录）
+func (a *App) CreateDirectory(dirPath string) error {
+	return os.MkdirAll(dirPath, 0755)
+}
+
+// DeleteFile 删除文件
+func (a *App) DeleteFile(filePath string) error {
+	return os.Remove(filePath)
+}
+
+// RenamePath 重命名文件或目录
+func (a *App) RenamePath(oldPath string, newPath string) error {
+	return os.Rename(oldPath, newPath)
+}
+
+// FileExists 检查文件是否存在
+func (a *App) FileExists(filePath string) (bool, error) {
+	_, err := os.Stat(filePath)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }

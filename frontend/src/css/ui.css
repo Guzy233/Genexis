@@ -718,3 +718,196 @@
   }
 }
 
+/* --- Workspace Sidebar --- */
+.ws-sidebar {
+  position: fixed;
+  left: 10px;
+  top: 50px;
+  bottom: 60px;
+  width: 220px;
+  background: rgba(25, 25, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(12px);
+}
+
+.ws-sidebar-collapsed {
+  position: fixed;
+  left: 10px;
+  top: 50px;
+  z-index: 1000;
+  cursor: pointer;
+}
+
+.ws-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(25, 25, 30, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ws-expand-btn:hover {
+  background: rgba(45, 45, 55, 0.95);
+}
+
+.ws-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.ws-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-header-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.ws-header-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.ws-header-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ws-tree {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0;
+}
+
+.ws-tree-item {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  transition: background 0.1s;
+  padding-right: 8px;
+  user-select: none;
+}
+
+.ws-tree-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ws-tree-item.active {
+  background: rgba(99, 102, 241, 0.15);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.ws-tree-item.open {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ws-tree-arrow {
+  font-size: 10px;
+  width: 16px;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.ws-tree-file-icon {
+  font-size: 12px;
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.ws-tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-tree-children {
+  /* 子节点容器 */
+}
+
+.ws-rename-input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.5);
+  border-radius: 3px;
+  color: white;
+  font-size: 12px;
+  padding: 1px 4px;
+  width: 100%;
+  outline: none;
+}
+
+/* 右键菜单 */
+.ws-context-menu {
+  position: fixed;
+  background: rgba(30, 30, 35, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 140px;
+  z-index: 2000;
+  backdrop-filter: blur(12px);
+}
+
+.ws-context-item {
+  padding: 6px 14px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.ws-context-item:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: white;
+}
+
+.ws-context-item.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.ws-context-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 4px 0;
+}
+
+.ws-context-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1999;
+}
