@@ -666,19 +666,35 @@
 .file-tab-bar {
   position: fixed;
   left: 10px;
+  top: auto;
   bottom: 10px;
-  z-index: 1000;
+  height: auto;
+  width: 220px;
+  z-index: calc(var(--z-dropdown) + 2);
   pointer-events: none;
 }
 
 .file-tab-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: calc(100vh - 100px);
+  gap: 6px;
+  height: auto;
+  max-height: var(--left-tabs-height, calc(100vh - 100px));
   overflow-y: auto;
-  overflow-x: visible;
+  overflow-x: hidden;
   pointer-events: auto;
+  scrollbar-gutter: stable;
+}
+
+.file-tab-list.single-tab {
+  overflow-y: hidden;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.file-tab-list.single-tab::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .file-tab {
@@ -686,20 +702,96 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-width: 150px;
-  max-width: 200px;
-  height: 32px;
-  padding: 0 10px;
-  background: rgba(30, 30, 35, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
+  width: 220px;
+  box-sizing: border-box;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px 0 12px;
+  background: rgba(25, 25, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.file-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .file-tab.active {
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(99, 102, 241, 0.16);
   border-color: rgba(99, 102, 241, 0.5);
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.file-tab-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.modified-indicator {
+  margin-left: 4px;
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.file-tab-close {
+  margin-left: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.file-tab-close.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.file-tab-close:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.file-tab-list::-webkit-scrollbar,
+.ws-tree::-webkit-scrollbar {
+  width: 8px;
+}
+
+.file-tab-list::-webkit-scrollbar-track,
+.ws-tree::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-tab-list::-webkit-scrollbar-thumb,
+.ws-tree::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.file-tab-list::-webkit-scrollbar-thumb:hover,
+.ws-tree::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+  background-clip: padding-box;
 }
 
 /* --- Responsive Adapters --- */
@@ -722,23 +814,26 @@
 .ws-sidebar {
   position: fixed;
   left: 10px;
-  top: 50px;
-  bottom: 60px;
+  top: var(--left-stack-top, 50px);
   width: 220px;
+  height: var(--left-sidebar-height, calc(100vh - 110px));
+  max-height: calc(100vh - 60px);
   background: rgba(25, 25, 30, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  z-index: 1000;
+  z-index: calc(var(--z-dropdown) + 2);
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(12px);
+  overflow: visible;
 }
 
 .ws-sidebar-collapsed {
   position: fixed;
   left: 10px;
-  top: 50px;
-  z-index: 1000;
+  top: var(--left-collapse-top, 80px);
+  transform: translateY(-50%);
+  z-index: calc(var(--z-dropdown) + 2);
   cursor: pointer;
 }
 
@@ -746,12 +841,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 12px;
+  height: 44px;
   background: rgba(25, 25, 30, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: 0 8px 8px 0;
+  font-size: 9px;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -780,7 +875,44 @@
 
 .ws-header-actions {
   display: flex;
+  align-items: center;
   gap: 2px;
+}
+
+.ws-collapse-edge {
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(25, 25, 30, 0.95);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.ws-collapse-edge:hover {
+  background: rgba(45, 45, 55, 0.95);
+}
+
+.ws-header-create-actions {
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+
+.ws-sidebar-header:hover .ws-header-create-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .ws-header-btn {
@@ -805,6 +937,7 @@
 
 .ws-tree {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 4px 0;
@@ -813,6 +946,7 @@
 .ws-tree-item {
   display: flex;
   align-items: center;
+  gap: 2px;
   height: 28px;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.65);
@@ -836,6 +970,10 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
+.ws-tree-item.selected {
+  background: rgba(99, 102, 241, 0.09);
+}
+
 .ws-tree-arrow {
   font-size: 10px;
   width: 16px;
@@ -850,9 +988,46 @@
 }
 
 .ws-tree-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ws-row-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+
+.ws-tree-item:hover .ws-row-actions,
+.ws-tree-item.selected .ws-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ws-row-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  height: 18px;
+  min-width: 20px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ws-row-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .ws-tree-children {
@@ -910,4 +1085,93 @@
   position: fixed;
   inset: 0;
   z-index: 1999;
+}
+
+/* --- Confirm Dialog --- */
+.confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-dialog {
+  width: min(420px, calc(100vw - 32px));
+  background: rgba(30, 30, 35, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  padding: 16px;
+}
+
+.confirm-dialog-title {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.confirm-dialog-message {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.confirm-dialog-check-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  user-select: none;
+}
+
+.confirm-dialog-check-row input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+}
+
+.confirm-dialog-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirm-dialog-btn {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.confirm-dialog-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.confirm-dialog-btn.primary {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.confirm-dialog-btn.primary:hover {
+  background: rgba(99, 102, 241, 0.45);
+}
+
+.confirm-dialog-btn.primary.danger {
+  background: rgba(239, 68, 68, 0.28);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.confirm-dialog-btn.primary.danger:hover {
+  background: rgba(239, 68, 68, 0.42);
 }

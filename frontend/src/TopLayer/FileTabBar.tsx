@@ -49,7 +49,10 @@ topLayer.push(() => {
 
   return (
     <div className="file-tab-bar">
-      <div className="file-tab-list" onWheel={handleWheel}>
+      <div
+        className={`file-tab-list ${tabs.length <= 1 ? "single-tab" : ""}`}
+        onWheel={handleWheel}
+      >
         {tabs.map((tab, index) => (
           <div
             key={tab.id}

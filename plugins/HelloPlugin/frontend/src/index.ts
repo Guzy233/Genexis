@@ -1,5 +1,5 @@
 import { onSetup } from "@SDK/Globals";
-import { registerKeyAction } from "@SDK/Controllers/Keyboard";
+import { registerKeyAction } from "@SDK/Controllers/KeyBinding";
 import { objects } from "@SDK/Manager";
 
 console.log("[HelloPlugin] 脚本开始解析...");

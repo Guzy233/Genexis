@@ -80,6 +80,9 @@ export const viewport2Screen = (point: {
 
 // 开始拖动视角
 const onMouseDown = (e: MouseEvent): boolean => {
+  // 只有在画布上才能平移
+  if (svgCanvas && !svgCanvas.contains(e.target as Node)) return false;
+
   // 点击到节点时不移动视角
   if (idFromEvent(e, ".node-group")) return false;
 
@@ -211,6 +214,7 @@ const onWheel = (e: WheelEvent) => {
 };
 
 const container = document.querySelector(".canvas-container") as HTMLElement;
+let svgCanvas: SVGSVGElement | null = null;
 let canvas: SVGGElement | null = null;
 
 function updateViewport() {
@@ -250,6 +254,7 @@ function updateViewport() {
 }
 
 onSetup((_canvas: SVGSVGElement) => {
+  svgCanvas = _canvas;
   _canvas.addEventListener("wheel", onWheel, { passive: false });
   return () => {
     _canvas.removeEventListener("wheel", onWheel);

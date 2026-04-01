@@ -8,11 +8,13 @@ import "./TopLayer/TopMenuBar";
 import "./TopLayer/FileTabBar";
 import "./TopLayer/ArrowEndDefs";
 import "./TopLayer/SettingPanel";
+import "./TopLayer/ConfirmDialog";
 import "./TopLayer/WorkspaceSidebar";
 
 import "./Components/TextNode";
 import "./Components/FolderNode";
 import "./Components/ImageNode";
+import "./Components/FileLinkNode";
 import "./Components/CurveEdge";
 import "./Components/LineEdge";
 import "./Components/UndefinedNode";

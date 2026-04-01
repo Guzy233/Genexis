@@ -232,7 +232,10 @@ export const switchTab = (tab: FileTab) => {
   // 切换到目标标签
   activeTab = tab;
 
-  // 恢复目标标签的 objects
+  // 恢复目标标签的 objects（先清空，避免残留旧标签对象）
+  Object.keys(objects).forEach((key) => {
+    delete objects[key];
+  });
   Object.assign(objects, tab.objects);
 
   updateCanvas();
@@ -260,11 +263,17 @@ export const closeTab = async (tab: FileTab) => {
       switchTab(tab);
     }
 
-    // 弹出确认对话框
-    const message = `文件 "${tab.fileName}" 有未保存的更改。\n\n点击"确定"保存后关闭，点击"取消"放弃更改并关闭。`;
-    const result = confirm(message);
+    // 弹出统一风格确认对话框
+    const { showConfirmDialog } = await import("./TopLayer/ConfirmDialog");
+    const shouldSave = await showConfirmDialog({
+      title: "关闭未保存文件",
+      message: `文件 "${tab.fileName}" 有未保存的更改。\n选择“保存并关闭”将先保存，选择“直接关闭”将丢弃更改。`,
+      confirmText: "保存并关闭",
+      cancelText: "直接关闭",
+      danger: true,
+    });
 
-    if (result) {
+    if (shouldSave) {
       // 用户选择保存
       const saved = await saveFile(false);
       if (!saved) {

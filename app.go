@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"sync"
 
@@ -355,15 +356,13 @@ func (a *App) listDirRecursive(basePath string, relPath string) ([]FileEntry, er
 			if err != nil {
 				continue
 			}
-			// 只包含有 .exis 文件的目录
-			if len(children) > 0 {
-				result = append(result, FileEntry{
-					RelativePath: childRelPath,
-					Name:         name,
-					IsDirectory:  true,
-					Children:     children,
-				})
-			}
+			// 始终包含目录，确保子文件夹可见（即使当前层没有 .exis 文件）
+			result = append(result, FileEntry{
+				RelativePath: childRelPath,
+				Name:         name,
+				IsDirectory:  true,
+				Children:     children,
+			})
 		} else if strings.HasSuffix(name, ".exis") {
 			result = append(result, FileEntry{
 				RelativePath: childRelPath,
@@ -417,9 +416,54 @@ func (a *App) CreateDirectory(dirPath string) error {
 	return os.MkdirAll(dirPath, 0755)
 }
 
-// DeleteFile 删除文件
+// DeleteFile 删除文件或目录（目录递归删除）
 func (a *App) DeleteFile(filePath string) error {
-	return os.Remove(filePath)
+	return os.RemoveAll(filePath)
+}
+
+// MoveToTrash 将文件或目录移动到系统回收站（当前实现 Windows）
+func (a *App) MoveToTrash(filePath string) error {
+	if filePath == "" {
+		return os.ErrInvalid
+	}
+	switch goruntime.GOOS {
+	case "windows":
+		script := `$ErrorActionPreference = 'Stop'
+$target = $args[0]
+if (-not (Test-Path -LiteralPath $target)) { throw "Path not found: $target" }
+Add-Type -AssemblyName Microsoft.VisualBasic
+$item = Get-Item -LiteralPath $target -Force
+if ($item.PSIsContainer) {
+  [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory(
+    $target,
+    [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,
+    [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin
+  )
+} else {
+  [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(
+    $target,
+    [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,
+    [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin
+  )
+}`
+
+		var errs []string
+		commands := [][]string{
+			{"pwsh", "-NoProfile", "-NonInteractive", "-Command", script, filePath},
+			{"powershell", "-NoProfile", "-NonInteractive", "-Command", script, filePath},
+		}
+		for _, args := range commands {
+			cmd := exec.Command(args[0], args[1:]...)
+			if output, err := cmd.CombinedOutput(); err == nil {
+				return nil
+			} else {
+				errs = append(errs, fmt.Sprintf("%s: %v (%s)", args[0], err, strings.TrimSpace(string(output))))
+			}
+		}
+		return fmt.Errorf("move to trash failed: %s", strings.Join(errs, " | "))
+	default:
+		return fmt.Errorf("move to trash is not supported on %s", goruntime.GOOS)
+	}
 }
 
 // RenamePath 重命名文件或目录

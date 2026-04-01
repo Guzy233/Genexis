@@ -7,6 +7,7 @@ import {
   WriteWorkspaceConfig,
   CreateDirectory,
   DeleteFile,
+  MoveToTrash,
   RenamePath,
   FileExists,
 } from "../wailsjs/go/main/App";
@@ -15,6 +16,8 @@ import {
   getActiveTab,
   getAllTabs,
   switchTab,
+  closeTab,
+  getFilenameFromPath,
   setWorkspaceRoot,
 } from "./Manager";
 
@@ -50,6 +53,8 @@ export interface Workspace {
   config: WorkspaceConfig;
 }
 
+export type DeleteMode = "trash" | "permanent";
+
 // ==================== 模块状态 ====================
 
 let workspace: Workspace | null = null;
@@ -68,6 +73,28 @@ const updateFileTreeUI = () => {
 
 const normalizeFileTree = (raw: unknown): FileEntry[] => {
   return Array.isArray(raw) ? (raw as FileEntry[]) : [];
+};
+
+const withTimeout = async <T>(
+  task: Promise<T>,
+  timeoutMs: number,
+  fallback: T,
+  label: string
+): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      task,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => {
+          console.warn(`[workspace] ${label} timeout after ${timeoutMs}ms`);
+          resolve(fallback);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 };
 
 // ==================== 钩子系统 ====================
@@ -105,6 +132,40 @@ export const resolveRelativePath = (absolutePath: string): string | null => {
   return null;
 };
 
+const getTabsInPathScope = (relativePath: string) => {
+  const prefix = relativePath + "/";
+  return getAllTabs().filter((tab) => {
+    const rel = tab.workspaceRelativePath;
+    return !!rel && (rel === relativePath || rel.startsWith(prefix));
+  });
+};
+
+const getUniqueRelativePath = async (
+  requestedPath: string
+): Promise<string> => {
+  const normalize = requestedPath.replace(/\\/g, "/");
+  const parts = normalize.split("/");
+  const rawName = parts.pop() || "untitled.exis";
+  const parent = parts.join("/");
+
+  const dot = rawName.lastIndexOf(".");
+  const hasExt = dot > 0;
+  const base = hasExt ? rawName.slice(0, dot) : rawName;
+  const ext = hasExt ? rawName.slice(dot) : "";
+
+  let candidate = normalize;
+  let index = 1;
+
+  while (true) {
+    const abs = resolveAbsolutePath(candidate);
+    const exists = await FileExists(abs);
+    if (!exists) return candidate;
+    const nextName = `${base}-${index}${ext}`;
+    candidate = parent ? `${parent}/${nextName}` : nextName;
+    index++;
+  }
+};
+
 // ==================== 核心操作 ====================
 
 export const openWorkspace = async (): Promise<boolean> => {
@@ -113,11 +174,17 @@ export const openWorkspace = async (): Promise<boolean> => {
     if (!rootPath) return false;
 
     if (workspace) {
-      await closeWorkspace();
+      const closed = await closeWorkspace();
+      if (!closed) return false;
     }
 
     // 读取工作区配置
-    const configStr = await ReadWorkspaceConfig(rootPath);
+    const configStr = await withTimeout(
+      ReadWorkspaceConfig(rootPath),
+      5000,
+      "{}",
+      "ReadWorkspaceConfig"
+    );
     let config: WorkspaceConfig;
     try {
       config = JSON.parse(configStr);
@@ -135,7 +202,12 @@ export const openWorkspace = async (): Promise<boolean> => {
     }
 
     // 读取文件树
-    const treeStr = await ListDirectory(rootPath);
+    const treeStr = await withTimeout(
+      ListDirectory(rootPath),
+      5000,
+      "[]",
+      "ListDirectory"
+    );
     try {
       fileTree = normalizeFileTree(JSON.parse(treeStr));
     } catch {
@@ -150,7 +222,12 @@ export const openWorkspace = async (): Promise<boolean> => {
     // 恢复之前打开的文件
     for (const relPath of config.openFiles) {
       const absPath = resolveAbsolutePath(relPath);
-      const exists = await FileExists(absPath);
+      const exists = await withTimeout(
+        FileExists(absPath),
+        1500,
+        false,
+        `FileExists(${relPath})`
+      );
       if (exists) {
         await loadFileDirect(absPath);
       }
@@ -178,13 +255,25 @@ export const openWorkspace = async (): Promise<boolean> => {
 export const closeWorkspace = async (): Promise<boolean> => {
   if (!workspace) return false;
 
-  await saveWorkspaceConfig();
+  const workspaceTabs = getAllTabs().filter((tab) => !!tab.workspaceRelativePath);
+  if (workspaceTabs.length > 0) {
+    const { showConfirmDialog } = await import("./TopLayer/ConfirmDialog");
+    const confirmed = await showConfirmDialog({
+      title: "关闭工作区",
+      message: `将关闭当前工作区，并关闭其中已打开的 ${workspaceTabs.length} 个文件标签。`,
+      confirmText: "关闭工作区",
+      cancelText: "取消",
+      danger: true,
+    });
+    if (!confirmed) return false;
+  }
 
-  // 清理现有标签上的工作区标记，避免污染后续工作区
-  const tabs = getAllTabs();
-  tabs.forEach((tab) => {
-    tab.workspaceRelativePath = null;
-  });
+  for (const tab of workspaceTabs) {
+    const closed = await closeTab(tab);
+    if (!closed) return false;
+  }
+
+  await saveWorkspaceConfig();
 
   workspace = null;
   fileTree = [];
@@ -244,6 +333,8 @@ export const createFileInWorkspace = async (
   try {
     // 创建空画布文件
     const emptyCanvas = JSON.stringify({ version: 2, objects: [] }, null, 2);
+    const exists = await FileExists(absPath);
+    if (exists) return false;
     const { SaveFileDirect } = await import("../wailsjs/go/main/App");
     await SaveFileDirect(emptyCanvas, absPath);
     await refreshFileTree();
@@ -254,6 +345,17 @@ export const createFileInWorkspace = async (
   }
 };
 
+export const createUniqueFileInWorkspace = async (
+  directoryPath: string,
+  baseName: string = "untitled.exis"
+): Promise<string | null> => {
+  if (!workspace) return null;
+  const requested = directoryPath ? `${directoryPath}/${baseName}` : baseName;
+  const uniquePath = await getUniqueRelativePath(requested);
+  const created = await createFileInWorkspace(uniquePath);
+  return created ? uniquePath : null;
+};
+
 export const createFolderInWorkspace = async (
   relativePath: string
 ): Promise<boolean> => {
@@ -261,6 +363,8 @@ export const createFolderInWorkspace = async (
   const absPath = resolveAbsolutePath(relativePath);
 
   try {
+    const exists = await FileExists(absPath);
+    if (exists) return false;
     await CreateDirectory(absPath);
     await refreshFileTree();
     return true;
@@ -270,22 +374,48 @@ export const createFolderInWorkspace = async (
   }
 };
 
+export const createUniqueFolderInWorkspace = async (
+  directoryPath: string,
+  baseName: string = "new-folder"
+): Promise<string | null> => {
+  if (!workspace) return null;
+  const requested = directoryPath ? `${directoryPath}/${baseName}` : baseName;
+  const uniquePath = await getUniqueRelativePath(requested);
+  const created = await createFolderInWorkspace(uniquePath);
+  return created ? uniquePath : null;
+};
+
 export const deleteFileInWorkspace = async (
-  relativePath: string
+  relativePath: string,
+  mode: DeleteMode = "permanent"
 ): Promise<boolean> => {
   if (!workspace) return false;
   const absPath = resolveAbsolutePath(relativePath);
 
   try {
-    await DeleteFile(absPath);
-    // 从 openFiles 中移除
-    workspace.config.openFiles = workspace.config.openFiles.filter(
-      (f) => f !== relativePath
-    );
-    if (workspace.config.activeFile === relativePath) {
-      workspace.config.activeFile =
-        workspace.config.openFiles[0] || null;
+    const tabsToClose = getTabsInPathScope(relativePath);
+    for (const tab of tabsToClose) {
+      const closed = await closeTab(tab);
+      if (!closed) return false;
     }
+
+    if (mode === "trash") {
+      await MoveToTrash(absPath);
+    } else {
+      await DeleteFile(absPath);
+    }
+    // 从 openFiles 中移除
+    const prefix = relativePath + "/";
+    workspace.config.openFiles = workspace.config.openFiles.filter(
+      (f) => f !== relativePath && !f.startsWith(prefix)
+    );
+    if (
+      workspace.config.activeFile === relativePath ||
+      workspace.config.activeFile?.startsWith(prefix)
+    ) {
+      workspace.config.activeFile = workspace.config.openFiles[0] || null;
+    }
+    updateWorkspaceUI();
     await saveWorkspaceConfig();
     await refreshFileTree();
     return true;
@@ -304,6 +434,10 @@ export const renameInWorkspace = async (
   const newAbs = resolveAbsolutePath(newRelativePath);
 
   try {
+    if (oldRelativePath === newRelativePath) return true;
+    const targetExists = await FileExists(newAbs);
+    if (targetExists) return false;
+
     await RenamePath(oldAbs, newAbs);
     // 更新 openFiles / activeFile 中的引用（兼容目录重命名）
     const prefix = oldRelativePath + "/";
@@ -326,11 +460,17 @@ export const renameInWorkspace = async (
       if (!rel) return;
       if (rel === oldRelativePath) {
         tab.workspaceRelativePath = newRelativePath;
+        tab.filePath = resolveAbsolutePath(newRelativePath);
+        tab.fileName = getFilenameFromPath(resolveAbsolutePath(newRelativePath));
       } else if (rel.startsWith(prefix)) {
-        tab.workspaceRelativePath = newRelativePath + rel.substring(oldRelativePath.length);
+        const nextRel = newRelativePath + rel.substring(oldRelativePath.length);
+        tab.workspaceRelativePath = nextRel;
+        tab.filePath = resolveAbsolutePath(nextRel);
+        tab.fileName = getFilenameFromPath(resolveAbsolutePath(nextRel));
       }
     });
 
+    updateWorkspaceUI();
     await saveWorkspaceConfig();
     await refreshFileTree();
     return true;
