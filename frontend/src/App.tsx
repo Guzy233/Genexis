@@ -21,7 +21,7 @@ import "./UIs/ContextMenu";
 import "./UIs/DeletionTrail";
 
 import "./Controllers/Clipboard";
-import "./Controllers/Keyboard";
+import "./Controllers/KeyBinding";
 import "./Controllers/Creator";
 import "./Controllers/ContextMenu";
 import "./Controllers/Linker";

@@ -126,8 +126,8 @@ registerMouseAction({
     category: "Camera",
     title: "拖动视角",
     type: "mousekey",
-    defaultValue: 0,
-    value: 0,
+    defaultValue: "M0",
+    value: "M0",
     description: "鼠标按键拖动视角，默认为左键",
   },
 });

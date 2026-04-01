@@ -132,8 +132,8 @@ registerMouseAction({
     category: "Dragger",
     title: "拖动节点",
     type: "mousekey",
-    defaultValue: 0,
-    value: 0,
+    defaultValue: "M0",
+    value: "M0",
     description: "鼠标按键拖动节点，默认为左键",
   },
 });

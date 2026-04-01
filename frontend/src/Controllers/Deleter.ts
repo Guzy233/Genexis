@@ -3,7 +3,8 @@ import { Obj, Vec2 } from "../Globals";
 import { screen2Viewport } from "./Camera";
 import { atom } from "jotai";
 import { saveHistory } from "../Manager";
-import { registerMouseAction } from "./KeyBinding";
+import { registerMouseAction, registerKeyAction } from "./KeyBinding";
+import { active } from "./Selector";
 
 // 删除轨迹接口
 interface DeletionTrail extends Obj {
@@ -85,8 +86,31 @@ registerMouseAction({
     category: "Deleter",
     title: "删除模式",
     type: "mousekey",
-    defaultValue: 2,
-    value: 2,
+    defaultValue: "M2",
+    value: "M2",
     description: "鼠标按键进入删除模式，默认为右键",
+  },
+});
+
+registerKeyAction({
+  action: "keyboard.delete",
+  handler: () => {
+    active("");
+    const selectedIds = Object.values(objects)
+      .filter((obj) => "selected" in obj && (obj as { selected?: boolean }).selected)
+      .map((obj) => obj.id);
+
+    if (selectedIds.length === 0) return;
+    selectedIds.forEach((id) => managerDeleteIdWithEdges(id));
+    saveHistory();
+  },
+  settings: {
+    id: "keyboard.delete",
+    category: "Keyboard",
+    title: "删除",
+    type: "key",
+    defaultValue: "Delete",
+    value: "Delete",
+    description: "删除选中的节点",
   },
 });

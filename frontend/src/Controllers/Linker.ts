@@ -166,8 +166,8 @@ registerMouseAction({
     category: "Linker",
     title: "开始连接",
     type: "mousekey",
-    defaultValue: 2,
-    value: 2,
+    defaultValue: "M2",
+    value: "M2",
     description: "按下此键（鼠标按键）开始从节点拉出连接线",
   },
 });

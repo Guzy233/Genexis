@@ -1,7 +1,6 @@
 import { onSetup } from "../Globals";
 import { registerSetting, getSetting, SettingItem } from "../Option";
-import { objects, saveHistory, undo, redo, managerDeleteIdWithEdges, managerUpdate } from "../Manager";
-import { active } from "./Selector";
+import { objects, undo, redo, managerUpdate } from "../Manager";
 
 // 动作 ID 类型
 export type ActionId = string;
@@ -59,34 +58,48 @@ export function registerMouseAction(registration: MouseActionRegistration): void
 
 // ==================== 鼠标绑定映射 ====================
 
-const mouseMap = new Map<string, string>();
+const mouseMap = new Map<string, string[]>();
 const actionToMouseBinding = new Map<string, string>();
 
 function updateMouseBinding(action: string, binding: number | string): void {
   const oldBinding = actionToMouseBinding.get(action);
-  if (oldBinding) mouseMap.delete(oldBinding);
+  if (oldBinding) {
+    const list = mouseMap.get(oldBinding);
+    if (list) {
+      const idx = list.indexOf(action);
+      if (idx >= 0) list.splice(idx, 1);
+      if (list.length === 0) mouseMap.delete(oldBinding);
+    }
+  }
 
   const bindingStr = String(binding);
-  mouseMap.set(bindingStr, action);
+  let list = mouseMap.get(bindingStr);
+  if (!list) {
+    list = [];
+    mouseMap.set(bindingStr, list);
+  }
+  if (!list.includes(action)) list.push(action);
   actionToMouseBinding.set(action, bindingStr);
 }
 
-// 从鼠标事件构建查询字符串：修饰键 + 按键编号（如 "0" = 左键, "C1" = Ctrl+中键）
+// 从鼠标事件构建查询字符串：修饰键 + M + 按键编号（与 SettingPanel 格式一致，如 "M0" = 左键, "CM2" = Ctrl+右键）
 function buildMouseQuery(e: MouseEvent): string {
   const modifiers =
     (e.ctrlKey ? "C" : "") +
     (e.altKey ? "A" : "") +
     (e.shiftKey ? "S" : "");
-  return modifiers + e.button;
+  return modifiers + "M" + e.button;
 }
 
 // 集中分发画布 mousedown 事件
 const onCanvasMouseDown = (e: MouseEvent): void => {
   const query = buildMouseQuery(e);
-  const action = mouseMap.get(query);
-  if (action) {
-    const handler = mouseHandlers.get(action);
-    if (handler) handler(e);
+  const actions = mouseMap.get(query);
+  if (actions) {
+    for (const action of actions) {
+      const handler = mouseHandlers.get(action);
+      if (handler) handler(e);
+    }
   }
 };
 
@@ -163,18 +176,6 @@ const onKeyPress = (_e: KeyboardEvent): void => {
 // ==================== 内置动作处理器注册 ====================
 
 const registerBuiltinActions = () => {
-  actionHandlers.set("keyboard.delete", () => {
-    active("");
-    const objs = Object.values(objects);
-    const selectedIds = objs
-      .filter((obj) => "selected" in obj && (obj as { selected?: boolean }).selected)
-      .map((obj) => obj.id);
-
-    if (selectedIds.length === 0) return;
-    selectedIds.forEach((id) => managerDeleteIdWithEdges(id));
-    saveHistory();
-  });
-
   actionHandlers.set("keyboard.undo", () => undo());
   actionHandlers.set("keyboard.redo", () => redo());
 
@@ -228,7 +229,6 @@ const registerBuiltinActions = () => {
 };
 
 const builtinActionIds = [
-  "keyboard.delete",
   "keyboard.undo",
   "keyboard.redo",
   "keyboard.selectAll",
@@ -242,17 +242,6 @@ const builtinActionIds = [
 ];
 
 // 注册内置设置项
-registerSetting({
-  id: "keyboard.delete",
-  category: "Keyboard",
-  title: "删除",
-  type: "key",
-  defaultValue: "Delete",
-  value: "Delete",
-  description: "删除选中的节点",
-  onChange: (v) => updateBinding("keyboard.delete", v),
-});
-
 registerSetting({
   id: "keyboard.undo",
   category: "Keyboard",

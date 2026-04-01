@@ -245,8 +245,8 @@ registerMouseAction({
     category: "Selector",
     title: "选择节点",
     type: "mousekey",
-    defaultValue: 0,
-    value: 0,
+    defaultValue: "M0",
+    value: "M0",
     description: "点击节点或空白区域，默认为左键",
   },
 });
@@ -259,8 +259,8 @@ registerMouseAction({
     category: "Selector",
     title: "扩展选择节点",
     type: "mousekey",
-    defaultValue: "S0",
-    value: "S0",
+    defaultValue: "SM0",
+    value: "SM0",
     description: "扩展模式下点击节点，默认为 Shift+左键",
   },
 });
@@ -273,8 +273,8 @@ registerMouseAction({
     category: "Selector",
     title: "框选",
     type: "mousekey",
-    defaultValue: 1,
-    value: 1,
+    defaultValue: "M1",
+    value: "M1",
     description: "框选区域内的节点，默认为中键",
   },
 });
@@ -287,8 +287,8 @@ registerMouseAction({
     category: "Selector",
     title: "扩展框选",
     type: "mousekey",
-    defaultValue: "S1",
-    value: "S1",
+    defaultValue: "SM1",
+    value: "SM1",
     description: "扩展模式下框选，默认为 Shift+中键",
   },
 });
