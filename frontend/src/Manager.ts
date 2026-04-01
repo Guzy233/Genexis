@@ -42,6 +42,7 @@ const MAX_HISTORY = 50;
 interface FileHistory {
   history: SerializedCanvas[];
   currentIndex: number;
+  savedIndex: number;
 }
 
 // 打开的文件标签信息
@@ -106,6 +107,7 @@ export const registerOnTabCreated = (hook: FileHook) => {
 const createNewHistory = (): FileHistory => ({
   history: [],
   currentIndex: -1,
+  savedIndex: -1,
 });
 
 // 获取当前激活的标签
@@ -115,9 +117,13 @@ export const getActiveTab = () => activeTab;
 export const getAllTabs = () => [...openTabs];
 
 // 标记当前文件为已修改
-const markAsModified = () => {
-  if (activeTab && !activeTab.isModified) {
-    activeTab.isModified = true;
+const syncModifiedState = (tab: FileTab) => {
+  const nextModified =
+    tab.history.currentIndex !== -1 &&
+    tab.history.currentIndex !== tab.history.savedIndex;
+
+  if (tab.isModified !== nextModified) {
+    tab.isModified = nextModified;
     updateTabs();
   }
 };
@@ -143,7 +149,12 @@ export const saveHistory = (): void => {
   if (history.length > MAX_HISTORY) {
     history.shift();
     activeTab.history.currentIndex--;
+    if (activeTab.history.savedIndex >= 0) {
+      activeTab.history.savedIndex--;
+    }
   }
+
+  syncModifiedState(activeTab);
 };
 
 // 从历史恢复状态
@@ -160,6 +171,7 @@ const restoreHistory = (tab: FileTab, index: number): boolean => {
   // 从历史恢复
   deserializeCanvas(tab.history.history[index], objects);
 
+  syncModifiedState(tab);
   updateCanvas();
   return true;
 };
@@ -168,22 +180,14 @@ const restoreHistory = (tab: FileTab, index: number): boolean => {
 export const undo = (): boolean => {
   if (!activeTab) return false;
 
-  const result = restoreHistory(activeTab, activeTab.history.currentIndex - 1);
-  if (result) {
-    markAsModified();
-  }
-  return result;
+  return restoreHistory(activeTab, activeTab.history.currentIndex - 1);
 };
 
 // 重做
 export const redo = (): boolean => {
   if (!activeTab) return false;
 
-  const result = restoreHistory(activeTab, activeTab.history.currentIndex + 1);
-  if (result) {
-    markAsModified();
-  }
-  return result;
+  return restoreHistory(activeTab, activeTab.history.currentIndex + 1);
 };
 
 // 是否有撤销历史
@@ -302,6 +306,8 @@ export const createNewTab = () => {
 
   // 初始化历史：保存空状态
   saveHistory();
+  newTab.history.savedIndex = newTab.history.currentIndex;
+  syncModifiedState(newTab);
 
   updateTabs();
   return newTab;
@@ -421,8 +427,8 @@ export const saveFile = async (saveAs: boolean = false): Promise<boolean> => {
   // 更新标签信息
   activeTab.filePath = savedPath;
   activeTab.fileName = getFilenameFromPath(savedPath);
-  activeTab.isModified = false;
-  updateTabs();
+  activeTab.history.savedIndex = activeTab.history.currentIndex;
+  syncModifiedState(activeTab);
 
   onFileSavedHooks.forEach(hook => {
     if (activeTab) hook(activeTab);
@@ -501,7 +507,10 @@ export const loadFile = async (): Promise<boolean> => {
     // 重置历史
     activeTab.history.history = [];
     activeTab.history.currentIndex = -1;
+    activeTab.history.savedIndex = -1;
     saveHistory();
+    activeTab.history.savedIndex = activeTab.history.currentIndex;
+    syncModifiedState(activeTab);
   } else {
     const newTab = createNewTab();
     newTab.filePath = filePath;
@@ -513,7 +522,10 @@ export const loadFile = async (): Promise<boolean> => {
     // 重置历史
     newTab.history.history = [];
     newTab.history.currentIndex = -1;
+    newTab.history.savedIndex = -1;
     saveHistory();
+    newTab.history.savedIndex = newTab.history.currentIndex;
+    syncModifiedState(newTab);
   }
 
   updateCanvas();
@@ -562,17 +574,14 @@ export const getCurrentFilePath = () => {
 export const managerAdd = (obj: Obj) => {
   objects[obj.id] = obj;
   updateCanvas();
-  markAsModified();
 };
 
 export const managerUpdateId = (id: string) => {
   store.set(objects[id].updater, state++);
-  markAsModified();
 };
 
 export const managerUpdate = (obj: Obj) => {
   store.set(obj.updater, state++);
-  markAsModified();
 };
 
 export const managerUpdateAtom = (atom: PrimitiveAtom<number>) => {
@@ -587,7 +596,6 @@ export const managerDeleteId = (id: string) => {
   }
   delete objects[id];
   updateCanvas();
-  markAsModified();
 };
 
 export const managerDeleteIdWithEdges = (id: string) => {
@@ -625,7 +633,6 @@ export const managerDeleteIdWithEdges = (id: string) => {
   // 删除对象本身
   delete objects[id];
   updateCanvas();
-  markAsModified();
 };
 
 export function clearTabs() {
