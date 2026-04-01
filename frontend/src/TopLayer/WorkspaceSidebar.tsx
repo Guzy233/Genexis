@@ -53,6 +53,7 @@ topLayer.push(() => {
   const [renaming, setRenaming] = React.useState<{
     path: string;
     name: string;
+    isDirectory: boolean;
   } | null>(null);
   const [renameInput, setRenameInput] = React.useState("");
   const [selectedPath, setSelectedPath] = React.useState<string | null>(null);
@@ -113,6 +114,17 @@ topLayer.push(() => {
 const getParentPath = (path: string): string => {
   const idx = path.lastIndexOf("/");
   return idx >= 0 ? path.slice(0, idx) : "";
+};
+
+const splitBaseAndExt = (fileName: string): { base: string; ext: string } => {
+  const dot = fileName.lastIndexOf(".");
+  if (dot <= 0) return { base: fileName, ext: "" };
+  return { base: fileName.slice(0, dot), ext: fileName.slice(dot) };
+};
+
+const getDisplayName = (entry: FileEntry): string => {
+  if (entry.isDirectory) return entry.name;
+  return splitBaseAndExt(entry.name).base;
 };
 
 const expandPathChain = (path: string) => {
@@ -232,8 +244,9 @@ const expandPathChain = (path: string) => {
     if (createdPath) {
       expandPathChain(getParentPath(createdPath));
       const name = createdPath.split("/").pop() || "untitled.exis";
-      setRenaming({ path: createdPath, name });
-      setRenameInput(name);
+      const { base } = splitBaseAndExt(name);
+      setRenaming({ path: createdPath, name, isDirectory: false });
+      setRenameInput(base);
       setSelectedPath(createdPath);
     }
     closeContextMenu();
@@ -245,7 +258,7 @@ const expandPathChain = (path: string) => {
     if (createdPath) {
       const name = createdPath.split("/").pop() || "new-folder";
       expandPathChain(getParentPath(createdPath));
-      setRenaming({ path: createdPath, name });
+      setRenaming({ path: createdPath, name, isDirectory: true });
       setRenameInput(name);
       setSelectedPath(createdPath);
     } else {
@@ -300,8 +313,8 @@ const expandPathChain = (path: string) => {
   };
 
   const startRename = (entry: FileEntry) => {
-    setRenaming({ path: entry.path, name: entry.name });
-    setRenameInput(entry.name);
+    setRenaming({ path: entry.path, name: entry.name, isDirectory: entry.isDirectory });
+    setRenameInput(entry.isDirectory ? entry.name : splitBaseAndExt(entry.name).base);
     setSelectedPath(entry.path);
     closeContextMenu();
   };
@@ -314,7 +327,17 @@ const expandPathChain = (path: string) => {
     }
     const oldPath = renaming.path;
     const parts = oldPath.split("/");
-    parts[parts.length - 1] = nextName;
+    if (renaming.isDirectory) {
+      parts[parts.length - 1] = nextName;
+    } else {
+      const { ext } = splitBaseAndExt(renaming.name);
+      let nextBase = nextName;
+      if (ext && nextBase.toLowerCase().endsWith(ext.toLowerCase())) {
+        nextBase = nextBase.slice(0, nextBase.length - ext.length).trim();
+      }
+      if (!nextBase) return;
+      parts[parts.length - 1] = `${nextBase}${ext}`;
+    }
     const newPath = parts.join("/");
     if (oldPath !== newPath) {
       const renamed = await renameInWorkspace(oldPath, newPath);
@@ -575,7 +598,7 @@ const expandPathChain = (path: string) => {
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="ws-tree-name">{entry.name}</span>
+            <span className="ws-tree-name">{getDisplayName(entry)}</span>
           )}
           {entry.isDirectory && !isRenaming && (
             <span className="ws-row-actions">

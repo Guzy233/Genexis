@@ -435,8 +435,6 @@ export const renameInWorkspace = async (
 
   try {
     if (oldRelativePath === newRelativePath) return true;
-    const targetExists = await FileExists(newAbs);
-    if (targetExists) return false;
 
     await RenamePath(oldAbs, newAbs);
     // 更新 openFiles / activeFile 中的引用（兼容目录重命名）
