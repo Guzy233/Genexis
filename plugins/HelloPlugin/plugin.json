@@ -2,7 +2,7 @@
   "id": "hello-plugin",
   "name": "Hello World 示例插件",
   "version": "1.0.0",
-  "author": "Antigravity",
+  "author": "Genexis",
   "frontend": {
     "entry": "plugins/HelloPlugin/dist/index.js"
   },

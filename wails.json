@@ -3,8 +3,8 @@
   "name": "Genexis",
   "outputfilename": "Genexis",
   "frontend:install": "pnpm install",
-  "frontend:build": "pnpm --filter frontend build",
-  "frontend:dev:watcher": "pnpm --filter frontend dev",
+  "frontend:build": "pnpm build",
+  "frontend:dev:watcher": "pnpm dev",
   "frontend:dev:serverUrl": "auto",
   "author": {
     "name": "Guzy",

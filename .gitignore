@@ -11,3 +11,4 @@ frontend/src/SDK
 
 !plugins/HelloPlugin
 plugins/HelloPlugin/dist
+plugins/HelloPlugin/dist_plugin
