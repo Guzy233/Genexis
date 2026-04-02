@@ -4,10 +4,10 @@ frontend/dist
 CLAUDE.md
 GEMINI.md
 wailsjs
-files
 plugins/*
 .vscode
 frontend/src/SDK
+*.exe
 
 !plugins/HelloPlugin
 plugins/HelloPlugin/dist
